@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package arke;
+
+/*
+ * Messages
+ */
+message ConnectionConfiguration {
+    string host = 1;
+    int32 port = 2;
+    string provider = 3;
+    string vhost = 4;
+    Credentials credentials = 5;
+    int32 prefetchCount = 6;
+}
+
+message Credentials {
+    string username = 1;
+    string password = 2;
+}
+
+message ConnectResponse {
+    bool success = 1;
+    Error error = 2;
+}
+
+message Message {
+    string uuid = 1;
+    map<string,string> headers = 2;
+    bytes body = 3;
+    Address address = 4;
+    bool persistent = 5;
+}
+
+message MessageResponse {
+    string uuid = 1;
+    bool success = 2;
+    Error error = 3;
+}
+
+message Address {
+    string name = 1;
+    string subject = 2;
+    enum TargetType {
+        QUEUE = 0;
+        TOPIC = 1;
+        FILTER = 2;
+    }
+    TargetType type = 3;
+    bool durable = 4;
+    bool auto_delete = 5;
+}
+
+message Source {
+    string name = 1;
+    Address address = 3;
+    bool durable = 4;
+    bool auto_delete = 5;
+    Filter filter = 6;
+    map<string,string> options = 7;
+}
+
+message Filter {
+    repeated Match matches = 1;
+    enum MatchType {
+        ALL = 0;
+        ANY = 1;
+    }
+    MatchType type = 2;
+}
+
+message Match {
+    string name = 1;
+    string value = 2;
+}
+
+message AddressResponse {
+    bool success = 1;
+    Error error = 2;
+}
+
+message AckResponse {
+    bool success = 1;
+    Error error = 2;
+}
+
+message NackResponse {
+    bool success = 1;
+    Error error = 2;
+}
+
+message Empty {}
+
+message Error {
+    string message = 1;
+    int64 code = 2;
+    bool isFatal = 3;
+}
+
+/*
+ * Producer
+ */
+service Producer {
+    rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
+    rpc SendMessage(arke.Message) returns (arke.MessageResponse) {}
+    rpc Disconnect(arke.Empty) returns (arke.Empty){}
+}
+
+/*
+ * Consumer
+ */
+service Consumer {
+    rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
+    rpc Subscribe(arke.Source) returns (stream arke.Message) {}
+    rpc AckMessage(arke.Message) returns (arke.AckResponse) {}
+    rpc NackMessage(arke.Message) returns (arke.NackResponse) {}
+    rpc Disconnect(arke.Empty) returns (arke.Empty){}
+}
