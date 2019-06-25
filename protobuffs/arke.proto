@@ -12,6 +12,7 @@ message ConnectionConfiguration {
     string vhost = 4;
     Credentials credentials = 5;
     int32 prefetchCount = 6;
+    bytes CACertificate = 7;
 }
 
 message Credentials {
@@ -30,6 +31,7 @@ message Message {
     bytes body = 3;
     Address address = 4;
     bool persistent = 5;
+    Error error = 6;
 }
 
 message MessageResponse {
