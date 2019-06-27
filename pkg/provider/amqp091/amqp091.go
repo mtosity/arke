@@ -169,10 +169,10 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration) *pb.Error {
 	var conn *amqp.Connection
 	var err error
-	if string(cf.GetCACertificate()) != "" {
+	if string(cf.GetCaCertificate()) != "" {
 		tlsConfig := new(tls.Config)
 		tlsConfig.RootCAs = x509.NewCertPool()
-		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCACertificate())
+		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
 		// FIXME: DO NOT DO THIS (cert in k8s deployment is not created with hostname I am using for testing)
 		tlsConfig.InsecureSkipVerify = true
 		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/", cf.GetCredentials().GetUsername(),

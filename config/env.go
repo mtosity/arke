@@ -43,7 +43,7 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 		Credentials:   creds,
 		Provider:      brokerType,
 		Vhost:         vhost,
-		CACertificate: caCertificate,
+		CaCertificate: caCertificate,
 	}
 	return connConf
 }

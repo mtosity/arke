@@ -19,8 +19,8 @@ message ConnectionConfiguration {
     string provider = 3; // Provider type, currently only ampq091.
     string vhost = 4; // Virtual Host name for this connection.
     Credentials credentials = 5; // Authentication credentials.
-    int32 prefetchCount = 6; // Consumer prefetch count.
-    bytes CACertificate = 7; // TLS Certificate authority for broker.
+    int32 prefetch_count = 6; // Consumer prefetch count.
+    bytes ca_certificate = 7; // TLS Certificate authority for broker.
 }
 
 /**
@@ -138,7 +138,7 @@ message Empty {}
 message Error {
     string message = 1; // The text error message.
     int32 code = 2; // The error code.
-    bool isFatal = 3; // Indicator that a fatal error has occured, and a reconnect is required on this connection.
+    bool is_fatal = 3; // Indicator that a fatal error has occured, and a reconnect is required on this connection.
 }
 
 /*

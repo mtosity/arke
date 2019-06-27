@@ -108,8 +108,8 @@ RabbitMQ and Kafka.
 | provider | [string](#string) |  | Provider type, currently only ampq091. |
 | vhost | [string](#string) |  | Virtual Host name for this connection. |
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
-| prefetchCount | [int32](#int32) |  | Consumer prefetch count. |
-| CACertificate | [bytes](#bytes) |  | TLS Certificate authority for broker. |
+| prefetch_count | [int32](#int32) |  | Consumer prefetch count. |
+| ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. |
 
 
 
@@ -152,7 +152,7 @@ Represents a generic error message.
 | ----- | ---- | ----- | ----------- |
 | message | [string](#string) |  | The text error message. |
 | code | [int32](#int32) |  | The error code. |
-| isFatal | [bool](#bool) |  | Indicator that a fatal error has occured, and a reconnect is required on this connection. |
+| is_fatal | [bool](#bool) |  | Indicator that a fatal error has occured, and a reconnect is required on this connection. |
 
 
 

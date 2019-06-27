@@ -96,7 +96,7 @@ func (s *consumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 
 func (s *producerServer) SendMessage(ctx context.Context, msg *pb.Message) (*pb.MessageResponse, error) {
 	success, errMsg := s.prov.Publish(&ctx, msg)
-	resp := &pb.MessageResponse{Success: success, Uuid: msg.GetUuid()}
+	resp := &pb.MessageResponse{Success: success}
 	var err error
 	if success != true {
 		resp.Error = errMsg
