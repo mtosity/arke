@@ -1,120 +1,172 @@
+/**
+ * Arke message broker proxy messages.
+ *
+ * This file outlines the gRPC interface for the Arke proxy.
+ */
 syntax = "proto3";
 
 package arke;
 
-/*
- * Messages
+/**
+ * Represents the broker connection information. This is passed
+ * in by the client allowing us to remain a proxy, but also
+ * allowing us to support multiple providers at once such as
+ * RabbitMQ and Kafka.
  */
 message ConnectionConfiguration {
-    string host = 1;
-    int32 port = 2;
-    string provider = 3;
-    string vhost = 4;
-    Credentials credentials = 5;
-    int32 prefetchCount = 6;
-    bytes CACertificate = 7;
+    string host = 1; // Broker hostname or IP address.
+    int32 port = 2; // Broker port.
+    string provider = 3; // Provider type, currently only ampq091.
+    string vhost = 4; // Virtual Host name for this connection.
+    Credentials credentials = 5; // Authentication credentials.
+    int32 prefetchCount = 6; // Consumer prefetch count.
+    bytes CACertificate = 7; // TLS Certificate authority for broker.
 }
 
+/**
+ * Represents the broker authentication information.
+ */
 message Credentials {
-    string username = 1;
-    string password = 2;
+    string username = 1; // Username for authenticating to broker.
+    string password = 2; // Password for authenticating to broker.
 }
 
+/**
+ * Represents the connection response
+ */
 message ConnectResponse {
-    bool success = 1;
-    Error error = 2;
+    bool success = 1; // Indicates whether the connection was successful.
+    Error error = 2; // Error if the connection failed.
 }
 
+/**
+ * Represents a message that is being produced or consumed. The
+ * error property is set by the proxy when an error occurs during
+ * the consumer process.
+ */
 message Message {
-    string uuid = 1;
-    map<string,string> headers = 2;
-    bytes body = 3;
-    Address address = 4;
-    bool persistent = 5;
-    Error error = 6;
+    string uuid = 1; // The proxy sets this UUID when the message is consumed. It should be returned when a message is Ack/Nack'ed.
+    map<string,string> headers = 2; // The message headers.
+    bytes body = 3; // The message body.
+    Address address = 4; // The distination for a published message.
+    bool persistent = 5; // Indicates whether to persist the message.
+    Error error = 6; // Error message if consuming failed.
 }
 
+/**
+ * Represents the response from publishing a message.
+ */
 message MessageResponse {
-    string uuid = 1;
-    bool success = 2;
-    Error error = 3;
+    bool success = 1; // Indicates whether the message was published successfully.
+    Error error = 2; // Error if publishing failed.
 }
 
+/**
+ * Represents the publishing destination for a message.
+ */
 message Address {
-    string name = 1;
-    string subject = 2;
+    string name = 1; // The name of this distination address.
+    string subject = 2; // The subject of the address.
     enum TargetType {
-        QUEUE = 0;
-        TOPIC = 1;
-        FILTER = 2;
+        QUEUE = 0; // The address is a message queue.
+        TOPIC = 1; // The address is a message topic.
+        FILTER = 2; // The address is a filtered queue.
     }
-    TargetType type = 3;
-    bool durable = 4;
-    bool auto_delete = 5;
+    TargetType type = 3; // Target type, default is QUEUE.
+    bool durable = 4; // Should the address be durable.
+    bool auto_delete = 5; // Should the address automatically delete.
 }
 
+/**
+ * Represents the source for consumer subscriptions.
+ */
 message Source {
-    string name = 1;
-    Address address = 3;
-    bool durable = 4;
-    bool auto_delete = 5;
-    Filter filter = 6;
-    map<string,string> options = 7;
+    string name = 1; // The name of this source.
+    Address address = 3; // The Address associated with this source.
+    bool durable = 4; // Should this Source be durable.
+    bool auto_delete = 5; // Should this Source automatically delete.
+    Filter filter = 6; // Filters for this Source.
+    map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
 }
 
+/**
+ * Represents a filter for Message.headers. The Filter will prevent a consumer
+ * from consuming all messages from a Source.
+ */
 message Filter {
-    repeated Match matches = 1;
+    repeated Match matches = 1; // One or more filter Matches.
     enum MatchType {
-        ALL = 0;
-        ANY = 1;
+        ALL = 0; // All matches must match for a successful filter.
+        ANY = 1; // Any match can match for a successful filter.
     }
-    MatchType type = 2;
+    MatchType type = 2; // The MatchType for this filter. Default is ALL.
 }
 
+/**
+ * Represents the key/value match for Message.headers. Currently only an
+ * exact match is supported.
+ */
 message Match {
-    string name = 1;
-    string value = 2;
+    string name = 1; // The Message.headers key
+    string value = 2; // The Message.headers value
 }
 
-message AddressResponse {
-    bool success = 1;
-    Error error = 2;
-}
-
+/**
+ * Represents the response from AckMessage.
+ */
 message AckResponse {
-    bool success = 1;
-    Error error = 2;
+    bool success = 1; // Indicates whether the Ack was successful.
+    Error error = 2; // Error if the Ack failed.
 }
 
+/**
+ * Represents the response from NackMessage.
+ */
 message NackResponse {
-    bool success = 1;
-    Error error = 2;
+    bool success = 1; // Indicates whether the Nack was successful.
+    Error error = 2; // Error if the Nack failed.
 }
 
+/**
+ * No parameters or return value.
+ */
 message Empty {}
 
+/**
+ * Represents a generic error message.
+ */
 message Error {
-    string message = 1;
-    int64 code = 2;
-    bool isFatal = 3;
+    string message = 1; // The text error message.
+    int32 code = 2; // The error code.
+    bool isFatal = 3; // Indicator that a fatal error has occured, and a reconnect is required on this connection.
 }
 
 /*
- * Producer
+ * Service for producing messages
  */
 service Producer {
+    // Connect to a message broker. Pass in a ConnectionConfiguration with broker
+    // specific connection information.
     rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
+    // Send a message to the message broker.
     rpc SendMessage(arke.Message) returns (arke.MessageResponse) {}
+    // Disconnect from the proxy and the message broker.
     rpc Disconnect(arke.Empty) returns (arke.Empty){}
 }
 
 /*
- * Consumer
+ * Service for consuming messages
  */
 service Consumer {
+    // Connect to a message broker. Pass in a ConnectionConfiguration with broker
+    // specific connection information.
     rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
+    // Subscribe to a message broker source and receive a stream of messages when they are available.
     rpc Subscribe(arke.Source) returns (stream arke.Message) {}
+    // Ack a received message.
     rpc AckMessage(arke.Message) returns (arke.AckResponse) {}
+    // Nack a received message.
     rpc NackMessage(arke.Message) returns (arke.NackResponse) {}
+    // Disconnect from the proxy and the message broker.
     rpc Disconnect(arke.Empty) returns (arke.Empty){}
 }

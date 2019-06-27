@@ -23,6 +23,7 @@ update: dep-version ## Updates the Gopkg.lock using dependencies specified in th
 
 generate: ## Generates protobufs
 	protoc --proto_path=api/protobuf-spec --go_out=plugins=grpc:api/ api/protobuf-spec/*.proto
+	protoc --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
 
 linux: setup generate ## Builds binary for linux_amd64 (lax)
 	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
