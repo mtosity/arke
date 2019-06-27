@@ -79,16 +79,19 @@ func (s *consumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	messageChannel := make(chan *pb.Message)
 	ctx := stream.Context()
 	forever := make(chan bool)
-	go func(chan<- *pb.Message) {
+	go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context) {
 
 		for {
-			message := <-messageChannel
+			message := <-mc
 			err := stream.Send(message)
 			if err != nil {
-				log.Printf(err.Error())
+				log.Printf("Could not send message: %s", err.Error())
+				// Could not send the message, so disconnect
+				prov.Disconnect(ctx)
+				break
 			}
 		}
-	}(messageChannel)
+	}(messageChannel, s.prov, &ctx)
 	s.prov.Subscribe(&ctx, source, messageChannel)
 	<-forever
 	return nil

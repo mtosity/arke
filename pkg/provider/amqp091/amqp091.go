@@ -43,9 +43,13 @@ type amqp091provider struct {
 func (bd *brokerDetails) disconnect() {
 	defer func() {
 		if err := recover(); err != nil {
+			log.Printf("recovered: %v", err)
+			return
 		}
 	}()
 	if bd.connection != nil && !bd.connection.IsClosed() {
+		log.Printf("Closing connection for %s", bd.clientUUID)
+		bd.channel.Close()
 		bd.connection.Close()
 	}
 }
