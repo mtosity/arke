@@ -1,8 +1,9 @@
 
 OUT_FILE=arke
 HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
+HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
 
-all: clean setup generate linux windows# osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
+all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
 
 clean: ## Deletes go build output, i18n resources and resource_windows.syso file
@@ -13,12 +14,20 @@ setup: ## Makes build directories and installs vendor dependencies
 	mkdir -p build/osx
 	mkdir -p build/windows
 
-generate: ## Generates protobufs
+generate: generate-proto generate-doc
+
+generate-proto: ## Generates protobufs
     ifneq ("$(HAVE_PROTOC)","")
 	protoc --proto_path=api/protobuf-spec --go_out=plugins=grpc:api/ api/protobuf-spec/*.proto
-	protoc --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
     else
         $(info No protoc command found, skipping generate task.)
+    endif
+
+generate-doc: ## Generates protobuf docs
+    ifneq ("$(HAVE_PROTOC_DOC)","")
+	protoc --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
+    else
+        $(info No protoc command found, skipping generate doc task.)
     endif
 
 linux: setup generate ## Builds binary for linux_amd64 (lax)
