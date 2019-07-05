@@ -177,19 +177,20 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 	if tenant == "" {
 		tenant = "/"
 	}
-
 	if string(cf.GetCaCertificate()) != "" {
 		tlsConfig := new(tls.Config)
 		tlsConfig.RootCAs = x509.NewCertPool()
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
 		// FIXME: DO NOT DO THIS (cert in k8s deployment is not created with hostname I am using for testing)
 		tlsConfig.InsecureSkipVerify = true
-		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d%s", cf.GetCredentials().GetUsername(),
+		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
 		conn, err = amqp.DialTLS(connStr, tlsConfig)
 	} else {
-		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d%s", cf.GetCredentials().GetUsername(),
+		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
 		conn, err = amqp.Dial(connStr)
 	}
 
