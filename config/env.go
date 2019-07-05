@@ -28,7 +28,7 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 	username := getenv("SAS_BROKER_USERNAME", "")
 	password := getenv("SAS_BROKER_PASSWORD", "")
 	brokerType := getenv("SAS_BROKER_TYPE", "amqp091")
-	vhost := getenv("SAS_BROKER_VHOST", "/")
+	tenant := getenv("SAS_BROKER_TENANT", "/")
 
 	caCertificate := []byte(getenv("SAS_BROKER_CA_CERTIFICATE", ""))
 
@@ -42,7 +42,7 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 		Port:          int32(port),
 		Credentials:   creds,
 		Provider:      brokerType,
-		Vhost:         vhost,
+		Tenant:        tenant,
 		CaCertificate: caCertificate,
 	}
 	return connConf

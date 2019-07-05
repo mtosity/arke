@@ -106,7 +106,7 @@ RabbitMQ and Kafka.
 | host | [string](#string) |  | Broker hostname or IP address. |
 | port | [int32](#int32) |  | Broker port. |
 | provider | [string](#string) |  | Provider type, currently only ampq091. |
-| vhost | [string](#string) |  | Virtual Host name for this connection. |
+| tenant | [string](#string) |  | Tenant name for this connection. Tenant is not required |
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
 | prefetch_count | [int32](#int32) |  | Consumer prefetch count. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. |
