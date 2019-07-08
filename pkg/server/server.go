@@ -82,6 +82,7 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	messageChannel := make(chan *pb.Message)
 	ctx := stream.Context()
 	forever := make(chan bool)
+	var returnError error
 	go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context) {
 
 		for {
@@ -91,13 +92,15 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 				log.Printf("Could not send message: %s", err.Error())
 				// Could not send the message, so disconnect
 				prov.Disconnect(ctx)
+				returnError = err
+				forever <- false
 				break
 			}
 		}
 	}(messageChannel, s.Provider, &ctx)
 	s.Provider.Subscribe(&ctx, source, messageChannel)
 	<-forever
-	return nil
+	return returnError
 }
 
 // SendMessage send a message to the server

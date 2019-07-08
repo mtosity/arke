@@ -65,7 +65,7 @@ Represents the publishing destination for a message.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| name | [string](#string) |  | The name of this distination address. |
+| name | [string](#string) |  | The name of this destination address. |
 | subject | [string](#string) |  | The subject of the address. |
 | type | [Address.TargetType](#arke.Address.TargetType) |  | Target type, default is QUEUE. |
 | durable | [bool](#bool) |  | Should the address be durable. |

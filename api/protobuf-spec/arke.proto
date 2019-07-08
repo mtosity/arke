@@ -65,7 +65,7 @@ message MessageResponse {
  * Represents the publishing destination for a message.
  */
 message Address {
-    string name = 1; // The name of this distination address.
+    string name = 1; // The name of this destination address.
     string subject = 2; // The subject of the address.
     enum TargetType {
         QUEUE = 0; // The address is a message queue.

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -16,9 +17,37 @@ import (
 	"sassoftware.io/convoy/arke/pkg/server"
 )
 
+type MockConsumerSubscribeServerStream struct {
+	mock.Mock
+	pb.Consumer_SubscribeServer
+}
+
+func NewMockConsumerSubscribeServerStream() pb.Consumer_SubscribeServer {
+	stream := &MockConsumerSubscribeServerStream{}
+	return stream
+}
+
+func (stream *MockConsumerSubscribeServerStream) Send(msg *pb.Message) error {
+	args := stream.Called(msg)
+	errArg := args.Get(0)
+	var err error
+	if errArg == nil {
+		err = nil
+	} else {
+		err = errArg.(error)
+	}
+	return err
+}
+
+func (stream *MockConsumerSubscribeServerStream) Context() context.Context {
+	ctx := context.Background()
+	return ctx
+}
+
 type MockProvider struct {
 	mock.Mock
 	provider.Provider
+	MockMessages []*pb.Message
 }
 
 type MockContext struct {
@@ -55,6 +84,11 @@ func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfigu
 
 // Subscribe subscribe to a stream of messages from the broker
 func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
+	// prov.MessageChannel
+	for _, msg := range prov.MockMessages {
+		messageChannel <- msg
+	}
+	close(messageChannel)
 	return &pb.Error{}
 }
 
@@ -286,11 +320,6 @@ func TestProducerServerSendMessage_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	mockp := &MockProvider{}
 	msg := &pb.Message{}
-	// old := server.GetClientUUID
-	// defer func() { server.GetClientUUID = old }()
-	// server.GetClientUUID = func(context.Context) (string, error) {
-	// 	return "123", nil
-	// }
 
 	mockp.On("Publish", mock.Anything, mock.Anything).Return(true, &pb.Error{})
 	srv := &server.ProducerServer{Provider: mockp}
@@ -316,4 +345,28 @@ func TestProducerServerSendMessage_Fail(t *testing.T) {
 	assert.Equal(t, expectedErrorMessage, err.Error())
 
 	mockp.AssertExpectations(t)
+}
+
+func TestConsumerServerSubscribe(t *testing.T) {
+	expectedErrorMessage := "this is my error"
+	// ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+	mockp := &MockProvider{}
+	// msg := &pb.Message{}
+	source := &pb.Source{}
+	stream := &MockConsumerSubscribeServerStream{}
+
+	mockp.MockMessages = make([]*pb.Message, 0)
+	mockp.MockMessages = append(mockp.MockMessages, &pb.Message{})
+	mockp.MockMessages = append(mockp.MockMessages, &pb.Message{})
+
+	// mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	stream.On("Send", mock.Anything).Return(nil).Once()
+	// Have to send an error to stop the loop
+	stream.On("Send", mock.Anything).Return(errors.New(expectedErrorMessage)).Once()
+	srv := &server.ConsumerServer{Provider: mockp}
+	err := srv.Subscribe(source, stream)
+	assert.NotNil(t, err)
+
+	mockp.AssertExpectations(t)
+	stream.AssertExpectations(t)
 }
