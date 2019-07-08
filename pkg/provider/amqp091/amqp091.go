@@ -125,8 +125,19 @@ func (am *activeMessages) get(key string) amqp.Delivery {
 func NewAMQP091Provider() provider.Provider {
 	connections := newBrokerConnections()
 	activeMessages := newActiveMessages()
-	return &amqp091provider{connections: connections, activeMessages: activeMessages}
+	prov := &amqp091provider{connections: connections, activeMessages: activeMessages}
+	// go prov.monitor()
+	return prov
 }
+
+// func (prov *amqp091provider) monitor() {
+// 	for {
+// 		log.Printf("---")
+// 		log.Printf("Number of active messages: %d", len(prov.activeMessages.messages))
+// 		log.Printf("Number of broker connections: %d", len(prov.connections.deets))
+// 		time.Sleep(5 * time.Second)
+// 	}
+// }
 
 func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*brokerDetails, error) {
 	clientUUID, err := util.GetClientUUID(ctx)
@@ -252,25 +263,20 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		nil,              // args
 	)
 
-	forever := make(chan bool)
-
-	go func() {
-		for msg := range messages {
-			var messageUUID string
-			msgUUID := msg.Headers["MessageUUID"]
-			if msgUUID == nil {
-				log.Printf("Invalid message, no MessageUUID header: %s", msg.Body)
-				messageUUID = util.GenUUID()
-			} else {
-				messageUUID = msgUUID.(string)
-			}
-			message := &pb.Message{Uuid: messageUUID, Body: msg.Body}
-			prov.activeMessages.add(messageUUID, msg)
-			log.Printf("Delivering %s", messageUUID)
-			messageChannel <- message
+	for msg := range messages {
+		var messageUUID string
+		msgUUID := msg.Headers["MessageUUID"]
+		if msgUUID == nil {
+			log.Printf("Invalid message, no MessageUUID header: %s", msg.Body)
+			messageUUID = util.GenUUID()
+		} else {
+			messageUUID = msgUUID.(string)
 		}
-	}()
-	<-forever
+		message := &pb.Message{Uuid: messageUUID, Body: msg.Body}
+		prov.activeMessages.add(messageUUID, msg)
+		log.Printf("Delivering %s", messageUUID)
+		messageChannel <- message
+	}
 	prov.connections.destroy(bd.clientUUID)
 	return nil
 }

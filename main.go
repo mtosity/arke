@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"log"
 	"net"
@@ -13,10 +11,9 @@ import (
 	"time"
 
 	"sassoftware.io/convoy/arke/pkg/provider/amqp091"
+	"sassoftware.io/convoy/arke/pkg/server"
 
 	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -25,113 +22,11 @@ const (
 	port = ":50051"
 )
 
-type producerServer struct {
-	prov provider.Provider
-}
-type consumerServer struct {
-	prov provider.Provider
-}
-
-func (s *producerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	errMsg := s.prov.Connect(&ctx, cf)
-	success := true
-	var err error
-	if errMsg != nil && errMsg.GetMessage() != "" {
-		success = false
-		err = errors.New(errMsg.GetMessage())
-	}
-
-	return &pb.ConnectResponse{Success: success}, err
-}
-
-func (s *consumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	errMsg := s.prov.Connect(&ctx, cf)
-	success := true
-	var err error
-	if errMsg != nil && errMsg.GetMessage() != "" {
-		success = false
-		err = errors.New(errMsg.GetMessage())
-	}
-
-	return &pb.ConnectResponse{Success: success}, err
-}
-
-func (s *consumerServer) AckMessage(ctx context.Context, msg *pb.Message) (*pb.AckResponse, error) {
-
-	success := true
-	errMsg := s.prov.Ack(&ctx, msg)
-	var err error
-
-	if errMsg != nil && errMsg.GetMessage() != "" {
-		success = false
-		err = errors.New(errMsg.GetMessage())
-	}
-	return &pb.AckResponse{Success: success, Error: errMsg}, err
-}
-
-func (s *consumerServer) NackMessage(ctx context.Context, msg *pb.Message) (*pb.NackResponse, error) {
-	// Placeholder for now
-	return &pb.NackResponse{Success: true}, nil
-}
-
-func (s *consumerServer) Subscribe(source *pb.Source, stream pb.Consumer_SubscribeServer) error {
-
-	messageChannel := make(chan *pb.Message)
-	ctx := stream.Context()
-	forever := make(chan bool)
-	go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context) {
-
-		for {
-			message := <-mc
-			err := stream.Send(message)
-			if err != nil {
-				log.Printf("Could not send message: %s", err.Error())
-				// Could not send the message, so disconnect
-				prov.Disconnect(ctx)
-				break
-			}
-		}
-	}(messageChannel, s.prov, &ctx)
-	s.prov.Subscribe(&ctx, source, messageChannel)
-	<-forever
-	return nil
-}
-
-func (s *producerServer) SendMessage(ctx context.Context, msg *pb.Message) (*pb.MessageResponse, error) {
-	success, errMsg := s.prov.Publish(&ctx, msg)
-	resp := &pb.MessageResponse{Success: success}
-	var err error
-	if success != true {
-		resp.Error = errMsg
-		err = errors.New(errMsg.GetMessage())
-	}
-	return resp, err
-}
-
-func (s *consumerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
-	clientUUID, err := util.GetClientUUID(ctx)
-	if err != nil {
-		return &pb.Empty{}, nil
-	}
-	s.prov.Disconnect(&ctx)
-	log.Printf("Client %s disconnected", clientUUID)
-	return &pb.Empty{}, nil
-}
-
-func (s *producerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
-	clientUUID, err := util.GetClientUUID(ctx)
-	if err != nil {
-		return &pb.Empty{}, nil
-	}
-	s.prov.Disconnect(&ctx)
-	log.Printf("Client %s disconnected", clientUUID)
-	return &pb.Empty{}, nil
-}
-
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 
 func main() {
+	// Set up cpu and memory profiling if passed in as args
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -169,10 +64,11 @@ func main() {
 		}
 	}()
 
+	// FIXME: Create some sort of provider factory
 	prov := amqp091.NewAMQP091Provider()
 
-	pb.RegisterProducerServer(s, &producerServer{prov: prov})
-	pb.RegisterConsumerServer(s, &consumerServer{prov: prov})
+	pb.RegisterProducerServer(s, &server.ProducerServer{Provider: prov})
+	pb.RegisterConsumerServer(s, &server.ConsumerServer{Provider: prov})
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

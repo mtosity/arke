@@ -2,6 +2,7 @@
 OUT_FILE=arke
 HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
 HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
+GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
 
 all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
@@ -46,7 +47,8 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	$(MAKE) -C test/test_consumer windows
 
 test: generate ## Executes unit tests
-	go test ./tests/... -cover -v
+	go test --coverprofile coverage.out -coverpkg $(GOPKGS) ./tests/... -cover -v
+	go tool cover -html=coverage.out -o coverage.html
 
 help: ## Lists the makefile's targets
 	@grep -E '^[-a-zA-Z0-9]+:.*?#{2} .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
