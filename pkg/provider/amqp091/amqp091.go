@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/streadway/amqp"
 	pb "sassoftware.io/convoy/arke/api"
@@ -14,107 +13,10 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
-type activeMessages struct {
-	sync.Mutex
-	messages map[string]amqp.Delivery
-}
-
-type brokerConnections struct {
-	sync.Mutex
-	deets map[string]*brokerDetails
-}
-
-type brokerDetails struct {
-	connection   *amqp.Connection
-	channel      *amqp.Channel
-	errorChannel chan *amqp.Error
-	clientUUID   string
-}
-
 type amqp091provider struct {
 	provider.Provider
-	connections    *brokerConnections
-	activeMessages *activeMessages
-}
-
-/*
- * Broker connections map access
- */
-func (bd *brokerDetails) disconnect() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("recovered: %v", err)
-			return
-		}
-	}()
-	if bd.connection != nil && !bd.connection.IsClosed() {
-		log.Printf("Closing connection for %s", bd.clientUUID)
-		bd.channel.Close()
-		bd.connection.Close()
-	}
-}
-
-func (bc *brokerConnections) add(key string, bd *brokerDetails) {
-	bc.Lock()
-	defer bc.Unlock()
-	bc.deets[key] = bd
-}
-
-func (bc *brokerConnections) delete(key string) {
-	bc.Lock()
-	defer bc.Unlock()
-	delete(bc.deets, key)
-}
-
-func (bc *brokerConnections) get(key string) *brokerDetails {
-	bc.Lock()
-	defer bc.Unlock()
-	return bc.deets[key]
-}
-
-func (bc *brokerConnections) destroy(key string) {
-	deet := bc.get(key)
-	deet.disconnect()
-	bc.delete(key)
-}
-
-func newBrokerConnections() *brokerConnections {
-	return &brokerConnections{
-		deets: map[string]*brokerDetails{},
-	}
-}
-
-func (bc *brokerConnections) listConnections() {
-	for k, v := range bc.deets {
-		log.Printf("%s::%v", k, v)
-	}
-}
-
-/*
- * Actively consuming messages map
- */
-func newActiveMessages() *activeMessages {
-	return &activeMessages{
-		messages: map[string]amqp.Delivery{},
-	}
-}
-
-func (am *activeMessages) add(key string, msg amqp.Delivery) {
-	am.Lock()
-	defer am.Unlock()
-	am.messages[key] = msg
-}
-
-func (am *activeMessages) delete(key string) {
-	am.Lock()
-	defer am.Unlock()
-	delete(am.messages, key)
-}
-
-func (am *activeMessages) get(key string) amqp.Delivery {
-	am.Lock()
-	defer am.Unlock()
-	return am.messages[key]
+	connections    *provider.BrokerConnections
+	activeMessages *provider.ActiveMessages
 }
 
 /*
@@ -123,8 +25,8 @@ func (am *activeMessages) get(key string) amqp.Delivery {
 
 // NewAMQP091Provider returns a new amqp091 provider
 func NewAMQP091Provider() provider.Provider {
-	connections := newBrokerConnections()
-	activeMessages := newActiveMessages()
+	connections := provider.NewBrokerConnections()
+	activeMessages := provider.NewActiveMessages()
 	prov := &amqp091provider{connections: connections, activeMessages: activeMessages}
 	// go prov.monitor()
 	return prov
@@ -139,15 +41,15 @@ func NewAMQP091Provider() provider.Provider {
 // 	}
 // }
 
-func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*brokerDetails, error) {
+func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*provider.BrokerDetails, error) {
 	clientUUID, err := util.GetClientUUID(ctx)
 	if err != nil {
 		log.Println(err.Error())
-		return &brokerDetails{}, err
+		return &provider.BrokerDetails{}, err
 	}
-	bd := prov.connections.get(clientUUID)
+	bd := prov.connections.Get(clientUUID)
 	if bd == nil {
-		return &brokerDetails{}, nil
+		return &provider.BrokerDetails{}, nil
 	}
 	return bd, nil
 }
@@ -163,20 +65,20 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 		return errMsg
 	}
 	log.Printf("Ack message with UUID : %s", msg.GetUuid())
-	rm := prov.activeMessages.get(msg.GetUuid())
+	rm := prov.activeMessages.Get(msg.GetUuid())
 	err = rm.Ack(false)
 	if err != nil {
 		log.Println(err.Error())
-		bd.errorChannel <- err.(*amqp.Error)
+		bd.ErrorChannel <- err.(*amqp.Error)
 
-		prov.activeMessages.delete(msg.GetUuid())
+		prov.activeMessages.Delete(msg.GetUuid())
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
 		}
 		return errMsg
 	}
-	prov.activeMessages.delete(msg.GetUuid())
+	prov.activeMessages.Delete(msg.GetUuid())
 	return nil
 }
 
@@ -212,23 +114,23 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 			log.Print("no client-id metadata")
 			return &pb.Error{Message: err.Error()}
 		}
-		bd := brokerDetails{
-			connection:   conn,
-			errorChannel: make(chan *amqp.Error),
-			clientUUID:   clientUUID,
+		bd := provider.BrokerDetails{
+			Connection:   conn,
+			ErrorChannel: make(chan *amqp.Error),
+			ClientUUID:   clientUUID,
 		}
 		channel, err := conn.Channel()
 		if err != nil {
 			// rabbitChannel.Close()
-			bd.connection.Close()
+			bd.Connection.Close()
 			fmt.Printf("Failed to open a channel: %s", err.Error())
 			return &pb.Error{Message: err.Error()}
 		}
 		channel.Qos(int(cf.GetPrefetchCount()), 0, true)
-		bd.channel = channel
-		conn.NotifyClose(bd.errorChannel)
-		channel.NotifyClose(bd.errorChannel)
-		prov.connections.add(bd.clientUUID, &bd)
+		bd.Channel = channel
+		conn.NotifyClose(bd.ErrorChannel)
+		channel.NotifyClose(bd.ErrorChannel)
+		prov.connections.Add(bd.ClientUUID, &bd)
 		log.Printf("Client %s is connected", clientUUID)
 		return nil
 	}
@@ -248,12 +150,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	log.Printf("Queue : %s", source.GetName())
 	log.Printf("Key : %s", source.GetAddress().GetSubject())
 	log.Printf("Exchange : %s", source.GetAddress().GetName())
-	_, qErr := bd.channel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
-	bErr := bd.channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, nil)
+	_, qErr := bd.Channel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
+	bErr := bd.Channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, nil)
 	log.Printf("Error from queue create : %s", qErr)
 	log.Printf("Error from bind : %s", bErr)
 	log.Printf("Client subscribed : %s", source.GetName())
-	messages, _ := bd.channel.Consume(
+	messages, _ := bd.Channel.Consume(
 		source.GetName(), // queue name
 		"",               // consumer string
 		false,            // auto-ack
@@ -273,11 +175,11 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			messageUUID = msgUUID.(string)
 		}
 		message := &pb.Message{Uuid: messageUUID, Body: msg.Body}
-		prov.activeMessages.add(messageUUID, msg)
+		prov.activeMessages.Add(messageUUID, msg)
 		log.Printf("Delivering %s", messageUUID)
 		messageChannel <- message
 	}
-	prov.connections.destroy(bd.clientUUID)
+	prov.connections.Destroy(bd.ClientUUID)
 	return nil
 }
 
@@ -287,7 +189,7 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 	if err != nil {
 		return
 	}
-	prov.connections.destroy(clientUUID)
+	prov.connections.Destroy(clientUUID)
 }
 
 // Publish publish a message to the broker
@@ -306,7 +208,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 	message.Uuid = messageUUID
 
 	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
-	err = bd.channel.Publish(
+	err = bd.Channel.Publish(
 		address.GetName(),    // exchange
 		address.GetSubject(), // routing key
 		false,                // mandatory
