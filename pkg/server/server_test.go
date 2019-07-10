@@ -1,4 +1,4 @@
-package tests
+package server
 
 import (
 	"context"
@@ -12,9 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
-
 	// mp "sassoftware.io/convoy/arke/pkg/provider/mock"
-	"sassoftware.io/convoy/arke/pkg/server"
 )
 
 type MockConsumerSubscribeServerStream struct {
@@ -109,7 +107,7 @@ func TestProducerServerNew(t *testing.T) {
 	prov := NewMockProvider()
 	assert.NotNil(t, prov)
 
-	srv := &server.ProducerServer{Provider: prov}
+	srv := &ProducerServer{Provider: prov}
 
 	assert.NotNil(t, srv)
 }
@@ -119,7 +117,7 @@ func TestConsumerServerNew(t *testing.T) {
 	prov := NewMockProvider()
 	assert.NotNil(t, prov)
 
-	srv := &server.ConsumerServer{Provider: prov}
+	srv := &ConsumerServer{Provider: prov}
 
 	assert.NotNil(t, srv)
 }
@@ -129,7 +127,7 @@ func TestConsumerServerConnect_Success(t *testing.T) {
 	cf := &pb.ConnectionConfiguration{}
 	mockp := &MockProvider{}
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -142,7 +140,7 @@ func TestProducerServerConnect_Success(t *testing.T) {
 	cf := &pb.ConnectionConfiguration{}
 	mockp := &MockProvider{}
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -160,7 +158,7 @@ func TestConsumerServerConnect_Fail(t *testing.T) {
 
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&errMsg)
 
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 
 	assert.NotNil(t, connectResp)
@@ -180,7 +178,7 @@ func TestProducerServerConnect_Fail(t *testing.T) {
 
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&errMsg)
 
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 
 	assert.NotNil(t, connectResp)
@@ -201,7 +199,7 @@ func TestConsumerServerAckMessage_Fail(t *testing.T) {
 
 	mockp.On("Ack", mock.Anything, mock.Anything).Return(&errMsg)
 
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	resp, err := srv.AckMessage(ctx, msg)
 
 	assert.NotNil(t, resp)
@@ -222,7 +220,7 @@ func TestConsumerServerNckMessage_Fail(t *testing.T) {
 
 	mockp.On("Nack", mock.Anything, mock.Anything).Return(&errMsg)
 
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	resp, err := srv.NackMessage(ctx, msg)
 
 	assert.NotNil(t, resp)
@@ -237,7 +235,7 @@ func TestConsumerServerAck_Success(t *testing.T) {
 	msg := &pb.Message{}
 	mockp := &MockProvider{}
 	mockp.On("Ack", mock.Anything, mock.Anything).Return(&pb.Error{})
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.AckMessage(ctx, msg)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -250,7 +248,7 @@ func TestConsumerServerMack_Success(t *testing.T) {
 	msg := &pb.Message{}
 	mockp := &MockProvider{}
 	mockp.On("Nack", mock.Anything, mock.Anything).Return(&pb.Error{})
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.NackMessage(ctx, msg)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -262,7 +260,7 @@ func TestConsumerServerDisconnect_SuccessNoUUID(t *testing.T) {
 	ctx := context.Background()
 	empty := &pb.Empty{}
 	mockp := &MockProvider{}
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -274,7 +272,7 @@ func TestProducerServerDisconnect_SuccessNoUUID(t *testing.T) {
 	ctx := context.Background()
 	empty := &pb.Empty{}
 	mockp := &MockProvider{}
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	connectResp, err := srv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -286,12 +284,12 @@ func TestConsumerServerDisconnect_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	empty := &pb.Empty{}
 	mockp := &MockProvider{}
-	old := server.GetClientUUID
-	defer func() { server.GetClientUUID = old }()
-	server.GetClientUUID = func(context.Context) (string, error) {
+	old := GetClientUUID
+	defer func() { GetClientUUID = old }()
+	GetClientUUID = func(context.Context) (string, error) {
 		return "123", nil
 	}
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -303,12 +301,12 @@ func TestProducerServerDisconnect_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	empty := &pb.Empty{}
 	mockp := &MockProvider{}
-	old := server.GetClientUUID
-	defer func() { server.GetClientUUID = old }()
-	server.GetClientUUID = func(context.Context) (string, error) {
+	old := GetClientUUID
+	defer func() { GetClientUUID = old }()
+	GetClientUUID = func(context.Context) (string, error) {
 		return "123", nil
 	}
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	connectResp, err := srv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -322,7 +320,7 @@ func TestProducerServerSendMessage_Success(t *testing.T) {
 	msg := &pb.Message{}
 
 	mockp.On("Publish", mock.Anything, mock.Anything).Return(true, &pb.Error{})
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	resp, err := srv.SendMessage(ctx, msg)
 	assert.NotNil(t, resp)
 	assert.Nil(t, err)
@@ -337,7 +335,7 @@ func TestProducerServerSendMessage_Fail(t *testing.T) {
 	msg := &pb.Message{}
 
 	mockp.On("Publish", mock.Anything, mock.Anything).Return(false, &pb.Error{Message: expectedErrorMessage})
-	srv := &server.ProducerServer{Provider: mockp}
+	srv := &ProducerServer{Provider: mockp}
 	resp, err := srv.SendMessage(ctx, msg)
 	assert.NotNil(t, resp)
 	assert.NotNil(t, err)
@@ -363,7 +361,7 @@ func TestConsumerServerSubscribe(t *testing.T) {
 	stream.On("Send", mock.Anything).Return(nil).Once()
 	// Have to send an error to stop the loop
 	stream.On("Send", mock.Anything).Return(errors.New(expectedErrorMessage)).Once()
-	srv := &server.ConsumerServer{Provider: mockp}
+	srv := &ConsumerServer{Provider: mockp}
 	err := srv.Subscribe(source, stream)
 	assert.NotNil(t, err)
 
