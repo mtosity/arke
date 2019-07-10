@@ -16,7 +16,7 @@ import (
 type amqp091provider struct {
 	provider.Provider
 	connections    *provider.BrokerConnections
-	activeMessages *provider.ActiveMessages
+	activeMessages *util.ConcurrentMap
 }
 
 /*
@@ -26,7 +26,7 @@ type amqp091provider struct {
 // NewAMQP091Provider returns a new amqp091 provider
 func NewAMQP091Provider() provider.Provider {
 	connections := provider.NewBrokerConnections()
-	activeMessages := provider.NewActiveMessages()
+	activeMessages := util.NewConcurrentMap()
 	prov := &amqp091provider{connections: connections, activeMessages: activeMessages}
 	// go prov.monitor()
 	return prov
@@ -65,7 +65,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 		return errMsg
 	}
 	log.Printf("Ack message with UUID : %s", msg.GetUuid())
-	rm := prov.activeMessages.Get(msg.GetUuid())
+	rm := prov.activeMessages.Get(msg.GetUuid()).(amqp.Delivery)
 	err = rm.Ack(false)
 	if err != nil {
 		log.Println(err.Error())
