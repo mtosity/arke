@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,8 +12,6 @@ type TestItem struct {
 
 func TestNewConcurrentMap(t *testing.T) {
 	cMap := NewConcurrentMap()
-	testMsg := "Util test"
-	fmt.Println(testMsg)
 	assert.NotNil(t, cMap)
 }
 

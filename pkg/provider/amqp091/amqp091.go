@@ -15,8 +15,15 @@ import (
 
 type amqp091provider struct {
 	provider.Provider
-	connections    *provider.BrokerConnections
+	connections    *util.ConcurrentMap
 	activeMessages *util.ConcurrentMap
+}
+
+type BrokerDetails struct {
+	Connection   *amqp.Connection
+	Channel      *amqp.Channel
+	ErrorChannel chan *amqp.Error
+	ClientUUID   string
 }
 
 /*
@@ -25,7 +32,7 @@ type amqp091provider struct {
 
 // NewAMQP091Provider returns a new amqp091 provider
 func NewAMQP091Provider() provider.Provider {
-	connections := provider.NewBrokerConnections()
+	connections := util.NewConcurrentMap()
 	activeMessages := util.NewConcurrentMap()
 	prov := &amqp091provider{connections: connections, activeMessages: activeMessages}
 	// go prov.monitor()
@@ -41,15 +48,15 @@ func NewAMQP091Provider() provider.Provider {
 // 	}
 // }
 
-func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*provider.BrokerDetails, error) {
+func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientUUID, err := util.GetClientUUID(ctx)
 	if err != nil {
 		log.Println(err.Error())
-		return &provider.BrokerDetails{}, err
+		return &BrokerDetails{}, err
 	}
-	bd := prov.connections.Get(clientUUID)
+	bd := prov.connections.Get(clientUUID).(*BrokerDetails)
 	if bd == nil {
-		return &provider.BrokerDetails{}, nil
+		return &BrokerDetails{}, nil
 	}
 	return bd, nil
 }
@@ -114,7 +121,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 			log.Print("no client-id metadata")
 			return &pb.Error{Message: err.Error()}
 		}
-		bd := provider.BrokerDetails{
+		bd := BrokerDetails{
 			Connection:   conn,
 			ErrorChannel: make(chan *amqp.Error),
 			ClientUUID:   clientUUID,
@@ -179,7 +186,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		log.Printf("Delivering %s", messageUUID)
 		messageChannel <- message
 	}
-	prov.connections.Destroy(bd.ClientUUID)
 	return nil
 }
 
@@ -189,7 +195,19 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 	if err != nil {
 		return
 	}
-	prov.connections.Destroy(clientUUID)
+	bd := prov.connections.Get(clientUUID).(*BrokerDetails)
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("recovered: %v", err)
+			return
+		}
+	}()
+	if bd.Connection != nil && !bd.Connection.IsClosed() {
+		log.Printf("Closing connection for %s", bd.ClientUUID)
+		bd.Channel.Close()
+		bd.Connection.Close()
+	}
+	prov.connections.Delete(clientUUID)
 }
 
 // Publish publish a message to the broker
@@ -237,7 +255,6 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 			IsFatal: true,
 		}
 		return false, errMsg
-		// return &pb.MessageResponse{Success: false, Error: errMsg}, err
 	}
 	return true, nil
 }
