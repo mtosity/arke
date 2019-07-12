@@ -42,7 +42,7 @@ generate-doc: ## Generates protobuf docs
     endif
 
 linux: setup generate ## Builds binary for linux_amd64 (lax)
-	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
+	${BUILD_ENV} CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
 	$(MAKE) -C test/test_producer linux
 	$(MAKE) -C test/test_consumer linux
 
@@ -59,6 +59,20 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 test: generate ## Executes unit tests
 	go test --coverprofile coverage.out ./pkg/... -cover -v
 	go tool cover -html=coverage.out -o coverage.html
+
+compose: linux ## Builds and runs docker image(s) for integration tests
+	cp build/linux/arke tests/integration/
+	cd tests/integration ; \
+		pwd; \
+		docker-compose build; \
+		docker-compose down; \
+		docker-compose up -d; \
+		sleep 10
+
+integration_test:
+	go test -count=1 -v ./tests/integration/ 
+
+integration: compose integration_test
 
 help: ## Lists the makefile's targets
 	@grep -E '^[-a-zA-Z0-9]+:.*?#{2} .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log"
 
@@ -54,11 +55,12 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 		log.Println(err.Error())
 		return &BrokerDetails{}, err
 	}
-	bd := prov.connections.Get(clientUUID).(*BrokerDetails)
-	if bd == nil {
-		return &BrokerDetails{}, nil
+
+	if bd, ok := prov.connections.Get(clientUUID); ok {
+		return bd.(*BrokerDetails), nil
 	}
-	return bd, nil
+
+	return &BrokerDetails{}, errors.New("could not retrieve broker details for this connection")
 }
 
 // Ack ack a message
@@ -72,8 +74,47 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 		return errMsg
 	}
 	log.Printf("Ack message with UUID : %s", msg.GetUuid())
-	rm := prov.activeMessages.Get(msg.GetUuid()).(amqp.Delivery)
-	err = rm.Ack(false)
+	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
+		rm := rmu.(amqp.Delivery)
+		err = rm.Ack(false)
+	} else {
+		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msg.GetUuid())}
+	}
+
+	if err != nil {
+		log.Println(err.Error())
+		bd.ErrorChannel <- err.(*amqp.Error)
+
+		prov.activeMessages.Delete(msg.GetUuid())
+		errMsg := &pb.Error{
+			Message: err.Error(),
+			IsFatal: true,
+		}
+		return errMsg
+	}
+	prov.activeMessages.Delete(msg.GetUuid())
+	return nil
+}
+
+// Nack ack a message
+func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error {
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		errMsg := &pb.Error{
+			Message: err.Error(),
+			IsFatal: true,
+		}
+		return errMsg
+	}
+	log.Printf("Nack message with UUID : %s", msg.GetUuid())
+
+	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
+		rm := rmu.(amqp.Delivery)
+		err = rm.Nack(false, true)
+	} else {
+		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msg.GetUuid())}
+	}
+
 	if err != nil {
 		log.Println(err.Error())
 		bd.ErrorChannel <- err.(*amqp.Error)
@@ -195,7 +236,14 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 	if err != nil {
 		return
 	}
-	bd := prov.connections.Get(clientUUID).(*BrokerDetails)
+	var bd *BrokerDetails
+	// := prov.connections.Get(clientUUID).(*BrokerDetails)
+	if bdu, ok := prov.connections.Get(clientUUID); ok {
+		bd = bdu.(*BrokerDetails)
+	} else {
+		return
+	}
+
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("recovered: %v", err)

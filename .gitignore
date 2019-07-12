@@ -3,3 +3,6 @@ vendor
 build
 *.pdf
 *.prof
+tests/integration/arke
+coverage.out
+coverage.html

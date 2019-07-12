@@ -27,8 +27,11 @@ func (cm *ConcurrentMap) Delete(key string) {
 	delete(cm.items, key)
 }
 
-func (cm *ConcurrentMap) Get(key string) interface{} {
+func (cm *ConcurrentMap) Get(key string) (interface{}, bool) {
 	cm.Lock()
 	defer cm.Unlock()
-	return cm.items[key]
+	if val, ok := cm.items[key]; ok {
+		return val, true
+	}
+	return nil, false
 }
