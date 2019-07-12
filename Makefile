@@ -2,7 +2,9 @@
 OUT_FILE=arke
 HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
 HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
+HAVE_PROTOC_JAVA:=$(shell which protoc-gen-grpc-java.exe 2>/dev/null)
 GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
+$(info $(HAVE_PROTOC_JAVA))
 
 all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
@@ -24,11 +26,19 @@ generate-proto: ## Generates protobufs
         $(info No protoc command found, skipping generate task.)
     endif
 
+generate-proto-java: ## Generates protobufs for java
+    ifneq ("$(HAVE_PROTOC_JAVA)","")
+	protoc --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
+	protoc --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
+    else
+        $(info No protoc-gen-grpc-java command found, skipping generate task.)
+    endif
+
 generate-doc: ## Generates protobuf docs
     ifneq ("$(HAVE_PROTOC_DOC)","")
 	protoc --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
     else
-        $(info No protoc command found, skipping generate doc task.)
+        $(info No protoc doc command found, skipping generate doc task.)
     endif
 
 linux: setup generate ## Builds binary for linux_amd64 (lax)

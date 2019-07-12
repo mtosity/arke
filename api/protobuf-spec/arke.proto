@@ -5,6 +5,9 @@
  */
 syntax = "proto3";
 
+option java_outer_classname = "ArkeProtos";
+option java_package = "org.arke";
+
 package arke;
 
 /**
