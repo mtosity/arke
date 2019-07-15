@@ -44,3 +44,12 @@ func TestConcurrentMapDelete(t *testing.T) {
 	assert.Nil(t, cItem)
 	assert.False(t, ok)
 }
+
+func TestConcurrentMapGetList(t *testing.T) {
+	cMap := NewConcurrentMap()
+	assert.NotNil(t, cMap)
+	testItem := TestItem{"test item"}
+	cMap.Add("testItem", testItem)
+	cMap.Add("testItem2", testItem)
+	assert.Len(t, cMap.GetList(), 2)
+}

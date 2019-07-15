@@ -1,4 +1,4 @@
-package amqp091
+package connectors
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
+const providerName string = "amqp091"
+
 type amqp091provider struct {
 	provider.Provider
 	connections    *util.ConcurrentMap
@@ -25,6 +27,11 @@ type BrokerDetails struct {
 	Channel      *amqp.Channel
 	ErrorChannel chan *amqp.Error
 	ClientUUID   string
+}
+
+func init() {
+	// Register this provider with the Provider factory.
+	provider.Register(providerName, NewAMQP091Provider)
 }
 
 /*

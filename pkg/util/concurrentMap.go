@@ -35,3 +35,13 @@ func (cm *ConcurrentMap) Get(key string) (interface{}, bool) {
 	}
 	return nil, false
 }
+
+func (cm *ConcurrentMap) GetList() []string {
+	cm.Lock()
+	defer cm.Unlock()
+	var items []string
+	for k, _ := range cm.items {
+		items = append(items, k)
+	}
+	return items
+}

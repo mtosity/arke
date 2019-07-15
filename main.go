@@ -10,7 +10,8 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"sassoftware.io/convoy/arke/pkg/provider/amqp091"
+	"sassoftware.io/convoy/arke/pkg/provider"
+	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
 
 	pb "sassoftware.io/convoy/arke/api"
@@ -65,7 +66,7 @@ func main() {
 	}()
 
 	// FIXME: Create some sort of provider factory
-	prov := amqp091.NewAMQP091Provider()
+	prov, _ := provider.NewProvider("amqp091")
 
 	pb.RegisterProducerServer(s, &server.ProducerServer{Provider: prov})
 	pb.RegisterConsumerServer(s, &server.ConsumerServer{Provider: prov})
