@@ -205,8 +205,23 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	log.Printf("Queue : %s", source.GetName())
 	log.Printf("Key : %s", source.GetAddress().GetSubject())
 	log.Printf("Exchange : %s", source.GetAddress().GetName())
+	matches := source.Filter.GetMatches()
+	matchHeaders := make(amqp.Table)
+	for _, match := range matches {
+		log.Printf("match: %v", match)
+		matchHeaders[match.GetName()] = match.GetValue()
+	}
+
+	if len(matchHeaders) > 0 {
+		matchHeaders["x-match"] = "all"
+		if source.Filter.GetType() == pb.Filter_ANY {
+			matchHeaders["x-match"] = "any"
+		}
+	}
+
+	log.Printf("Arguments (matches): %s", matchHeaders)
 	_, qErr := bd.Channel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
-	bErr := bd.Channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, nil)
+	bErr := bd.Channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, matchHeaders)
 	log.Printf("Error from queue create : %s", qErr)
 	log.Printf("Error from bind : %s", bErr)
 	log.Printf("Client subscribed : %s", source.GetName())
@@ -280,6 +295,14 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 	messageUUID := util.GenUUID()
 	message.Uuid = messageUUID
 
+	headers := amqp.Table{
+		"MessageUUID": messageUUID,
+	}
+
+	for headerName, headerValue := range message.GetHeaders() {
+		headers[headerName] = headerValue
+	}
+
 	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
 	err = bd.Channel.Publish(
 		address.GetName(),    // exchange
@@ -290,9 +313,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 			ContentType:  "text/plain",
 			Body:         message.GetBody(),
 			DeliveryMode: uint8(deliveryMode),
-			Headers: amqp.Table{
-				"MessageUUID": messageUUID,
-			},
+			Headers:      headers,
 		})
 
 	if err != nil {

@@ -20,23 +20,18 @@ const (
 
 func connectConfig() *pb.ConnectionConfiguration {
 	connConfig := &pb.ConnectionConfiguration{}
-	connConfig.Credentials = &pb.Credentials{Username: "", Password: ""}
+	connConfig.Credentials = &pb.Credentials{Username: "guest", Password: "guest"}
 	connConfig.Host = "rabbitmq"
 	connConfig.Port = 5672
 	connConfig.Provider = "amqp091"
 	connConfig.Tenant = "/"
 	connConfig.PrefetchCount = 5
-	// fmt.Println(connConfig)
 	return connConfig
 }
 
-func produceMessages(conn *grpc.ClientConn, cnt int, message string, addressName string, addressSubject string) error {
+func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error {
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
-
-	// defer c.Disconnect(ctx, &pb.Empty{})
-
-	// message := "test"
 
 	connConfig := connectConfig()
 
@@ -49,10 +44,8 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message string, addressName
 		return errors.New(authResp.GetError().GetMessage())
 	}
 
-	address := &pb.Address{Name: addressName, Subject: addressSubject}
-
 	for i := 0; i < cnt; i++ {
-		r, err := c.SendMessage(ctx, &pb.Message{Body: []byte(message), Address: address, Persistent: true})
+		r, err := c.SendMessage(ctx, message)
 		if err != nil {
 			return err
 		}
@@ -63,12 +56,8 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message string, addressName
 	return nil
 }
 
-func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, addressName string, addressSubject string, sourceName string) error {
-	// defer close(messages)
+func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source) error {
 	c := pb.NewConsumerClient(conn)
-
-	address := &pb.Address{Name: addressName, Subject: addressSubject}
-	source := &pb.Source{Name: sourceName, Address: address}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -95,21 +84,17 @@ func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done ch
 	for {
 		message, err := stream.Recv()
 		if err == io.EOF {
-			// fmt.Printf("err: %v", err)
 			return err
 		}
 		if err != nil {
-			// fmt.Printf("err: %v", err)
 			break
 		}
 		messages <- message
-		// log.Printf("consumed message %s", message.GetUuid())
 		_, err = c.AckMessage(ctx, message)
 		if err != nil {
 			fmt.Println(err)
 			break
 		}
-		// log.Printf("acked message %s", message.GetUuid())
 	}
 	done <- true
 	return err
@@ -141,10 +126,14 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, messages, done, clientConnected, "amq.topic", "sas.test.proxy.TPSCS", "sas.test.proxy.TPSCS.Consumer")
+	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPSCS"}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
-	err := produceMessages(producerConnection, expectedMessageCount, "mymessage", "amq.topic", "sas.test.proxy.TPSCS")
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -174,10 +163,14 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, messages, done, clientConnected, "amq.topic", "sas.test.proxy.TPMCM4", "sas.test.proxy.TPMCM4.Consumer")
+	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPMCM"}
+	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
-	err := produceMessages(producerConnection, expectedMessageCount, "mymessage", "amq.topic", "sas.test.proxy.TPMCM4")
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -244,7 +237,6 @@ func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
 	c := pb.NewConsumerClient(conn)
 	ctx := context.Background()
-	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
 
 	r, err := c.Disconnect(ctx, &pb.Empty{})
@@ -256,10 +248,143 @@ func TestProducerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
-	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
 
 	r, err := c.Disconnect(ctx, &pb.Empty{})
 	assert.Nil(t, err)
 	assert.NotNil(t, r)
+}
+
+func TestProduceConsumeFiltersMatchAll(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 1
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll"}
+	address := &pb.Address{Name: "amq.headers", Subject: "sas.test.proxy.TPCFMAll", Type: pb.Address_FILTER}
+	filter := &pb.Filter{Type: pb.Filter_ALL}
+	matches := make([]*pb.Match, 0)
+	matches = append(matches, &pb.Match{Name: "HeaderToMatchAll", Value: "MyFancyValue"})
+	matches = append(matches, &pb.Match{Name: "AnotherHeaderToMatchAll", Value: "MyFancyValue"})
+	filter.Matches = matches
+	source.Filter = filter
+	source.Address = address
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+
+	<-clientConnected
+
+	headers1 := make(map[string]string)
+	headers2 := make(map[string]string)
+	headers3 := make(map[string]string)
+	headers1["HeaderToMatchAll"] = "MyFancyValue"
+	headers2["HeaderToMatchAll"] = "MyNotFancyValue"
+	headers3["HeaderToNotMatchAll"] = "MyFancyValue"
+	headers4 := make(map[string]string)
+	headers4["HeaderToMatchAll"] = "MyFancyValue"        // for consumed message
+	headers4["AnotherHeaderToMatchAll"] = "MyFancyValue" // for consumed message
+
+	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
+
+	err := produceMessages(producerConnection, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
+	err = produceMessages(producerConnection, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
+	err = produceMessages(producerConnection, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
+	err = produceMessages(producerConnection, 1, message) // this message is the one that gets consumed
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case msg := <-messages:
+			assert.Equal(t, msg.GetBody(), []byte("mybody4"))
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceConsumeFiltersMatchAny(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 2
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny"}
+	address := &pb.Address{Name: "amq.headers", Subject: "sas.test.proxy.TPCFMAny", Type: pb.Address_FILTER}
+	filter := &pb.Filter{Type: pb.Filter_ANY}
+	matches := make([]*pb.Match, 0)
+	matches = append(matches, &pb.Match{Name: "HeaderToMatchAny", Value: "MyFancyValue"})
+	matches = append(matches, &pb.Match{Name: "OtherHeaderToMatchAny", Value: "AnotherFancyValue"})
+	filter.Matches = matches
+	source.Filter = filter
+	source.Address = address
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+
+	<-clientConnected
+
+	headers1 := make(map[string]string)
+	headers2 := make(map[string]string)
+	headers3 := make(map[string]string)
+	headers4 := make(map[string]string)
+	headers1["HeaderToMatchAny"] = "MyFancyValue" // should be consumed
+	headers2["HeaderToMatchAny"] = "MyNotFancyValue"
+	headers3["HeaderToNotMatchAny"] = "MyFancyValue"
+	headers4["OtherHeaderToMatchAny"] = "AnotherFancyValue" // should be consumed
+
+	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
+
+	err := produceMessages(producerConnection, 1, message) // this message gets consumed
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
+	err = produceMessages(producerConnection, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
+	err = produceMessages(producerConnection, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
+	err = produceMessages(producerConnection, 1, message) // this message get consumed
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
 }
