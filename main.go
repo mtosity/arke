@@ -66,7 +66,7 @@ func main() {
 	}()
 
 	// FIXME: Create some sort of provider factory
-	prov, _ := provider.NewProvider("amqp091")
+	prov, _ := provider.GetProvider("amqp091")
 
 	pb.RegisterProducerServer(s, &server.ProducerServer{Provider: prov})
 	pb.RegisterConsumerServer(s, &server.ConsumerServer{Provider: prov})

@@ -7,6 +7,7 @@ import (
 
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
+	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
@@ -25,28 +26,14 @@ type ConsumerServer struct {
 
 // Connect Connect for the producer server
 func (s *ProducerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	errMsg := s.Provider.Connect(&ctx, cf)
-	success := true
-	var err error
-	if errMsg != nil && errMsg.GetMessage() != "" {
-		success = false
-		err = errors.New(errMsg.GetMessage())
-	}
-
-	return &pb.ConnectResponse{Success: success, Error: errMsg}, err
+	resp, err := brokerConnect(ctx, cf)
+	return resp, err
 }
 
 // Connect Connect for the consumer server
 func (s *ConsumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	errMsg := s.Provider.Connect(&ctx, cf)
-	success := true
-	var err error
-	if errMsg != nil && errMsg.GetMessage() != "" {
-		success = false
-		err = errors.New(errMsg.GetMessage())
-	}
-
-	return &pb.ConnectResponse{Success: success, Error: errMsg}, err
+	resp, err := brokerConnect(ctx, cf)
+	return resp, err
 }
 
 // AckMessage Ack a message for the consumer
@@ -135,4 +122,19 @@ func (s *ProducerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.E
 	s.Provider.Disconnect(&ctx)
 	log.Printf("Client %s disconnected", clientUUID)
 	return &pb.Empty{}, nil
+}
+
+func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
+	prov, er := provider.GetProvider(cf.GetProvider())
+	log.Printf("GetProvider err : %s", er)
+	log.Printf("Prov %p", prov)
+	errMsg := prov.Connect(&ctx, cf)
+	success := true
+	var err error
+	if errMsg != nil && errMsg.GetMessage() != "" {
+		success = false
+		err = errors.New(errMsg.GetMessage())
+	}
+
+	return &pb.ConnectResponse{Success: success, Error: errMsg}, err
 }

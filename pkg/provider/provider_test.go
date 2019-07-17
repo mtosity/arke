@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -42,6 +43,22 @@ func TestRegisterTwice(t *testing.T) {
 		Register("test", NewTestProvider)
 	})
 	assert.Regexp(t, regexp.MustCompile("already registered"), regOutput)
+}
+
+func TestGetProvider(t *testing.T) {
+	// Make sure GetProvider returns a Provider
+	prov, err := GetProvider("amqp091")
+	assert.NotNil(t, prov)
+	assert.Nil(t, err)
+
+	// If we call GetProvider twice, we want to make sure
+	// We get the same *Provider.
+	prov2, err2 := GetProvider("amqp091")
+	fmt.Printf("Provider pointer address : %p\n", &prov)
+	fmt.Printf("Provider2 pointer address : %p\n", &prov2)
+	assert.NotNil(t, prov2)
+	assert.Nil(t, err2)
+	assert.Equal(t, &prov, &prov2)
 }
 
 func captureOutput(f func()) string {

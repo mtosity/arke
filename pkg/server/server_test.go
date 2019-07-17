@@ -15,6 +15,12 @@ import (
 	// mp "sassoftware.io/convoy/arke/pkg/provider/mock"
 )
 
+func init() {
+	// Register the MockProvider with the Provider factory.
+	provider.Register("mockp", NewMockProvider)
+	provider.GetProvider("mockp")
+}
+
 type MockConsumerSubscribeServerStream struct {
 	mock.Mock
 	pb.Consumer_SubscribeServer
@@ -46,12 +52,15 @@ type MockProvider struct {
 	mock.Mock
 	provider.Provider
 	MockMessages []*pb.Message
+	MockErrors   []*pb.Error
 }
 
 type MockContext struct {
 	mock.Mock
 	context.Context
 }
+
+const provName string = "mockp"
 
 // NewMockProvider creates a new provider
 func NewMockProvider() provider.Provider {
@@ -69,6 +78,12 @@ func (prov *MockProvider) Ack(ctx *context.Context, msg *pb.Message) *pb.Error {
 // Nack nack a message
 func (prov *MockProvider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error {
 	args := prov.Called(ctx, msg)
+	fmt.Printf("Args to connect : %v\n", args)
+	if len(prov.MockErrors) > 0 {
+		err := prov.MockErrors[0]
+		return err
+	}
+
 	err := args.Get(0).(*pb.Error)
 	return err
 }
@@ -76,8 +91,14 @@ func (prov *MockProvider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error 
 // Connect connect to broker
 func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration) *pb.Error {
 	args := prov.Called(ctx, cf)
-	err := args.Get(0).(*pb.Error)
-	return err
+	fmt.Printf("Args to connect : %v\n", args)
+	if len(prov.MockErrors) > 0 {
+		err := prov.MockErrors[0]
+		return err
+	}
+
+	//err := args.Get(0).(*pb.Error)
+	return nil
 }
 
 // Subscribe subscribe to a stream of messages from the broker
@@ -124,9 +145,12 @@ func TestConsumerServerNew(t *testing.T) {
 
 func TestConsumerServerConnect_Success(t *testing.T) {
 	ctx := context.Background()
-	cf := &pb.ConnectionConfiguration{}
-	mockp := &MockProvider{}
-	mockp.On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
+	cf := &pb.ConnectionConfiguration{Provider: provName}
+	//mockp := &MockProvider{}
+	mocky, _ := provider.GetProvider(provName)
+	mockp := mocky.(*MockProvider)
+	(*mockp).On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
+	mocky = mockp
 	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
@@ -137,10 +161,13 @@ func TestConsumerServerConnect_Success(t *testing.T) {
 
 func TestProducerServerConnect_Success(t *testing.T) {
 	ctx := context.Background()
-	cf := &pb.ConnectionConfiguration{}
-	mockp := &MockProvider{}
+	cf := &pb.ConnectionConfiguration{Provider: provName}
+	//mockp := &MockProvider{}
+	mocky, _ := provider.GetProvider(provName)
+	mockp := mocky.(*MockProvider)
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
 	srv := &ProducerServer{Provider: mockp}
+
 	connectResp, err := srv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -149,15 +176,24 @@ func TestProducerServerConnect_Success(t *testing.T) {
 }
 
 func TestConsumerServerConnect_Fail(t *testing.T) {
-
 	expectedErrorMessage := "this is my error"
 	ctx := context.Background()
-	cf := &pb.ConnectionConfiguration{}
-	mockp := &MockProvider{}
+	mocky, _ := provider.GetProvider("mockp")
+	mockp := mocky.(*MockProvider)
+	//mockp := &MockProvider{}
 	errMsg := pb.Error{Message: expectedErrorMessage}
+	mockp.MockErrors = make([]*pb.Error, 0)
+	mockp.MockErrors = append(mockp.MockErrors, &errMsg)
 
+	//(*mocky).(*MockProvider).On("Connect", mock.Anything, mock.Anything).Return(&errMsg)
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&errMsg)
-
+	mocky = mockp
+	cf := &pb.ConnectionConfiguration{Provider: provName}
+	//log.Printf("Prov mocky %v\n", mocky)
+	//log.Printf("Prov mockp %v\n", mockp)
+	//fmt.Printf("Provider mocky in server_test : %v\n", uintptr(unsafe.Pointer(mocky)))
+	fmt.Printf("Provider mocky in server_test : %p\n", mocky)
+	fmt.Printf("Provider in server_test : %p\n", mockp)
 	srv := &ConsumerServer{Provider: mockp}
 	connectResp, err := srv.Connect(ctx, cf)
 
@@ -172,8 +208,10 @@ func TestProducerServerConnect_Fail(t *testing.T) {
 
 	expectedErrorMessage := "this is my error"
 	ctx := context.Background()
-	cf := &pb.ConnectionConfiguration{}
-	mockp := &MockProvider{}
+	cf := &pb.ConnectionConfiguration{Provider: provName}
+	//mockp := &MockProvider{}
+	mocky, _ := provider.GetProvider("mockp")
+	mockp := mocky.(*MockProvider)
 	errMsg := pb.Error{Message: expectedErrorMessage}
 
 	mockp.On("Connect", mock.Anything, mock.Anything).Return(&errMsg)

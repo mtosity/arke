@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/util"
@@ -24,8 +26,32 @@ type Provider interface {
 // Factory method for creating a specific provider
 type Factory func() Provider
 
-// Map of our registered Providers
+// Map of our registered Provider types
 var registeredProviderTypes = util.NewConcurrentMap()
+
+// Map of registered Providers
+var registeredProviders = util.NewConcurrentMap()
+
+type providerOnce struct {
+	m    sync.Mutex
+	done uint32
+}
+
+var providerVault = make(map[string]*providerOnce)
+
+func (po *providerOnce) Do(f func() Provider) Provider {
+	if atomic.LoadUint32(&po.done) == 1 {
+		return nil
+	}
+	// Slow-path.
+	po.m.Lock()
+	defer po.m.Unlock()
+	if po.done == 0 {
+		defer atomic.StoreUint32(&po.done, 1)
+		return f()
+	}
+	return nil
+}
 
 func NewProvider(providerType string) (Provider, error) {
 	pf, ok := registeredProviderTypes.Get(providerType)
@@ -33,9 +59,28 @@ func NewProvider(providerType string) (Provider, error) {
 		providerList := registeredProviderTypes.GetList()
 		return nil, errors.New(fmt.Sprintf("Invalid provider name. Must be one of: %s", strings.Join(providerList, ",")))
 	}
-
+	var provOnce providerOnce
+	providerVault[providerType] = &provOnce
 	providerFactory := pf.(Factory)
-	return providerFactory(), nil
+	provider := provOnce.Do(func() Provider { return providerFactory() })
+	return provider, nil
+}
+
+func GetProvider(providerType string) (Provider, error) {
+	prov, registered := registeredProviders.Get(providerType)
+	log.Printf("Looking up provider %s.\n", providerType)
+	if !registered {
+		log.Printf("Provider %s not found in cache, creating new provider\n", providerType)
+		prov, err := NewProvider(providerType)
+		if prov != nil {
+			registeredProviders.Add(providerType, prov)
+		}
+		fmt.Printf("NewProvider error : %s\n", err)
+		fmt.Printf("Provider : %p\n", &prov)
+	}
+	prov, _ = registeredProviders.Get(providerType)
+	fmt.Printf("Provider : %p\n", prov)
+	return prov.(Provider), nil
 }
 
 func Register(name string, factory Factory) {
