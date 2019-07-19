@@ -63,11 +63,14 @@ test: generate ## Executes unit tests
 compose: linux ## Builds and runs docker image(s) for integration tests
 	cp build/linux/arke tests/integration/
 	cd tests/integration ; \
-		pwd; \
 		docker-compose build; \
 		docker-compose down; \
 		docker-compose up -d; \
 		sleep 10
+
+compose_down:
+	cd tests/integration ; \
+		docker-compose down
 
 integration_test:
 	go test -count=1 -v ./tests/integration/ 

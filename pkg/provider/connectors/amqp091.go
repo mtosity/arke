@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/streadway/amqp"
 	pb "sassoftware.io/convoy/arke/api"
@@ -23,10 +24,11 @@ type amqp091provider struct {
 }
 
 type BrokerDetails struct {
-	Connection   *amqp.Connection
-	Channel      *amqp.Channel
-	ErrorChannel chan *amqp.Error
-	ClientUUID   string
+	Connection     *amqp.Connection
+	Channel        *amqp.Channel
+	ErrorChannel   chan *amqp.Error
+	ClientUUID     string
+	knownExchanges *util.ConcurrentMap
 }
 
 func init() {
@@ -169,10 +171,13 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 			log.Print("no client-id metadata")
 			return &pb.Error{Message: err.Error()}
 		}
+
+		knownExchanges := util.NewConcurrentMap()
 		bd := BrokerDetails{
-			Connection:   conn,
-			ErrorChannel: make(chan *amqp.Error),
-			ClientUUID:   clientUUID,
+			Connection:     conn,
+			ErrorChannel:   make(chan *amqp.Error),
+			ClientUUID:     clientUUID,
+			knownExchanges: knownExchanges,
 		}
 		channel, err := conn.Channel()
 		if err != nil {
@@ -194,28 +199,70 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 }
 
+func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails) error {
+
+	// don't try to declare an exchange with amq. in the name
+	if strings.Contains(address.GetName(), "amq.") {
+		return nil
+	}
+
+	_, ok := bd.knownExchanges.Get(address.GetName())
+
+	if !ok {
+		exchangeType := "topic"
+		switch address.GetType() {
+		case pb.Address_TOPIC:
+			exchangeType = "topic"
+		case pb.Address_FILTER:
+			exchangeType = "headers"
+		case pb.Address_QUEUE:
+			exchangeType = "direct"
+		default:
+			return fmt.Errorf("%s is not a valid address type", address.GetType())
+		}
+		log.Printf("Declaring exchange %s", address.GetName())
+		err := bd.Channel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete(), false, false, nil)
+		if err != nil {
+			log.Printf("Error creating exchange: %s", err.Error())
+			return err
+		}
+		bd.knownExchanges.Add(address.GetName(), true)
+	}
+	return nil
+}
+
 // Subscribe subscribe to a stream of messages from the broker
 func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
+
+	if source.GetAddress().GetName() == "" {
+		return &pb.Error{Message: "address name not defined"}
+	}
+
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
+	prov.declareExchange(source.GetAddress(), bd)
+
 	log.Printf("Binding to Queue :")
 	log.Printf("Queue : %s", source.GetName())
 	log.Printf("Key : %s", source.GetAddress().GetSubject())
 	log.Printf("Exchange : %s", source.GetAddress().GetName())
-	matches := source.Filter.GetMatches()
 	matchHeaders := make(amqp.Table)
-	for _, match := range matches {
-		log.Printf("match: %v", match)
-		matchHeaders[match.GetName()] = match.GetValue()
-	}
 
-	if len(matchHeaders) > 0 {
-		matchHeaders["x-match"] = "all"
-		if source.Filter.GetType() == pb.Filter_ANY {
-			matchHeaders["x-match"] = "any"
+	if source.GetAddress().GetType() == pb.Address_FILTER {
+		matches := source.Filter.GetMatches()
+		for _, match := range matches {
+			log.Printf("match: %v", match)
+			matchHeaders[match.GetName()] = match.GetValue()
+		}
+
+		if len(matchHeaders) > 0 {
+			matchHeaders["x-match"] = "all"
+			if source.Filter.GetType() == pb.Filter_ANY {
+				matchHeaders["x-match"] = "any"
+			}
 		}
 	}
 
@@ -236,14 +283,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	)
 
 	for msg := range messages {
-		var messageUUID string
-		msgUUID := msg.Headers["MessageUUID"]
-		if msgUUID == nil {
-			log.Printf("Invalid message, no MessageUUID header: %s", msg.Body)
-			messageUUID = util.GenUUID()
-		} else {
-			messageUUID = msgUUID.(string)
-		}
+		messageUUID := util.GenUUID()
 		message := &pb.Message{Uuid: messageUUID, Body: msg.Body}
 		prov.activeMessages.Add(messageUUID, msg)
 		log.Printf("Delivering %s", messageUUID)
@@ -292,12 +332,9 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 		deliveryMode = 2
 	}
 
-	messageUUID := util.GenUUID()
-	message.Uuid = messageUUID
+	prov.declareExchange(message.GetAddress(), bd)
 
-	headers := amqp.Table{
-		"MessageUUID": messageUUID,
-	}
+	headers := amqp.Table{}
 
 	for headerName, headerValue := range message.GetHeaders() {
 		headers[headerName] = headerValue
@@ -323,7 +360,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 		default:
 			log.Printf("default: %s", err)
 		}
-		log.Printf("Failed to publish a message %s", messageUUID)
+		log.Println("Failed to publish a message")
 		log.Println(err.Error())
 
 		errMsg := &pb.Error{
