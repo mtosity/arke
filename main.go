@@ -10,7 +10,6 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"sassoftware.io/convoy/arke/pkg/provider"
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
 
@@ -65,11 +64,8 @@ func main() {
 		}
 	}()
 
-	// FIXME: Create some sort of provider factory
-	prov, _ := provider.GetProvider("amqp091")
-
-	pb.RegisterProducerServer(s, &server.ProducerServer{Provider: prov})
-	pb.RegisterConsumerServer(s, &server.ConsumerServer{Provider: prov})
+	pb.RegisterProducerServer(s, &server.ProducerServer{})
+	pb.RegisterConsumerServer(s, &server.ConsumerServer{})
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

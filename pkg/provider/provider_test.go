@@ -61,6 +61,12 @@ func TestGetProvider(t *testing.T) {
 	assert.Equal(t, &prov, &prov2)
 }
 
+func TestGetProvider_Fail(t *testing.T) {
+	prov, err := GetProvider("unknown")
+	assert.Nil(t, prov)
+	assert.Regexp(t, regexp.MustCompile("Invalid provider name"), err.Error())
+}
+
 func captureOutput(f func()) string {
 	var buf bytes.Buffer
 	log.SetOutput(&buf)

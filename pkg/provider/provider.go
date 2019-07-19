@@ -62,6 +62,7 @@ func NewProvider(providerType string) (Provider, error) {
 	var provOnce providerOnce
 	providerVault[providerType] = &provOnce
 	providerFactory := pf.(Factory)
+	// This ensures we only generate one provider of providerType
 	provider := provOnce.Do(func() Provider { return providerFactory() })
 	return provider, nil
 }
@@ -71,15 +72,16 @@ func GetProvider(providerType string) (Provider, error) {
 	log.Printf("Looking up provider %s.\n", providerType)
 	if !registered {
 		log.Printf("Provider %s not found in cache, creating new provider\n", providerType)
-		prov, err := NewProvider(providerType)
+		prov, newProvErr := NewProvider(providerType)
 		if prov != nil {
 			registeredProviders.Add(providerType, prov)
 		}
-		fmt.Printf("NewProvider error : %s\n", err)
-		fmt.Printf("Provider : %p\n", &prov)
+		if newProvErr != nil {
+			return nil, newProvErr
+		}
 	}
 	prov, _ = registeredProviders.Get(providerType)
-	fmt.Printf("Provider : %p\n", prov)
+
 	return prov.(Provider), nil
 }
 
