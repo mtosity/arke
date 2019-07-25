@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	uuid "github.com/nu7hatch/gouuid"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/peer"
 )
 
@@ -27,6 +27,6 @@ func GetClientUUID(ctx context.Context) (string, error) {
 
 // GenUUID Generate a UUID and return the string representation
 func GenUUID() string {
-	uuidRaw, _ := uuid.NewV4()
+	uuidRaw := uuid.New()
 	return uuidRaw.String()
 }

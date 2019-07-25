@@ -133,6 +133,12 @@ func (prov *MockProvider) Publish(ctx *context.Context, message *pb.Message) (bo
 	return args.Get(0).(bool), args.Get(1).(*pb.Error)
 }
 
+func (prov *MockProvider) SupportedSourceOptions() map[string]bool {
+	opts := make(map[string]bool)
+	opts["option1"] = true
+	return opts
+}
+
 // TestProducerServerNew creates a new producer server
 func TestProducerServerNew(t *testing.T) {
 	prov := NewMockProvider()
@@ -436,4 +442,21 @@ func TestServerNoConnect_FAIL(t *testing.T) {
 	stream := &MockConsumerSubscribeServerStream{}
 	subErr := conSrv.Subscribe(source, stream)
 	assert.NotNil(t, subErr)
+}
+
+func TestSupportedSourceOptions(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	mockp.On("Connect", mock.Anything, mock.Anything).Return(&pb.Error{})
+	stream := &MockConsumerSubscribeServerStream{}
+	stream.On("Send", mock.Anything).Return(errors.New(expectedErrorMessage)).Once()
+	sourceOptions := make(map[string]string)
+	sourceOptions["option1"] = "ok"
+	sourceOptions["badoption"] = "notok"
+	source := &pb.Source{Options: sourceOptions}
+
+	conSrv.Connect(ctx, cf)
+	err := conSrv.Subscribe(source, stream)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "provider does not support")
+	assert.NotContains(t, err.Error(), "option1")
 }

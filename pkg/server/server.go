@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	pb "sassoftware.io/convoy/arke/api"
@@ -88,6 +89,23 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 		ftlError := errors.New(findErr.Message)
 		log.Printf("Subscribe failed: %s.", findErr.Message)
 		return ftlError
+	}
+
+	// verify source.SourceOptions
+	validOptions := prov.SupportedSourceOptions()
+	unsupported := make([]string, 0)
+	options := source.GetOptions()
+	for option := range options {
+		if _, ok := validOptions[option]; !ok {
+			log.Printf("%s is an unsupported option", option)
+			unsupported = append(unsupported, option)
+		}
+	}
+
+	if len(unsupported) > 0 {
+		errMsg := fmt.Sprintf("provider does not support the following source options: %s", unsupported)
+		_ = stream.Send(&pb.Message{Error: &pb.Error{Message: errMsg}})
+		return errors.New(errMsg)
 	}
 
 	messageChannel := make(chan *pb.Message)

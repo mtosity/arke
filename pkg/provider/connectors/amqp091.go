@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/streadway/amqp"
@@ -16,6 +17,10 @@ import (
 )
 
 const providerName string = "amqp091"
+
+var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expiration"}
+
+var supportedSourceOptions map[string]bool
 
 type amqp091provider struct {
 	provider.Provider
@@ -34,6 +39,11 @@ type BrokerDetails struct {
 func init() {
 	// Register this provider with the Provider factory.
 	provider.Register(providerName, NewAMQP091Provider)
+
+	supportedSourceOptions = make(map[string]bool)
+	for _, option := range supportedSourceOptionsList {
+		supportedSourceOptions[option] = true
+	}
 }
 
 /*
@@ -266,6 +276,30 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		}
 	}
 
+	args := make(amqp.Table)
+	for option, value := range source.GetOptions() {
+		switch option {
+		case "MessageTTL":
+			val, err := strconv.Atoi(value)
+			if err != nil {
+				return &pb.Error{Message: "Value for MessageTTL option must be a quoted integer"}
+			}
+			args["x-message-ttl"] = val
+		case "Expires":
+			val, err := strconv.Atoi(value)
+			if err != nil {
+				return &pb.Error{Message: "Value for Expires option must be a quoted integer"}
+			}
+			args["x-expires"] = val
+		case "DeadLetterAddress":
+			args["x-dead-letter-exchange"] = value
+		case "DeadLetterSubject":
+			args["x-dead-letter-routing-key"] = value
+		default:
+			return &pb.Error{Message: fmt.Sprintf("%s is an unsupported source option", option)}
+		}
+	}
+
 	log.Printf("Arguments (matches): %s", matchHeaders)
 	_, qErr := bd.Channel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
 	bErr := bd.Channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, matchHeaders)
@@ -370,4 +404,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 		return false, errMsg
 	}
 	return true, nil
+}
+
+func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
+	return supportedSourceOptions
 }

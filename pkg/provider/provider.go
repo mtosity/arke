@@ -21,6 +21,7 @@ type Provider interface {
 	Nack(*context.Context, *pb.Message) *pb.Error
 	Connect(*context.Context, *pb.ConnectionConfiguration) *pb.Error
 	Disconnect(*context.Context)
+	SupportedSourceOptions() map[string]bool
 }
 
 // Factory method for creating a specific provider

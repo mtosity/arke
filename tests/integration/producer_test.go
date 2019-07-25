@@ -34,6 +34,7 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error 
 	ctx := context.Background()
 
 	connConfig := connectConfig()
+	defer c.Disconnect(ctx, &pb.Empty{})
 
 	authResp, err := c.Connect(ctx, connConfig)
 
@@ -60,6 +61,7 @@ func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done ch
 	c := pb.NewConsumerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
 	defer cancel()
 
 	connConfig := connectConfig()
@@ -200,7 +202,7 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	r, err := c.SendMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
-	assert.Contains(t, err.Error(), "could not retrieve broker details")
+	assert.Contains(t, err.Error(), "Failed to find connection information")
 }
 
 func TestAckFailsWithoutConnect(t *testing.T) {
@@ -215,7 +217,7 @@ func TestAckFailsWithoutConnect(t *testing.T) {
 	r, err := c.AckMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
-	assert.Contains(t, err.Error(), "could not retrieve broker details")
+	assert.Contains(t, err.Error(), "Failed to find connection information")
 }
 
 func TestNackFailsWithoutConnect(t *testing.T) {
@@ -230,7 +232,7 @@ func TestNackFailsWithoutConnect(t *testing.T) {
 	r, err := c.NackMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
-	assert.Contains(t, err.Error(), "could not retrieve broker details")
+	assert.Contains(t, err.Error(), "Failed to find connection information")
 }
 
 func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
@@ -477,4 +479,43 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestBadSourceOptionsAmqp091(t *testing.T) {
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	address := &pb.Address{Name: "sastest.topic", Subject: "sas.test.proxy.TSOA", Type: pb.Address_TOPIC}
+
+	opts := make(map[string]string)
+	opts["BadOption"] = "10"
+
+	source := &pb.Source{Name: "sas.test.proxy.TSOA.Consumer", Address: address, Options: opts}
+
+	c := pb.NewConsumerClient(consumerConnection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer cancel()
+
+	connConfig := connectConfig()
+
+	_, err := c.Connect(ctx, connConfig)
+	assert.Nil(t, err)
+
+	stream, err := c.Subscribe(ctx, source)
+	var optionError error
+	// assert.Equal(t, err.Error(), "BadOption is an unsupported source option")
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			optionError = err
+			break
+		}
+	}
+
+	assert.NotNil(t, optionError)
+	assert.Contains(t, optionError.Error(), "provider does not support the following source options: [BadOption]")
 }
