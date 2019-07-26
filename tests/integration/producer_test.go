@@ -45,11 +45,14 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error 
 		return errors.New(authResp.GetError().GetMessage())
 	}
 
+	stream, err := c.Publish(ctx)
 	for i := 0; i < cnt; i++ {
-		r, err := c.SendMessage(ctx, message)
+		// r, err := c.Publish(ctx, message)
+		err = stream.Send(message)
 		if err != nil {
 			return err
 		}
+		r, _ := stream.Recv()
 		if !r.GetSuccess() {
 			return errors.New(r.GetError().GetMessage())
 		}
@@ -199,8 +202,10 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 
 	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPFWC", Type: pb.Address_TOPIC}
 
-	r, err := c.SendMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
-	assert.NotNil(t, err)
+	stream, err := c.Publish(ctx)
+	err = stream.Send(&pb.Message{Body: []byte("message"), Address: address, Persistent: true})
+	assert.Nil(t, err)
+	r, err := stream.Recv()
 	assert.Nil(t, r)
 	assert.Contains(t, err.Error(), "Failed to find connection information")
 }

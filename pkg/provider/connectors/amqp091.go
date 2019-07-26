@@ -34,6 +34,7 @@ type BrokerDetails struct {
 	ErrorChannel   chan *amqp.Error
 	ClientUUID     string
 	knownExchanges *util.ConcurrentMap
+	prefetchCount  int
 }
 
 func init() {
@@ -127,6 +128,12 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Err
 	}
 	log.Printf("Nack message with UUID : %s", msg.GetUuid())
 
+	amqpChannel, err := bd.Connection.Channel()
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+	defer amqpChannel.Close()
+
 	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
 		err = rm.Nack(false, true)
@@ -188,6 +195,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 			ErrorChannel:   make(chan *amqp.Error),
 			ClientUUID:     clientUUID,
 			knownExchanges: knownExchanges,
+			prefetchCount:  int(cf.GetPrefetchCount()),
 		}
 		channel, err := conn.Channel()
 		if err != nil {
@@ -196,7 +204,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 			fmt.Printf("Failed to open a channel: %s", err.Error())
 			return &pb.Error{Message: err.Error()}
 		}
-		channel.Qos(int(cf.GetPrefetchCount()), 0, true)
+		channel.Qos(bd.prefetchCount, 0, true)
 		bd.Channel = channel
 		conn.NotifyClose(bd.ErrorChannel)
 		channel.NotifyClose(bd.ErrorChannel)
@@ -253,6 +261,13 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	amqpChannel, err := bd.Connection.Channel()
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+	defer amqpChannel.Close()
+	amqpChannel.Qos(bd.prefetchCount, 0, false)
+
 	prov.declareExchange(source.GetAddress(), bd)
 
 	log.Printf("Binding to Queue :")
@@ -301,12 +316,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	}
 
 	log.Printf("Arguments (matches): %s", matchHeaders)
-	_, qErr := bd.Channel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
-	bErr := bd.Channel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, matchHeaders)
+	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
+	bErr := amqpChannel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, matchHeaders)
 	log.Printf("Error from queue create : %s", qErr)
 	log.Printf("Error from bind : %s", bErr)
 	log.Printf("Client subscribed : %s", source.GetName())
-	messages, _ := bd.Channel.Consume(
+	messages, _ := amqpChannel.Consume(
 		source.GetName(), // queue name
 		"",               // consumer string
 		false,            // auto-ack
@@ -348,14 +363,76 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 	}()
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
 		log.Printf("Closing connection for %s", bd.ClientUUID)
-		bd.Channel.Close()
+		// bd.Channel.Close()
 		bd.Connection.Close()
 	}
 	prov.connections.Delete(clientUUID)
 }
 
 // Publish publish a message to the broker
-func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
+func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) (bool, *pb.Error) {
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return false, &pb.Error{Message: err.Error()}
+	}
+	amqpChannel, err := bd.Connection.Channel()
+	if err != nil {
+		return false, &pb.Error{Message: err.Error()}
+	}
+	defer amqpChannel.Close()
+
+	for {
+		message := <-messageChannel
+		address := message.GetAddress()
+		deliveryMode := 1
+		if message.GetPersistent() {
+			deliveryMode = 2
+		}
+
+		prov.declareExchange(message.GetAddress(), bd)
+
+		headers := amqp.Table{}
+
+		for headerName, headerValue := range message.GetHeaders() {
+			headers[headerName] = headerValue
+		}
+
+		log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
+		err = amqpChannel.Publish(
+			address.GetName(),    // exchange
+			address.GetSubject(), // routing key
+			false,                // mandatory
+			false,                // immediate
+			amqp.Publishing{
+				ContentType:  "text/plain",
+				Body:         message.GetBody(),
+				DeliveryMode: uint8(deliveryMode),
+				Headers:      headers,
+			})
+
+		if err != nil {
+			switch err {
+			case *amqp.ErrClosed:
+				log.Printf("amqp closed: %s", err)
+			default:
+				log.Printf("default: %s", err)
+			}
+			log.Println("Failed to publish a message")
+			log.Println(err.Error())
+
+			errMsg := &pb.Error{
+				Message: err.Error(),
+				IsFatal: true,
+			}
+			errChan <- errMsg
+		}
+		errChan <- nil
+	}
+
+}
+
+// Publish publish a message to the broker
+func (prov *amqp091provider) PublishOne(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return false, &pb.Error{Message: err.Error()}
@@ -406,6 +483,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, message *pb.Message) 
 	return true, nil
 }
 
+// SupportSourceOptions returns a map[string]bool of support options for Source.Options
 func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 	return supportedSourceOptions
 }

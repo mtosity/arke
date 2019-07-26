@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 
 	pb "sassoftware.io/convoy/arke/api"
@@ -131,6 +132,57 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	return returnError
 }
 
+// Publish sends message to the server
+func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
+	ctx := stream.Context()
+	prov, findErr := findProvider(ctx)
+	if prov == nil {
+		ftlError := errors.New(findErr.Message)
+		log.Printf("Send Message failed: %s.", findErr.Message)
+		return ftlError
+		// return &pb.MessageResponse{Success: false, Error: findErr}, ftlError
+	}
+
+	var err error
+	var msg *pb.Message
+	messageChannel := make(chan *pb.Message)
+	errChan := make(chan *pb.Error)
+
+	go func(mc <-chan *pb.Message, ec chan<- *pb.Error, prov provider.Provider, ctx *context.Context) {
+		prov.Publish(ctx, mc, ec)
+	}(messageChannel, errChan, prov, &ctx)
+
+	for {
+		msg, err = stream.Recv()
+		if err == io.EOF {
+			log.Print(err)
+			return nil
+		}
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+		messageChannel <- msg
+		pubErr := <-errChan
+		var resp *pb.MessageResponse
+		if err != nil {
+			resp = &pb.MessageResponse{Success: false, Error: pubErr}
+		} else {
+			resp = &pb.MessageResponse{Success: true}
+		}
+		err = stream.Send(resp)
+		if err == io.EOF {
+			log.Print(err)
+			break
+		}
+		if err != nil {
+			log.Print(err)
+			break
+		}
+	}
+	return err
+}
+
 // SendMessage send a message to the server
 func (s *ProducerServer) SendMessage(ctx context.Context, msg *pb.Message) (*pb.MessageResponse, error) {
 	prov, findErr := findProvider(ctx)
@@ -140,7 +192,7 @@ func (s *ProducerServer) SendMessage(ctx context.Context, msg *pb.Message) (*pb.
 		return &pb.MessageResponse{Success: false, Error: findErr}, ftlError
 	}
 
-	success, errMsg := prov.Publish(&ctx, msg)
+	success, errMsg := prov.PublishOne(&ctx, msg)
 	resp := &pb.MessageResponse{Success: success}
 	var err error
 	if success != true {
@@ -179,7 +231,7 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.Con
 	}
 	_, exists := connectionMap.Get(clientUUID)
 	if exists {
-		err := errors.New("Can not call Connect more than once. Call Disconnect and try again.")
+		err := errors.New("can not call Connect more than once. Call Disconnect and try again")
 		return &pb.ConnectResponse{Success: false, Error: nil}, err
 	}
 	errMsg := prov.Connect(&ctx, cf)

@@ -15,7 +15,8 @@ import (
 
 // Provider provider interface
 type Provider interface {
-	Publish(*context.Context, *pb.Message) (bool, *pb.Error)
+	PublishOne(*context.Context, *pb.Message) (bool, *pb.Error)
+	Publish(*context.Context, <-chan *pb.Message, chan<- *pb.Error) (bool, *pb.Error)
 	Subscribe(*context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
 	Ack(*context.Context, *pb.Message) *pb.Error
 	Nack(*context.Context, *pb.Message) *pb.Error

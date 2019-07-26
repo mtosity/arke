@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"testing"
 
@@ -43,6 +44,18 @@ type MockConsumerSubscribeServerStream struct {
 	pb.Consumer_SubscribeServer
 }
 
+type MockPubRecv struct {
+	Message *pb.Message
+	Error   error
+}
+
+type MockProducerPublishServerStream struct {
+	mock.Mock
+	pb.Producer_PublishServer
+	Receives   []*MockPubRecv
+	SendErrors []error
+}
+
 func NewMockConsumerSubscribeServerStream() pb.Consumer_SubscribeServer {
 	stream := &MockConsumerSubscribeServerStream{}
 	return stream
@@ -63,6 +76,36 @@ func (stream *MockConsumerSubscribeServerStream) Send(msg *pb.Message) error {
 func (stream *MockConsumerSubscribeServerStream) Context() context.Context {
 	ctx := context.Background()
 	return ctx
+}
+
+func (stream *MockProducerPublishServerStream) Context() context.Context {
+	ctx := context.Background()
+	return ctx
+}
+
+func (stream *MockProducerPublishServerStream) Recv() (*pb.Message, error) {
+	responses := stream.Receives
+	var resp *MockPubRecv
+	if len(stream.Receives) > 0 {
+		resp, responses = responses[0], responses[1:]
+	} else {
+		resp = &MockPubRecv{}
+	}
+	stream.Receives = responses
+	return resp.Message, resp.Error
+}
+
+func (stream *MockProducerPublishServerStream) Send(*pb.MessageResponse) error {
+	errors := stream.SendErrors
+	var err error
+	if len(stream.SendErrors) > 0 {
+		err, errors = errors[0], errors[1:]
+	} else {
+		err = nil
+	}
+	stream.SendErrors = errors
+
+	return err
 }
 
 type MockProvider struct {
@@ -126,11 +169,19 @@ func (prov *MockProvider) Disconnect(ctx *context.Context) {
 }
 
 // Publish publish a message to the broker
-func (prov *MockProvider) Publish(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
+func (prov *MockProvider) PublishOne(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
 
 	args := prov.Called(ctx, message)
-	// err := args.Get(1).(*pb.Error)
 	return args.Get(0).(bool), args.Get(1).(*pb.Error)
+}
+
+// Publish publish a message to the broker
+func (prov *MockProvider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) (bool, *pb.Error) {
+
+	for {
+		_ = <-messageChannel
+		errChan <- nil
+	}
 }
 
 func (prov *MockProvider) SupportedSourceOptions() map[string]bool {
@@ -215,7 +266,7 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 	connectResp, err := proSrv.Connect(ctx, cf)
 	proSrv.Disconnect(ctx, &pb.Empty{})
 
-	connTwiceError := "Can not call Connect more than once. Call Disconnect and try again."
+	connTwiceError := "can not call Connect more than once. Call Disconnect and try again"
 	assert.NotNil(t, connectResp)
 	assert.Equal(t, connTwiceError, err.Error())
 
@@ -292,10 +343,9 @@ func TestConsumerServerNack_Success(t *testing.T) {
 func TestProducerServerSendMessage_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	//ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{}
 
-	mockp.On("Publish", mock.Anything, mock.Anything).Return(true, &pb.Error{})
+	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(true, &pb.Error{})
 	proSrv.Connect(ctx, cf)
 	resp, err := proSrv.SendMessage(ctx, msg)
 	assert.NotNil(t, resp)
@@ -310,13 +360,76 @@ func TestProducerServerSendMessage_Fail(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{}
 
-	mockp.On("Publish", mock.Anything, mock.Anything).Return(false, &errMsg)
+	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(false, &errMsg)
 	proSrv.Connect(ctx, cf)
 	resp, err := proSrv.SendMessage(ctx, msg)
 	assert.NotNil(t, resp)
 	assert.NotNil(t, err)
 	assert.Equal(t, expectedErrorMessage, resp.GetError().GetMessage(), fmt.Sprintf("error should be '%s'", expectedErrorMessage))
 	assert.Equal(t, expectedErrorMessage, err.Error())
+
+	mockp.AssertExpectations(t)
+}
+
+func TestProducerServerPublish_Success(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+	msg := &pb.Message{Body: []byte("publish_sucess message body")}
+
+	proSrv.Connect(ctx, cf)
+	stream := &MockProducerPublishServerStream{}
+	stream.Receives = make([]*MockPubRecv, 0)
+	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
+	stream.Receives = append(stream.Receives, &MockPubRecv{Error: io.EOF})
+
+	stream.SendErrors = make([]error, 0)
+	stream.SendErrors = append(stream.SendErrors, nil)
+	stream.SendErrors = append(stream.SendErrors, nil)
+	err := proSrv.Publish(stream)
+	assert.Nil(t, err)
+
+	mockp.AssertExpectations(t)
+}
+
+func TestProducerServerPublishRecv_Fail(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+	msg := &pb.Message{Body: []byte("pub recv fail")}
+
+	proSrv.Connect(ctx, cf)
+	stream := &MockProducerPublishServerStream{}
+	stream.Receives = make([]*MockPubRecv, 0)
+	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
+	stream.Receives = append(stream.Receives, &MockPubRecv{Error: errors.New("recverror")})
+	stream.SendErrors = make([]error, 0)
+	stream.SendErrors = append(stream.SendErrors, nil)
+	stream.SendErrors = append(stream.SendErrors, nil)
+	err := proSrv.Publish(stream)
+	assert.NotNil(t, err)
+	assert.Equal(t, "recverror", err.Error())
+
+	mockp.AssertExpectations(t)
+}
+
+func TestProducerServerPublishSend_Fail(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+	msg := &pb.Message{Body: []byte("pub send fail")}
+
+	proSrv.Connect(ctx, cf)
+	stream := &MockProducerPublishServerStream{}
+	stream.Receives = make([]*MockPubRecv, 0)
+	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
+	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
+	stream.SendErrors = make([]error, 0)
+	stream.SendErrors = append(stream.SendErrors, nil)
+	stream.SendErrors = append(stream.SendErrors, errors.New("senderror"))
+	err := proSrv.Publish(stream)
+	assert.NotNil(t, err)
+	assert.Equal(t, "senderror", err.Error())
 
 	mockp.AssertExpectations(t)
 }
@@ -423,10 +536,10 @@ func TestServerNoConnect_FAIL(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
 	msg := &pb.Message{}
-	sendResp, sendErr := proSrv.SendMessage(ctx, msg)
-	assert.NotNil(t, sendErr)
-	assert.NotNil(t, sendResp)
-	assert.False(t, sendResp.Success)
+	prodstream := &MockProducerPublishServerStream{}
+	err := proSrv.Publish(prodstream)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Failed to find connection information")
 
 	ackResp, ackErr := conSrv.AckMessage(ctx, msg)
 	assert.NotNil(t, ackErr)
