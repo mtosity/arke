@@ -333,7 +333,18 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	for msg := range messages {
 		messageUUID := util.GenUUID()
-		message := &pb.Message{Uuid: messageUUID, Body: msg.Body}
+		headers := make(map[string]string)
+		for header, value := range msg.Headers {
+			// make everything a string
+			headers[header] = fmt.Sprintf("%v", value)
+		}
+		if msg.ContentType != "" {
+			headers["Content-Type"] = msg.ContentType
+		}
+		if msg.ContentEncoding != "" {
+			headers["Content-Encoding"] = msg.ContentEncoding
+		}
+		message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
 		prov.activeMessages.Add(messageUUID, msg)
 		log.Printf("Delivering %s", messageUUID)
 		messageChannel <- message
@@ -391,11 +402,23 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 		prov.declareExchange(message.GetAddress(), bd)
 
+		amqpMessage := amqp.Publishing{
+			Body:         message.GetBody(),
+			DeliveryMode: uint8(deliveryMode),
+		}
 		headers := amqp.Table{}
 
 		for headerName, headerValue := range message.GetHeaders() {
 			headers[headerName] = headerValue
+			switch headerName {
+			case "Content-Type":
+				amqpMessage.ContentType = headerValue
+			case "Content-Encoding":
+				amqpMessage.ContentEncoding = headerValue
+			}
 		}
+
+		amqpMessage.Headers = headers
 
 		log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
 		err = amqpChannel.Publish(
@@ -403,12 +426,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 			address.GetSubject(), // routing key
 			false,                // mandatory
 			false,                // immediate
-			amqp.Publishing{
-				ContentType:  "text/plain",
-				Body:         message.GetBody(),
-				DeliveryMode: uint8(deliveryMode),
-				Headers:      headers,
-			})
+			amqpMessage)
 
 		if err != nil {
 			switch err {
@@ -446,10 +464,22 @@ func (prov *amqp091provider) PublishOne(ctx *context.Context, message *pb.Messag
 	prov.declareExchange(message.GetAddress(), bd)
 
 	headers := amqp.Table{}
+	amqpMessage := amqp.Publishing{
+		Body:         message.GetBody(),
+		DeliveryMode: uint8(deliveryMode),
+	}
 
 	for headerName, headerValue := range message.GetHeaders() {
 		headers[headerName] = headerValue
+		switch headerName {
+		case "Content-Type":
+			amqpMessage.ContentType = headerValue
+		case "Content-Encoding":
+			amqpMessage.ContentEncoding = headerValue
+		}
 	}
+
+	amqpMessage.Headers = headers
 
 	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
 	err = bd.Channel.Publish(
@@ -457,12 +487,7 @@ func (prov *amqp091provider) PublishOne(ctx *context.Context, message *pb.Messag
 		address.GetSubject(), // routing key
 		false,                // mandatory
 		false,                // immediate
-		amqp.Publishing{
-			ContentType:  "text/plain",
-			Body:         message.GetBody(),
-			DeliveryMode: uint8(deliveryMode),
-			Headers:      headers,
-		})
+		amqpMessage)
 
 	if err != nil {
 		switch err {

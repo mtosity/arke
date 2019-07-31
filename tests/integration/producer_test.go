@@ -524,3 +524,49 @@ func TestBadSourceOptionsAmqp091(t *testing.T) {
 	assert.NotNil(t, optionError)
 	assert.Contains(t, optionError.Error(), "provider does not support the following source options: [BadOption]")
 }
+
+func TestHeaders(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 1
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	headers := make(map[string]string)
+	headers["header-one"] = "one"
+	headers["content-type"] = "text/json"
+	headers["Content-Type"] = "text/yaml"
+	headers["CONTENT-ENCODING"] = "base64"
+	address := &pb.Address{Name: "sastest.direct", Subject: "sas.test.proxy.TPSCSCQN", Type: pb.Address_QUEUE}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address, Headers: headers}
+
+	err := produceMessages(producerConnection, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	received := make([]*pb.Message, 0)
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case msg := <-messages:
+			received = append(received, msg)
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+	assert.Equal(t, headers, received[0].Headers)
+}
