@@ -94,6 +94,38 @@ public final class ProducerGrpc {
      return getSendMessageMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
+      org.arke.ArkeProtos.MessageResponse> getPublishMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "Publish",
+      requestType = org.arke.ArkeProtos.Message.class,
+      responseType = org.arke.ArkeProtos.MessageResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+  public static io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
+      org.arke.ArkeProtos.MessageResponse> getPublishMethod() {
+    io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.MessageResponse> getPublishMethod;
+    if ((getPublishMethod = ProducerGrpc.getPublishMethod) == null) {
+      synchronized (ProducerGrpc.class) {
+        if ((getPublishMethod = ProducerGrpc.getPublishMethod) == null) {
+          ProducerGrpc.getPublishMethod = getPublishMethod = 
+              io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.MessageResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+              .setFullMethodName(generateFullMethodName(
+                  "arke.Producer", "Publish"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.arke.ArkeProtos.Message.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.arke.ArkeProtos.MessageResponse.getDefaultInstance()))
+                  .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Publish"))
+                  .build();
+          }
+        }
+     }
+     return getPublishMethod;
+  }
+
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Empty,
       org.arke.ArkeProtos.Empty> getDisconnectMethod;
 
@@ -169,12 +201,22 @@ public final class ProducerGrpc {
 
     /**
      * <pre>
-     * Send a message to the message broker.
+     * Send a single message to the message broker.
      * </pre>
      */
     public void sendMessage(org.arke.ArkeProtos.Message request,
         io.grpc.stub.StreamObserver<org.arke.ArkeProtos.MessageResponse> responseObserver) {
       asyncUnimplementedUnaryCall(getSendMessageMethod(), responseObserver);
+    }
+
+    /**
+     * <pre>
+     * Send messages to the message broker.
+     * </pre>
+     */
+    public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message> publish(
+        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.MessageResponse> responseObserver) {
+      return asyncUnimplementedStreamingCall(getPublishMethod(), responseObserver);
     }
 
     /**
@@ -203,6 +245,13 @@ public final class ProducerGrpc {
                 org.arke.ArkeProtos.Message,
                 org.arke.ArkeProtos.MessageResponse>(
                   this, METHODID_SEND_MESSAGE)))
+          .addMethod(
+            getPublishMethod(),
+            asyncBidiStreamingCall(
+              new MethodHandlers<
+                org.arke.ArkeProtos.Message,
+                org.arke.ArkeProtos.MessageResponse>(
+                  this, METHODID_PUBLISH)))
           .addMethod(
             getDisconnectMethod(),
             asyncUnaryCall(
@@ -249,13 +298,24 @@ public final class ProducerGrpc {
 
     /**
      * <pre>
-     * Send a message to the message broker.
+     * Send a single message to the message broker.
      * </pre>
      */
     public void sendMessage(org.arke.ArkeProtos.Message request,
         io.grpc.stub.StreamObserver<org.arke.ArkeProtos.MessageResponse> responseObserver) {
       asyncUnaryCall(
           getChannel().newCall(getSendMessageMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     * <pre>
+     * Send messages to the message broker.
+     * </pre>
+     */
+    public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message> publish(
+        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.MessageResponse> responseObserver) {
+      return asyncBidiStreamingCall(
+          getChannel().newCall(getPublishMethod(), getCallOptions()), responseObserver);
     }
 
     /**
@@ -304,7 +364,7 @@ public final class ProducerGrpc {
 
     /**
      * <pre>
-     * Send a message to the message broker.
+     * Send a single message to the message broker.
      * </pre>
      */
     public org.arke.ArkeProtos.MessageResponse sendMessage(org.arke.ArkeProtos.Message request) {
@@ -358,7 +418,7 @@ public final class ProducerGrpc {
 
     /**
      * <pre>
-     * Send a message to the message broker.
+     * Send a single message to the message broker.
      * </pre>
      */
     public com.google.common.util.concurrent.ListenableFuture<org.arke.ArkeProtos.MessageResponse> sendMessage(
@@ -382,6 +442,7 @@ public final class ProducerGrpc {
   private static final int METHODID_CONNECT = 0;
   private static final int METHODID_SEND_MESSAGE = 1;
   private static final int METHODID_DISCONNECT = 2;
+  private static final int METHODID_PUBLISH = 3;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -422,6 +483,9 @@ public final class ProducerGrpc {
     public io.grpc.stub.StreamObserver<Req> invoke(
         io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
+        case METHODID_PUBLISH:
+          return (io.grpc.stub.StreamObserver<Req>) serviceImpl.publish(
+              (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.MessageResponse>) responseObserver);
         default:
           throw new AssertionError();
       }
@@ -475,6 +539,7 @@ public final class ProducerGrpc {
               .setSchemaDescriptor(new ProducerFileDescriptorSupplier())
               .addMethod(getConnectMethod())
               .addMethod(getSendMessageMethod())
+              .addMethod(getPublishMethod())
               .addMethod(getDisconnectMethod())
               .build();
         }

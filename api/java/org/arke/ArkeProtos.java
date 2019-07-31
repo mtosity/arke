@@ -13053,19 +13053,21 @@ public final class ArkeProtos {
       "or\030\002 \001(\0132\013.arke.Error\";\n\014NackResponse\022\017\n" +
       "\007success\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Err" +
       "or\"\007\n\005Empty\"8\n\005Error\022\017\n\007message\030\001 \001(\t\022\014\n" +
-      "\004code\030\002 \001(\005\022\020\n\010is_fatal\030\003 \001(\0102\256\001\n\010Produc" +
+      "\004code\030\002 \001(\005\022\020\n\010is_fatal\030\003 \001(\0102\345\001\n\010Produc" +
       "er\022A\n\007Connect\022\035.arke.ConnectionConfigura" +
       "tion\032\025.arke.ConnectResponse\"\000\0225\n\013SendMes" +
       "sage\022\r.arke.Message\032\025.arke.MessageRespon" +
-      "se\"\000\022(\n\nDisconnect\022\013.arke.Empty\032\013.arke.E" +
-      "mpty\"\0002\213\002\n\010Consumer\022A\n\007Connect\022\035.arke.Co" +
-      "nnectionConfiguration\032\025.arke.ConnectResp" +
-      "onse\"\000\022,\n\tSubscribe\022\014.arke.Source\032\r.arke" +
-      ".Message\"\0000\001\0220\n\nAckMessage\022\r.arke.Messag" +
-      "e\032\021.arke.AckResponse\"\000\0222\n\013NackMessage\022\r." +
-      "arke.Message\032\022.arke.NackResponse\"\000\022(\n\nDi" +
-      "sconnect\022\013.arke.Empty\032\013.arke.Empty\"\000B\026\n\010" +
-      "org.arkeB\nArkeProtosb\006proto3"
+      "se\"\000\0225\n\007Publish\022\r.arke.Message\032\025.arke.Me" +
+      "ssageResponse\"\000(\0010\001\022(\n\nDisconnect\022\013.arke" +
+      ".Empty\032\013.arke.Empty\"\0002\213\002\n\010Consumer\022A\n\007Co" +
+      "nnect\022\035.arke.ConnectionConfiguration\032\025.a" +
+      "rke.ConnectResponse\"\000\022,\n\tSubscribe\022\014.ark" +
+      "e.Source\032\r.arke.Message\"\0000\001\0220\n\nAckMessag" +
+      "e\022\r.arke.Message\032\021.arke.AckResponse\"\000\0222\n" +
+      "\013NackMessage\022\r.arke.Message\032\022.arke.NackR" +
+      "esponse\"\000\022(\n\nDisconnect\022\013.arke.Empty\032\013.a" +
+      "rke.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb\006pro" +
+      "to3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
