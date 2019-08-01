@@ -4,7 +4,6 @@ HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
 HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
 HAVE_PROTOC_JAVA:=$(shell which protoc-gen-grpc-java.exe 2>/dev/null)
 GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
-$(info $(HAVE_PROTOC_JAVA))
 
 all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
@@ -17,7 +16,7 @@ setup: ## Makes build directories and installs vendor dependencies
 	mkdir -p build/osx
 	mkdir -p build/windows
 
-generate: generate-proto generate-doc
+generate: generate-proto generate-doc generate-proto-java
 
 generate-proto: ## Generates protobufs
     ifneq ("$(HAVE_PROTOC)","")

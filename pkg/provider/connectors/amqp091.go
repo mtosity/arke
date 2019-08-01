@@ -321,15 +321,20 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	log.Printf("Error from queue create : %s", qErr)
 	log.Printf("Error from bind : %s", bErr)
 	log.Printf("Client subscribed : %s", source.GetName())
-	messages, _ := amqpChannel.Consume(
-		source.GetName(), // queue name
-		"",               // consumer string
-		false,            // auto-ack
-		false,            // exclusive
-		false,            // no-local
-		false,            // no-wait
-		nil,              // args
+	messages, err := amqpChannel.Consume(
+		source.GetName(),      // queue name
+		"",                    // consumer string
+		false,                 // auto-ack
+		source.GetExclusive(), // exclusive
+		false,                 // no-local
+		false,                 // no-wait
+		nil,                   // args
 	)
+
+	if err != nil {
+		log.Printf("Error subscribing to queue: %v", err)
+		return &pb.Error{Message: err.Error()}
+	}
 
 	for msg := range messages {
 		messageUUID := util.GenUUID()

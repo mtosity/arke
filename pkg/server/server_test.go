@@ -157,11 +157,20 @@ func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfigu
 // Subscribe subscribe to a stream of messages from the broker
 func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
 	// prov.MessageChannel
+	args := prov.Called(ctx, cf)
+
+	var err *pb.Error
+	errArg := args.Get(0)
+	if errArg != nil {
+		err := errArg.(*pb.Error)
+		return err
+	}
+
 	for _, msg := range prov.MockMessages {
 		messageChannel <- msg
 	}
 	close(messageChannel)
-	return &pb.Error{}
+	return err
 }
 
 // Disconnect disconnect from the broker
@@ -447,12 +456,28 @@ func TestConsumerServerSubscribe(t *testing.T) {
 	stream.On("Send", mock.Anything).Return(nil).Once()
 	// Have to send an error to stop the loop
 	stream.On("Send", mock.Anything).Return(errors.New(expectedErrorMessage)).Once()
+	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Subscribe(source, stream)
 	assert.NotNil(t, err)
 
 	mockp.AssertExpectations(t)
 	stream.AssertExpectations(t)
+}
+
+func TestConsumerServerSubscribe_Error(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	source := &pb.Source{}
+	stream := &MockConsumerSubscribeServerStream{}
+
+	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(&pb.Error{Message: "error message"})
+	conSrv.Connect(ctx, cf)
+	err := conSrv.Subscribe(source, stream)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "error message")
+
+	mockp.AssertExpectations(t)
 }
 
 func TestServerDisconnect_SuccessNoUUID(t *testing.T) {

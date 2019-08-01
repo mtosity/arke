@@ -127,7 +127,12 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 			}
 		}
 	}(messageChannel, prov, &ctx)
-	prov.Subscribe(&ctx, source, messageChannel)
+
+	err := prov.Subscribe(&ctx, source, messageChannel)
+	if err != nil {
+		return fmt.Errorf(err.GetMessage())
+	}
+
 	<-forever
 	return returnError
 }

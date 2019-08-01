@@ -570,3 +570,62 @@ func TestHeaders(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 	assert.Equal(t, headers, received[0].Headers)
 }
+
+func TestProduceManyConsumeManyExclusive(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 1
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+	messages2 := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	// register 2 consumers so we hopeully consume twice
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	address := &pb.Address{Name: "sastest.topic", Subject: "sas.test.proxy.TPMCME", Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	<-clientConnected
+
+	done2 := make(chan bool)
+	clientConnected2 := make(chan bool)
+	consumerConnection2 := connect()
+	defer consumerConnection2.Close()
+	source.Name = "sas.test.proxy.TPMCME.Consumer"
+	go consumeMessages(consumerConnection2, messages2, done2, clientConnected2, source)
+	<-clientConnected2
+
+	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
+
+	err := produceMessages(producerConnection, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+	msgCount2 := 0
+
+	messageUUIDs := make([]string, 0)
+	messageUUIDs2 := make([]string, 0)
+
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case msg := <-messages:
+			messageUUIDs = append(messageUUIDs, msg.GetUuid())
+			msgCount++
+		case msg := <-messages2:
+			messageUUIDs2 = append(messageUUIDs2, msg.GetUuid())
+			msgCount2++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+	assert.Equal(t, expectedMessageCount, len(messageUUIDs))
+	assert.Equal(t, 0, msgCount2)
+	assert.Equal(t, 0, len(messageUUIDs2))
+}

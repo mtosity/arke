@@ -90,6 +90,7 @@ message Source {
     bool auto_delete = 5; // Should this Source automatically delete.
     Filter filter = 6; // Filters for this Source.
     map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
+    bool exclusive = 8; // Should this source be exclusive to the subscriber.
 }
 
 /**

@@ -277,6 +277,7 @@ Represents the source for consumer subscriptions.
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
 | filter | [Filter](#arke.Filter) |  | Filters for this Source. |
 | options | [Source.OptionsEntry](#arke.Source.OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
+| exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 
 
 
