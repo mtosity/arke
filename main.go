@@ -16,6 +16,8 @@ import (
 	pb "sassoftware.io/convoy/arke/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -66,6 +68,9 @@ func main() {
 
 	pb.RegisterProducerServer(s, &server.ProducerServer{})
 	pb.RegisterConsumerServer(s, &server.ConsumerServer{})
+
+	server.RegisterHealthServer(s)
+	reflection.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
