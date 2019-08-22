@@ -272,7 +272,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	log.Printf("Binding to Queue :")
 	log.Printf("Queue : %s", source.GetName())
-	log.Printf("Key : %s", source.GetAddress().GetSubject())
+	log.Printf("Key : %s", source.GetAddress().GetSubjects())
 	log.Printf("Exchange : %s", source.GetAddress().GetName())
 	matchHeaders := make(amqp.Table)
 
@@ -317,9 +317,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	log.Printf("Arguments (matches): %s", matchHeaders)
 	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
-	bErr := amqpChannel.QueueBind(source.GetName(), source.GetAddress().GetSubject(), source.GetAddress().GetName(), true, matchHeaders)
 	log.Printf("Error from queue create : %s", qErr)
-	log.Printf("Error from bind : %s", bErr)
+	for _, subject := range source.GetAddress().GetSubjects() {
+
+		bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), true, matchHeaders)
+		log.Printf("Error from bind : %s", bErr)
+	}
 	log.Printf("Client subscribed : %s", source.GetName())
 	messages, err := amqpChannel.Consume(
 		source.GetName(),      // queue name
@@ -373,7 +376,6 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("recovered: %v", err)
 			return
 		}
 	}()
@@ -425,12 +427,12 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 		amqpMessage.Headers = headers
 
-		log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
+		log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
 		err = amqpChannel.Publish(
-			address.GetName(),    // exchange
-			address.GetSubject(), // routing key
-			false,                // mandatory
-			false,                // immediate
+			address.GetName(),        // exchange
+			address.GetSubjects()[0], // routing key
+			false,                    // mandatory
+			false,                    // immediate
 			amqpMessage)
 
 		if err != nil {
@@ -486,12 +488,12 @@ func (prov *amqp091provider) PublishOne(ctx *context.Context, message *pb.Messag
 
 	amqpMessage.Headers = headers
 
-	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubject())
+	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects()[0])
 	err = bd.Channel.Publish(
-		address.GetName(),    // exchange
-		address.GetSubject(), // routing key
-		false,                // mandatory
-		false,                // immediate
+		address.GetName(),        // exchange
+		address.GetSubjects()[0], // routing key
+		false,                    // mandatory
+		false,                    // immediate
 		amqpMessage)
 
 	if err != nil {

@@ -153,6 +153,11 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	messageChannel := make(chan *pb.Message)
 	errChan := make(chan *pb.Error)
 
+	clientUUID, err := GetClientUUID(ctx)
+	if err != nil {
+		return err
+	}
+
 	go func(mc <-chan *pb.Message, ec chan<- *pb.Error, prov provider.Provider, ctx *context.Context) {
 		prov.Publish(ctx, mc, ec)
 	}(messageChannel, errChan, prov, &ctx)
@@ -160,20 +165,34 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	for {
 		msg, err = stream.Recv()
 		if err == io.EOF {
-			log.Print(err)
+			log.Printf("EOF received on producer stream for client %s", clientUUID)
 			return nil
 		}
 		if err != nil {
-			log.Print(err)
+			log.Printf("Error on producer stream for client %s: %v", clientUUID, err)
 			return err
 		}
-		messageChannel <- msg
-		pubErr := <-errChan
+
 		var resp *pb.MessageResponse
-		if err != nil {
-			resp = &pb.MessageResponse{Success: false, Error: pubErr}
+
+		if len(msg.GetAddress().GetSubjects()) != 1 {
+
+			errMsg := &pb.Error{
+				Message: "exactly one subject allowed in an Address",
+				IsFatal: false,
+			}
+
+			resp = &pb.MessageResponse{Success: false, Error: errMsg}
+
 		} else {
-			resp = &pb.MessageResponse{Success: true}
+
+			messageChannel <- msg
+			pubErr := <-errChan
+			if err != nil {
+				resp = &pb.MessageResponse{Success: false, Error: pubErr}
+			} else {
+				resp = &pb.MessageResponse{Success: true}
+			}
 		}
 		err = stream.Send(resp)
 		if err == io.EOF {

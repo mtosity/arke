@@ -69,7 +69,7 @@ message MessageResponse {
  */
 message Address {
     string name = 1; // The name of this destination address.
-    string subject = 2; // The subject of the address.
+    repeated string subjects = 2; // The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
     enum TargetType {
         QUEUE = 0; // The address is a message queue.
         TOPIC = 1; // The address is a message topic.

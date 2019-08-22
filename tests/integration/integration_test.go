@@ -131,7 +131,9 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPSCS", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCS")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -168,7 +170,9 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPMCM", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPMCM")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -200,7 +204,9 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
 
-	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TPFWC", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPFWC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 
 	stream, err := c.Publish(ctx)
 	err = stream.Send(&pb.Message{Body: []byte("message"), Address: address, Persistent: true})
@@ -217,7 +223,9 @@ func TestAckFailsWithoutConnect(t *testing.T) {
 	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
 
-	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TAFWC", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TAFWC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 
 	r, err := c.AckMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.NotNil(t, err)
@@ -232,7 +240,9 @@ func TestNackFailsWithoutConnect(t *testing.T) {
 	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
 
-	address := &pb.Address{Name: "amq.topic", Subject: "sas.test.proxy.TAFWC", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TAFWC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 
 	r, err := c.NackMessage(ctx, &pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.NotNil(t, err)
@@ -275,7 +285,9 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	consumerConnection := connect()
 	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll"}
-	address := &pb.Address{Name: "sastest.headers", Subject: "sas.test.proxy.TPCFMAll", Type: pb.Address_FILTER}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPCFMAll")
+	address := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
 	filter := &pb.Filter{Type: pb.Filter_ALL}
 	matches := make([]*pb.Match, 0)
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAll", Value: "MyFancyValue"})
@@ -343,7 +355,9 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	consumerConnection := connect()
 	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny"}
-	address := &pb.Address{Name: "sastest.headers", Subject: "sas.test.proxy.TPCFMAny", Type: pb.Address_FILTER}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPCFMAny")
+	address := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
 	filter := &pb.Filter{Type: pb.Filter_ANY}
 	matches := make([]*pb.Match, 0)
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAny", Value: "MyFancyValue"})
@@ -410,7 +424,9 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "sastest.topic", Subject: "sas.test.proxy.TPSCSCTN", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCSCTN")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -461,7 +477,9 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "sastest.direct", Subject: "sas.test.proxy.TPSCSCQN", Type: pb.Address_QUEUE}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
+	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -489,7 +507,9 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 func TestBadSourceOptionsAmqp091(t *testing.T) {
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "sastest.topic", Subject: "sas.test.proxy.TSOA", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TSOA")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 
 	opts := make(map[string]string)
 	opts["BadOption"] = "10"
@@ -543,7 +563,9 @@ func TestHeaders(t *testing.T) {
 	headers["content-type"] = "text/json"
 	headers["Content-Type"] = "text/yaml"
 	headers["CONTENT-ENCODING"] = "base64"
-	address := &pb.Address{Name: "sastest.direct", Subject: "sas.test.proxy.TPSCSCQN", Type: pb.Address_QUEUE}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
+	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -586,7 +608,9 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	address := &pb.Address{Name: "sastest.topic", Subject: "sas.test.proxy.TPMCME", Type: pb.Address_TOPIC}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPMCME")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
@@ -628,4 +652,77 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, len(messageUUIDs))
 	assert.Equal(t, 0, msgCount2)
 	assert.Equal(t, 0, len(messageUUIDs2))
+}
+
+func TestSubscribeMultiSubject(t *testing.T) {
+	producerConnection := connect()
+	produceCount := 5
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	// Subscribe with 2 subject bindings
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TSMS.1")
+	subjects = append(subjects, "sas.test.proxy.TSMS.2")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	<-clientConnected
+
+	// Produce to binding one
+	subjects = make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TSMS.1")
+	address.Subjects = subjects
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, produceCount, message)
+	assert.Nil(t, err)
+
+	// Produce to binding 2
+	subjects = make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TSMS.2")
+	address.Subjects = subjects
+	message = &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err = produceMessages(producerConnection, produceCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(2 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, 2*produceCount, msgCount)
+}
+
+func TestProduceMultiSubject_FAIL(t *testing.T) {
+	producerConnection := connect()
+	produceCount := 5
+	defer producerConnection.Close()
+
+	// Publish with 2 subject bindings
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TSMS.1")
+	subjects = append(subjects, "sas.test.proxy.TSMS.2")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, produceCount, message)
+	assert.NotNil(t, err)
+
+	assert.Contains(t, err.Error(), "exactly one subject allowed in an Address")
 }

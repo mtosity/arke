@@ -5455,21 +5455,38 @@ public final class ArkeProtos {
 
     /**
      * <pre>
-     * The subject of the address.
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
      * </pre>
      *
-     * <code>string subject = 2;</code>
+     * <code>repeated string subjects = 2;</code>
      */
-    java.lang.String getSubject();
+    java.util.List<java.lang.String>
+        getSubjectsList();
     /**
      * <pre>
-     * The subject of the address.
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
      * </pre>
      *
-     * <code>string subject = 2;</code>
+     * <code>repeated string subjects = 2;</code>
+     */
+    int getSubjectsCount();
+    /**
+     * <pre>
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+     * </pre>
+     *
+     * <code>repeated string subjects = 2;</code>
+     */
+    java.lang.String getSubjects(int index);
+    /**
+     * <pre>
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+     * </pre>
+     *
+     * <code>repeated string subjects = 2;</code>
      */
     com.google.protobuf.ByteString
-        getSubjectBytes();
+        getSubjectsBytes(int index);
 
     /**
      * <pre>
@@ -5525,7 +5542,7 @@ public final class ArkeProtos {
     }
     private Address() {
       name_ = "";
-      subject_ = "";
+      subjects_ = com.google.protobuf.LazyStringArrayList.EMPTY;
       type_ = 0;
     }
 
@@ -5549,6 +5566,7 @@ public final class ArkeProtos {
       if (extensionRegistry == null) {
         throw new java.lang.NullPointerException();
       }
+      int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
           com.google.protobuf.UnknownFieldSet.newBuilder();
       try {
@@ -5567,8 +5585,11 @@ public final class ArkeProtos {
             }
             case 18: {
               java.lang.String s = input.readStringRequireUtf8();
-
-              subject_ = s;
+              if (!((mutable_bitField0_ & 0x00000001) != 0)) {
+                subjects_ = new com.google.protobuf.LazyStringArrayList();
+                mutable_bitField0_ |= 0x00000001;
+              }
+              subjects_.add(s);
               break;
             }
             case 24: {
@@ -5602,6 +5623,9 @@ public final class ArkeProtos {
         throw new com.google.protobuf.InvalidProtocolBufferException(
             e).setUnfinishedMessage(this);
       } finally {
+        if (((mutable_bitField0_ & 0x00000001) != 0)) {
+          subjects_ = subjects_.getUnmodifiableView();
+        }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
       }
@@ -5792,46 +5816,49 @@ public final class ArkeProtos {
       }
     }
 
-    public static final int SUBJECT_FIELD_NUMBER = 2;
-    private volatile java.lang.Object subject_;
+    public static final int SUBJECTS_FIELD_NUMBER = 2;
+    private com.google.protobuf.LazyStringList subjects_;
     /**
      * <pre>
-     * The subject of the address.
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
      * </pre>
      *
-     * <code>string subject = 2;</code>
+     * <code>repeated string subjects = 2;</code>
      */
-    public java.lang.String getSubject() {
-      java.lang.Object ref = subject_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        subject_ = s;
-        return s;
-      }
+    public com.google.protobuf.ProtocolStringList
+        getSubjectsList() {
+      return subjects_;
     }
     /**
      * <pre>
-     * The subject of the address.
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
      * </pre>
      *
-     * <code>string subject = 2;</code>
+     * <code>repeated string subjects = 2;</code>
+     */
+    public int getSubjectsCount() {
+      return subjects_.size();
+    }
+    /**
+     * <pre>
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+     * </pre>
+     *
+     * <code>repeated string subjects = 2;</code>
+     */
+    public java.lang.String getSubjects(int index) {
+      return subjects_.get(index);
+    }
+    /**
+     * <pre>
+     * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+     * </pre>
+     *
+     * <code>repeated string subjects = 2;</code>
      */
     public com.google.protobuf.ByteString
-        getSubjectBytes() {
-      java.lang.Object ref = subject_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        subject_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
+        getSubjectsBytes(int index) {
+      return subjects_.getByteString(index);
     }
 
     public static final int TYPE_FIELD_NUMBER = 3;
@@ -5902,8 +5929,8 @@ public final class ArkeProtos {
       if (!getNameBytes().isEmpty()) {
         com.google.protobuf.GeneratedMessageV3.writeString(output, 1, name_);
       }
-      if (!getSubjectBytes().isEmpty()) {
-        com.google.protobuf.GeneratedMessageV3.writeString(output, 2, subject_);
+      for (int i = 0; i < subjects_.size(); i++) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 2, subjects_.getRaw(i));
       }
       if (type_ != org.arke.ArkeProtos.Address.TargetType.QUEUE.getNumber()) {
         output.writeEnum(3, type_);
@@ -5926,8 +5953,13 @@ public final class ArkeProtos {
       if (!getNameBytes().isEmpty()) {
         size += com.google.protobuf.GeneratedMessageV3.computeStringSize(1, name_);
       }
-      if (!getSubjectBytes().isEmpty()) {
-        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(2, subject_);
+      {
+        int dataSize = 0;
+        for (int i = 0; i < subjects_.size(); i++) {
+          dataSize += computeStringSizeNoTag(subjects_.getRaw(i));
+        }
+        size += dataSize;
+        size += 1 * getSubjectsList().size();
       }
       if (type_ != org.arke.ArkeProtos.Address.TargetType.QUEUE.getNumber()) {
         size += com.google.protobuf.CodedOutputStream
@@ -5958,8 +5990,8 @@ public final class ArkeProtos {
 
       if (!getName()
           .equals(other.getName())) return false;
-      if (!getSubject()
-          .equals(other.getSubject())) return false;
+      if (!getSubjectsList()
+          .equals(other.getSubjectsList())) return false;
       if (type_ != other.type_) return false;
       if (getDurable()
           != other.getDurable()) return false;
@@ -5978,8 +6010,10 @@ public final class ArkeProtos {
       hash = (19 * hash) + getDescriptor().hashCode();
       hash = (37 * hash) + NAME_FIELD_NUMBER;
       hash = (53 * hash) + getName().hashCode();
-      hash = (37 * hash) + SUBJECT_FIELD_NUMBER;
-      hash = (53 * hash) + getSubject().hashCode();
+      if (getSubjectsCount() > 0) {
+        hash = (37 * hash) + SUBJECTS_FIELD_NUMBER;
+        hash = (53 * hash) + getSubjectsList().hashCode();
+      }
       hash = (37 * hash) + TYPE_FIELD_NUMBER;
       hash = (53 * hash) + type_;
       hash = (37 * hash) + DURABLE_FIELD_NUMBER;
@@ -6128,8 +6162,8 @@ public final class ArkeProtos {
         super.clear();
         name_ = "";
 
-        subject_ = "";
-
+        subjects_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000001);
         type_ = 0;
 
         durable_ = false;
@@ -6162,8 +6196,13 @@ public final class ArkeProtos {
       @java.lang.Override
       public org.arke.ArkeProtos.Address buildPartial() {
         org.arke.ArkeProtos.Address result = new org.arke.ArkeProtos.Address(this);
+        int from_bitField0_ = bitField0_;
         result.name_ = name_;
-        result.subject_ = subject_;
+        if (((bitField0_ & 0x00000001) != 0)) {
+          subjects_ = subjects_.getUnmodifiableView();
+          bitField0_ = (bitField0_ & ~0x00000001);
+        }
+        result.subjects_ = subjects_;
         result.type_ = type_;
         result.durable_ = durable_;
         result.autoDelete_ = autoDelete_;
@@ -6219,8 +6258,14 @@ public final class ArkeProtos {
           name_ = other.name_;
           onChanged();
         }
-        if (!other.getSubject().isEmpty()) {
-          subject_ = other.subject_;
+        if (!other.subjects_.isEmpty()) {
+          if (subjects_.isEmpty()) {
+            subjects_ = other.subjects_;
+            bitField0_ = (bitField0_ & ~0x00000001);
+          } else {
+            ensureSubjectsIsMutable();
+            subjects_.addAll(other.subjects_);
+          }
           onChanged();
         }
         if (other.type_ != 0) {
@@ -6260,6 +6305,7 @@ public final class ArkeProtos {
         }
         return this;
       }
+      private int bitField0_;
 
       private java.lang.Object name_ = "";
       /**
@@ -6350,91 +6396,132 @@ public final class ArkeProtos {
         return this;
       }
 
-      private java.lang.Object subject_ = "";
-      /**
-       * <pre>
-       * The subject of the address.
-       * </pre>
-       *
-       * <code>string subject = 2;</code>
-       */
-      public java.lang.String getSubject() {
-        java.lang.Object ref = subject_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          subject_ = s;
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
+      private com.google.protobuf.LazyStringList subjects_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      private void ensureSubjectsIsMutable() {
+        if (!((bitField0_ & 0x00000001) != 0)) {
+          subjects_ = new com.google.protobuf.LazyStringArrayList(subjects_);
+          bitField0_ |= 0x00000001;
+         }
       }
       /**
        * <pre>
-       * The subject of the address.
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
        * </pre>
        *
-       * <code>string subject = 2;</code>
+       * <code>repeated string subjects = 2;</code>
+       */
+      public com.google.protobuf.ProtocolStringList
+          getSubjectsList() {
+        return subjects_.getUnmodifiableView();
+      }
+      /**
+       * <pre>
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+       * </pre>
+       *
+       * <code>repeated string subjects = 2;</code>
+       */
+      public int getSubjectsCount() {
+        return subjects_.size();
+      }
+      /**
+       * <pre>
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+       * </pre>
+       *
+       * <code>repeated string subjects = 2;</code>
+       */
+      public java.lang.String getSubjects(int index) {
+        return subjects_.get(index);
+      }
+      /**
+       * <pre>
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+       * </pre>
+       *
+       * <code>repeated string subjects = 2;</code>
        */
       public com.google.protobuf.ByteString
-          getSubjectBytes() {
-        java.lang.Object ref = subject_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          subject_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
+          getSubjectsBytes(int index) {
+        return subjects_.getByteString(index);
       }
       /**
        * <pre>
-       * The subject of the address.
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
        * </pre>
        *
-       * <code>string subject = 2;</code>
+       * <code>repeated string subjects = 2;</code>
        */
-      public Builder setSubject(
+      public Builder setSubjects(
+          int index, java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  ensureSubjectsIsMutable();
+        subjects_.set(index, value);
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+       * </pre>
+       *
+       * <code>repeated string subjects = 2;</code>
+       */
+      public Builder addSubjects(
           java.lang.String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  
-        subject_ = value;
+  ensureSubjectsIsMutable();
+        subjects_.add(value);
         onChanged();
         return this;
       }
       /**
        * <pre>
-       * The subject of the address.
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
        * </pre>
        *
-       * <code>string subject = 2;</code>
+       * <code>repeated string subjects = 2;</code>
        */
-      public Builder clearSubject() {
-        
-        subject_ = getDefaultInstance().getSubject();
+      public Builder addAllSubjects(
+          java.lang.Iterable<java.lang.String> values) {
+        ensureSubjectsIsMutable();
+        com.google.protobuf.AbstractMessageLite.Builder.addAll(
+            values, subjects_);
         onChanged();
         return this;
       }
       /**
        * <pre>
-       * The subject of the address.
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
        * </pre>
        *
-       * <code>string subject = 2;</code>
+       * <code>repeated string subjects = 2;</code>
        */
-      public Builder setSubjectBytes(
+      public Builder clearSubjects() {
+        subjects_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish.
+       * </pre>
+       *
+       * <code>repeated string subjects = 2;</code>
+       */
+      public Builder addSubjectsBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-        
-        subject_ = value;
+        ensureSubjectsIsMutable();
+        subjects_.add(value);
         onChanged();
         return this;
       }
@@ -13118,39 +13205,39 @@ public final class ArkeProtos {
       "nt\030\005 \001(\010\022\032\n\005error\030\006 \001(\0132\013.arke.Error\032.\n\014" +
       "HeadersEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t" +
       ":\0028\001\">\n\017MessageResponse\022\017\n\007success\030\001 \001(\010" +
-      "\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"\246\001\n\007Address" +
-      "\022\014\n\004name\030\001 \001(\t\022\017\n\007subject\030\002 \001(\t\022&\n\004type\030" +
-      "\003 \001(\0162\030.arke.Address.TargetType\022\017\n\007durab" +
-      "le\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(\010\".\n\nTargetT" +
-      "ype\022\t\n\005QUEUE\020\000\022\t\n\005TOPIC\020\001\022\n\n\006FILTER\020\002\"\351\001" +
-      "\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\0132" +
-      "\r.arke.Address\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto_" +
-      "delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132\014.arke.Filt" +
-      "er\022*\n\007options\030\007 \003(\0132\031.arke.Source.Option" +
-      "sEntry\022\021\n\texclusive\030\010 \001(\010\032.\n\014OptionsEntr" +
-      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"k\n\006Fil" +
-      "ter\022\034\n\007matches\030\001 \003(\0132\013.arke.Match\022$\n\004typ" +
-      "e\030\002 \001(\0162\026.arke.Filter.MatchType\"\035\n\tMatch" +
-      "Type\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name\030" +
-      "\001 \001(\t\022\r\n\005value\030\002 \001(\t\":\n\013AckResponse\022\017\n\007s" +
-      "uccess\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Error" +
-      "\";\n\014NackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005err" +
-      "or\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error\022" +
-      "\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fat" +
-      "al\030\003 \001(\0102\345\001\n\010Producer\022A\n\007Connect\022\035.arke." +
-      "ConnectionConfiguration\032\025.arke.ConnectRe" +
-      "sponse\"\000\0225\n\013SendMessage\022\r.arke.Message\032\025" +
-      ".arke.MessageResponse\"\000\0225\n\007Publish\022\r.ark" +
-      "e.Message\032\025.arke.MessageResponse\"\000(\0010\001\022(" +
-      "\n\nDisconnect\022\013.arke.Empty\032\013.arke.Empty\"\000" +
-      "2\213\002\n\010Consumer\022A\n\007Connect\022\035.arke.Connecti" +
-      "onConfiguration\032\025.arke.ConnectResponse\"\000" +
-      "\022,\n\tSubscribe\022\014.arke.Source\032\r.arke.Messa" +
-      "ge\"\0000\001\0220\n\nAckMessage\022\r.arke.Message\032\021.ar" +
-      "ke.AckResponse\"\000\0222\n\013NackMessage\022\r.arke.M" +
-      "essage\032\022.arke.NackResponse\"\000\022(\n\nDisconne" +
-      "ct\022\013.arke.Empty\032\013.arke.Empty\"\000B\026\n\010org.ar" +
-      "keB\nArkeProtosb\006proto3"
+      "\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"\247\001\n\007Address" +
+      "\022\014\n\004name\030\001 \001(\t\022\020\n\010subjects\030\002 \003(\t\022&\n\004type" +
+      "\030\003 \001(\0162\030.arke.Address.TargetType\022\017\n\007dura" +
+      "ble\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(\010\".\n\nTarget" +
+      "Type\022\t\n\005QUEUE\020\000\022\t\n\005TOPIC\020\001\022\n\n\006FILTER\020\002\"\351" +
+      "\001\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\013" +
+      "2\r.arke.Address\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto" +
+      "_delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132\014.arke.Fil" +
+      "ter\022*\n\007options\030\007 \003(\0132\031.arke.Source.Optio" +
+      "nsEntry\022\021\n\texclusive\030\010 \001(\010\032.\n\014OptionsEnt" +
+      "ry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"k\n\006Fi" +
+      "lter\022\034\n\007matches\030\001 \003(\0132\013.arke.Match\022$\n\004ty" +
+      "pe\030\002 \001(\0162\026.arke.Filter.MatchType\"\035\n\tMatc" +
+      "hType\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name" +
+      "\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\":\n\013AckResponse\022\017\n\007" +
+      "success\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Erro" +
+      "r\";\n\014NackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005er" +
+      "ror\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error" +
+      "\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fa" +
+      "tal\030\003 \001(\0102\345\001\n\010Producer\022A\n\007Connect\022\035.arke" +
+      ".ConnectionConfiguration\032\025.arke.ConnectR" +
+      "esponse\"\000\0225\n\013SendMessage\022\r.arke.Message\032" +
+      "\025.arke.MessageResponse\"\000\0225\n\007Publish\022\r.ar" +
+      "ke.Message\032\025.arke.MessageResponse\"\000(\0010\001\022" +
+      "(\n\nDisconnect\022\013.arke.Empty\032\013.arke.Empty\"" +
+      "\0002\213\002\n\010Consumer\022A\n\007Connect\022\035.arke.Connect" +
+      "ionConfiguration\032\025.arke.ConnectResponse\"" +
+      "\000\022,\n\tSubscribe\022\014.arke.Source\032\r.arke.Mess" +
+      "age\"\0000\001\0220\n\nAckMessage\022\r.arke.Message\032\021.a" +
+      "rke.AckResponse\"\000\0222\n\013NackMessage\022\r.arke." +
+      "Message\032\022.arke.NackResponse\"\000\022(\n\nDisconn" +
+      "ect\022\013.arke.Empty\032\013.arke.Empty\"\000B\026\n\010org.a" +
+      "rkeB\nArkeProtosb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -13197,7 +13284,7 @@ public final class ArkeProtos {
     internal_static_arke_Address_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_Address_descriptor,
-        new java.lang.String[] { "Name", "Subject", "Type", "Durable", "AutoDelete", });
+        new java.lang.String[] { "Name", "Subjects", "Type", "Durable", "AutoDelete", });
     internal_static_arke_Source_descriptor =
       getDescriptor().getMessageTypes().get(6);
     internal_static_arke_Source_fieldAccessorTable = new
