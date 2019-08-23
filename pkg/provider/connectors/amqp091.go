@@ -31,7 +31,6 @@ type amqp091provider struct {
 type BrokerDetails struct {
 	Connection     *amqp.Connection
 	Channel        *amqp.Channel
-	ErrorChannel   chan *amqp.Error
 	ClientUUID     string
 	knownExchanges *util.ConcurrentMap
 	prefetchCount  int
@@ -85,14 +84,8 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 
 // Ack ack a message
 func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Error {
-	bd, err := prov.getBrokerDetails(*ctx)
-	if err != nil {
-		errMsg := &pb.Error{
-			Message: err.Error(),
-			IsFatal: true,
-		}
-		return errMsg
-	}
+	var err error
+
 	log.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
@@ -102,8 +95,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 	}
 
 	if err != nil {
-		log.Println(err.Error())
-		bd.ErrorChannel <- err.(*amqp.Error)
+		log.Printf("Error acking message: %s", err.Error())
 
 		prov.activeMessages.Delete(msg.GetUuid())
 		errMsg := &pb.Error{
@@ -118,22 +110,9 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 
 // Nack ack a message
 func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error {
-	bd, err := prov.getBrokerDetails(*ctx)
-	if err != nil {
-		errMsg := &pb.Error{
-			Message: err.Error(),
-			IsFatal: true,
-		}
-		return errMsg
-	}
+	var err error
+
 	log.Printf("Nack message with UUID : %s", msg.GetUuid())
-
-	amqpChannel, err := bd.Connection.Channel()
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
-	}
-	defer amqpChannel.Close()
-
 	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
 		err = rm.Nack(false, true)
@@ -142,8 +121,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Err
 	}
 
 	if err != nil {
-		log.Println(err.Error())
-		bd.ErrorChannel <- err.(*amqp.Error)
+		log.Printf("Error nacking message: %s", err.Error())
 
 		prov.activeMessages.Delete(msg.GetUuid())
 		errMsg := &pb.Error{
@@ -192,7 +170,6 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		knownExchanges := util.NewConcurrentMap()
 		bd := BrokerDetails{
 			Connection:     conn,
-			ErrorChannel:   make(chan *amqp.Error),
 			ClientUUID:     clientUUID,
 			knownExchanges: knownExchanges,
 			prefetchCount:  int(cf.GetPrefetchCount()),
@@ -206,8 +183,6 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		}
 		channel.Qos(bd.prefetchCount, 0, true)
 		bd.Channel = channel
-		conn.NotifyClose(bd.ErrorChannel)
-		channel.NotifyClose(bd.ErrorChannel)
 		prov.connections.Add(bd.ClientUUID, &bd)
 		log.Printf("Client %s is connected", clientUUID)
 		return nil
