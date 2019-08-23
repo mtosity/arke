@@ -24,8 +24,7 @@ var supportedSourceOptions map[string]bool
 
 type amqp091provider struct {
 	provider.Provider
-	connections    *util.ConcurrentMap
-	activeMessages *util.ConcurrentMap
+	connections *util.ConcurrentMap
 }
 
 type BrokerDetails struct {
@@ -33,6 +32,7 @@ type BrokerDetails struct {
 	Channel        *amqp.Channel
 	ClientUUID     string
 	knownExchanges *util.ConcurrentMap
+	activeMessages *util.ConcurrentMap
 	prefetchCount  int
 }
 
@@ -53,8 +53,7 @@ func init() {
 // NewAMQP091Provider returns a new amqp091 provider
 func NewAMQP091Provider() provider.Provider {
 	connections := util.NewConcurrentMap()
-	activeMessages := util.NewConcurrentMap()
-	prov := &amqp091provider{connections: connections, activeMessages: activeMessages}
+	prov := &amqp091provider{connections: connections}
 	// go prov.monitor()
 	return prov
 }
@@ -84,10 +83,13 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 
 // Ack ack a message
 func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Error {
-	var err error
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
 
 	log.Printf("Ack message with UUID : %s", msg.GetUuid())
-	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
+	if rmu, ok := bd.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
 		err = rm.Ack(false)
 	} else {
@@ -97,23 +99,26 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 	if err != nil {
 		log.Printf("Error acking message: %s", err.Error())
 
-		prov.activeMessages.Delete(msg.GetUuid())
+		bd.activeMessages.Delete(msg.GetUuid())
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
 		}
 		return errMsg
 	}
-	prov.activeMessages.Delete(msg.GetUuid())
+	bd.activeMessages.Delete(msg.GetUuid())
 	return nil
 }
 
 // Nack ack a message
 func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error {
-	var err error
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
 
 	log.Printf("Nack message with UUID : %s", msg.GetUuid())
-	if rmu, ok := prov.activeMessages.Get(msg.GetUuid()); ok {
+	if rmu, ok := bd.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
 		err = rm.Nack(false, true)
 	} else {
@@ -123,14 +128,14 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Err
 	if err != nil {
 		log.Printf("Error nacking message: %s", err.Error())
 
-		prov.activeMessages.Delete(msg.GetUuid())
+		bd.activeMessages.Delete(msg.GetUuid())
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
 		}
 		return errMsg
 	}
-	prov.activeMessages.Delete(msg.GetUuid())
+	bd.activeMessages.Delete(msg.GetUuid())
 	return nil
 }
 
@@ -168,11 +173,13 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		}
 
 		knownExchanges := util.NewConcurrentMap()
+		activeMessages := util.NewConcurrentMap()
 		bd := BrokerDetails{
 			Connection:     conn,
 			ClientUUID:     clientUUID,
 			knownExchanges: knownExchanges,
 			prefetchCount:  int(cf.GetPrefetchCount()),
+			activeMessages: activeMessages,
 		}
 		channel, err := conn.Channel()
 		if err != nil {
@@ -328,7 +335,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			headers["Content-Encoding"] = msg.ContentEncoding
 		}
 		message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
-		prov.activeMessages.Add(messageUUID, msg)
+		bd.activeMessages.Add(messageUUID, msg)
 		log.Printf("Delivering %s", messageUUID)
 		messageChannel <- message
 	}
