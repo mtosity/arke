@@ -207,25 +207,6 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	return err
 }
 
-// SendMessage send a message to the server
-func (s *ProducerServer) SendMessage(ctx context.Context, msg *pb.Message) (*pb.MessageResponse, error) {
-	prov, findErr := findProvider(ctx)
-	if prov == nil {
-		ftlError := errors.New(findErr.Message)
-		log.Printf("Send Message failed: %s.", findErr.Message)
-		return &pb.MessageResponse{Success: false, Error: findErr}, ftlError
-	}
-
-	success, errMsg := prov.PublishOne(&ctx, msg)
-	resp := &pb.MessageResponse{Success: success}
-	var err error
-	if success != true {
-		resp.Error = errMsg
-		err = errors.New(errMsg.GetMessage())
-	}
-	return resp, err
-}
-
 // Disconnect disconnect from the consumer server
 func (s *ConsumerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 	retVal, _ := brokerDisconnect(ctx, empty)

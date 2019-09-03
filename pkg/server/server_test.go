@@ -178,13 +178,6 @@ func (prov *MockProvider) Disconnect(ctx *context.Context) {
 }
 
 // Publish publish a message to the broker
-func (prov *MockProvider) PublishOne(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
-
-	args := prov.Called(ctx, message)
-	return args.Get(0).(bool), args.Get(1).(*pb.Error)
-}
-
-// Publish publish a message to the broker
 func (prov *MockProvider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) (bool, *pb.Error) {
 
 	for {
@@ -345,37 +338,6 @@ func TestConsumerServerNack_Success(t *testing.T) {
 	connectResp, err := conSrv.NackMessage(ctx, msg)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
-
-	mockp.AssertExpectations(t)
-}
-
-func TestProducerServerSendMessage_Success(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	msg := &pb.Message{}
-
-	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(true, &pb.Error{})
-	proSrv.Connect(ctx, cf)
-	resp, err := proSrv.SendMessage(ctx, msg)
-	assert.NotNil(t, resp)
-	assert.Nil(t, err)
-
-	mockp.AssertExpectations(t)
-}
-
-func TestProducerServerSendMessage_Fail(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
-	msg := &pb.Message{}
-
-	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(false, &errMsg)
-	proSrv.Connect(ctx, cf)
-	resp, err := proSrv.SendMessage(ctx, msg)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, err)
-	assert.Equal(t, expectedErrorMessage, resp.GetError().GetMessage(), fmt.Sprintf("error should be '%s'", expectedErrorMessage))
-	assert.Equal(t, expectedErrorMessage, err.Error())
 
 	mockp.AssertExpectations(t)
 }

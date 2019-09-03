@@ -438,65 +438,6 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 }
 
-// Publish publish a message to the broker
-func (prov *amqp091provider) PublishOne(ctx *context.Context, message *pb.Message) (bool, *pb.Error) {
-	bd, err := prov.getBrokerDetails(*ctx)
-	if err != nil {
-		return false, &pb.Error{Message: err.Error()}
-	}
-	address := message.GetAddress()
-	deliveryMode := 1
-	if message.GetPersistent() {
-		deliveryMode = 2
-	}
-
-	prov.declareExchange(message.GetAddress(), bd)
-
-	headers := amqp.Table{}
-	amqpMessage := amqp.Publishing{
-		Body:         message.GetBody(),
-		DeliveryMode: uint8(deliveryMode),
-	}
-
-	for headerName, headerValue := range message.GetHeaders() {
-		headers[headerName] = headerValue
-		switch headerName {
-		case "Content-Type":
-			amqpMessage.ContentType = headerValue
-		case "Content-Encoding":
-			amqpMessage.ContentEncoding = headerValue
-		}
-	}
-
-	amqpMessage.Headers = headers
-
-	log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects()[0])
-	err = bd.Channel.Publish(
-		address.GetName(),        // exchange
-		address.GetSubjects()[0], // routing key
-		false,                    // mandatory
-		false,                    // immediate
-		amqpMessage)
-
-	if err != nil {
-		switch err {
-		case *amqp.ErrClosed:
-			log.Printf("amqp closed: %s", err)
-		default:
-			log.Printf("default: %s", err)
-		}
-		log.Println("Failed to publish a message")
-		log.Println(err.Error())
-
-		errMsg := &pb.Error{
-			Message: err.Error(),
-			IsFatal: true,
-		}
-		return false, errMsg
-	}
-	return true, nil
-}
-
 // SupportSourceOptions returns a map[string]bool of support options for Source.Options
 func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 	return supportedSourceOptions

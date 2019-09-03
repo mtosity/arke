@@ -353,7 +353,6 @@ Service for producing messages
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
-| SendMessage | [Message](#arke.Message) | [MessageResponse](#arke.MessageResponse) | Send a single message to the message broker. |
 | Publish | [Message](#arke.Message) stream | [MessageResponse](#arke.MessageResponse) stream | Send messages to the message broker. |
 | Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |
 

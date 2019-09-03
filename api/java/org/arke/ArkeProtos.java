@@ -13224,20 +13224,19 @@ public final class ArkeProtos {
       "r\";\n\014NackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005er" +
       "ror\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error" +
       "\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fa" +
-      "tal\030\003 \001(\0102\345\001\n\010Producer\022A\n\007Connect\022\035.arke" +
+      "tal\030\003 \001(\0102\256\001\n\010Producer\022A\n\007Connect\022\035.arke" +
       ".ConnectionConfiguration\032\025.arke.ConnectR" +
-      "esponse\"\000\0225\n\013SendMessage\022\r.arke.Message\032" +
-      "\025.arke.MessageResponse\"\000\0225\n\007Publish\022\r.ar" +
-      "ke.Message\032\025.arke.MessageResponse\"\000(\0010\001\022" +
-      "(\n\nDisconnect\022\013.arke.Empty\032\013.arke.Empty\"" +
-      "\0002\213\002\n\010Consumer\022A\n\007Connect\022\035.arke.Connect" +
-      "ionConfiguration\032\025.arke.ConnectResponse\"" +
-      "\000\022,\n\tSubscribe\022\014.arke.Source\032\r.arke.Mess" +
-      "age\"\0000\001\0220\n\nAckMessage\022\r.arke.Message\032\021.a" +
-      "rke.AckResponse\"\000\0222\n\013NackMessage\022\r.arke." +
-      "Message\032\022.arke.NackResponse\"\000\022(\n\nDisconn" +
-      "ect\022\013.arke.Empty\032\013.arke.Empty\"\000B\026\n\010org.a" +
-      "rkeB\nArkeProtosb\006proto3"
+      "esponse\"\000\0225\n\007Publish\022\r.arke.Message\032\025.ar" +
+      "ke.MessageResponse\"\000(\0010\001\022(\n\nDisconnect\022\013" +
+      ".arke.Empty\032\013.arke.Empty\"\0002\213\002\n\010Consumer\022" +
+      "A\n\007Connect\022\035.arke.ConnectionConfiguratio" +
+      "n\032\025.arke.ConnectResponse\"\000\022,\n\tSubscribe\022" +
+      "\014.arke.Source\032\r.arke.Message\"\0000\001\0220\n\nAckM" +
+      "essage\022\r.arke.Message\032\021.arke.AckResponse" +
+      "\"\000\0222\n\013NackMessage\022\r.arke.Message\032\022.arke." +
+      "NackResponse\"\000\022(\n\nDisconnect\022\013.arke.Empt" +
+      "y\032\013.arke.Empty\"\000B\026\n\010org.arkeB\nArkeProtos" +
+      "b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
