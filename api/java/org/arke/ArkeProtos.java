@@ -5490,7 +5490,7 @@ public final class ArkeProtos {
 
     /**
      * <pre>
-     * Target type, default is QUEUE.
+     * Target type, default is TOPIC.
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
@@ -5498,7 +5498,7 @@ public final class ArkeProtos {
     int getTypeValue();
     /**
      * <pre>
-     * Target type, default is QUEUE.
+     * Target type, default is TOPIC.
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
@@ -5650,20 +5650,20 @@ public final class ArkeProtos {
         implements com.google.protobuf.ProtocolMessageEnum {
       /**
        * <pre>
-       * The address is a message queue.
-       * </pre>
-       *
-       * <code>QUEUE = 0;</code>
-       */
-      QUEUE(0),
-      /**
-       * <pre>
        * The address is a message topic.
        * </pre>
        *
-       * <code>TOPIC = 1;</code>
+       * <code>TOPIC = 0;</code>
        */
-      TOPIC(1),
+      TOPIC(0),
+      /**
+       * <pre>
+       * The address is a message queue.
+       * </pre>
+       *
+       * <code>QUEUE = 1;</code>
+       */
+      QUEUE(1),
       /**
        * <pre>
        * The address is a filtered queue.
@@ -5677,20 +5677,20 @@ public final class ArkeProtos {
 
       /**
        * <pre>
-       * The address is a message queue.
-       * </pre>
-       *
-       * <code>QUEUE = 0;</code>
-       */
-      public static final int QUEUE_VALUE = 0;
-      /**
-       * <pre>
        * The address is a message topic.
        * </pre>
        *
-       * <code>TOPIC = 1;</code>
+       * <code>TOPIC = 0;</code>
        */
-      public static final int TOPIC_VALUE = 1;
+      public static final int TOPIC_VALUE = 0;
+      /**
+       * <pre>
+       * The address is a message queue.
+       * </pre>
+       *
+       * <code>QUEUE = 1;</code>
+       */
+      public static final int QUEUE_VALUE = 1;
       /**
        * <pre>
        * The address is a filtered queue.
@@ -5719,8 +5719,8 @@ public final class ArkeProtos {
 
       public static TargetType forNumber(int value) {
         switch (value) {
-          case 0: return QUEUE;
-          case 1: return TOPIC;
+          case 0: return TOPIC;
+          case 1: return QUEUE;
           case 2: return FILTER;
           default: return null;
         }
@@ -5865,7 +5865,7 @@ public final class ArkeProtos {
     private int type_;
     /**
      * <pre>
-     * Target type, default is QUEUE.
+     * Target type, default is TOPIC.
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
@@ -5875,7 +5875,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     * Target type, default is QUEUE.
+     * Target type, default is TOPIC.
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
@@ -5932,7 +5932,7 @@ public final class ArkeProtos {
       for (int i = 0; i < subjects_.size(); i++) {
         com.google.protobuf.GeneratedMessageV3.writeString(output, 2, subjects_.getRaw(i));
       }
-      if (type_ != org.arke.ArkeProtos.Address.TargetType.QUEUE.getNumber()) {
+      if (type_ != org.arke.ArkeProtos.Address.TargetType.TOPIC.getNumber()) {
         output.writeEnum(3, type_);
       }
       if (durable_ != false) {
@@ -5961,7 +5961,7 @@ public final class ArkeProtos {
         size += dataSize;
         size += 1 * getSubjectsList().size();
       }
-      if (type_ != org.arke.ArkeProtos.Address.TargetType.QUEUE.getNumber()) {
+      if (type_ != org.arke.ArkeProtos.Address.TargetType.TOPIC.getNumber()) {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(3, type_);
       }
@@ -6529,7 +6529,7 @@ public final class ArkeProtos {
       private int type_ = 0;
       /**
        * <pre>
-       * Target type, default is QUEUE.
+       * Target type, default is TOPIC.
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
@@ -6539,7 +6539,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Target type, default is QUEUE.
+       * Target type, default is TOPIC.
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
@@ -6551,7 +6551,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Target type, default is QUEUE.
+       * Target type, default is TOPIC.
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
@@ -6563,7 +6563,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Target type, default is QUEUE.
+       * Target type, default is TOPIC.
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
@@ -6579,7 +6579,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Target type, default is QUEUE.
+       * Target type, default is TOPIC.
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
@@ -13209,7 +13209,7 @@ public final class ArkeProtos {
       "\022\014\n\004name\030\001 \001(\t\022\020\n\010subjects\030\002 \003(\t\022&\n\004type" +
       "\030\003 \001(\0162\030.arke.Address.TargetType\022\017\n\007dura" +
       "ble\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(\010\".\n\nTarget" +
-      "Type\022\t\n\005QUEUE\020\000\022\t\n\005TOPIC\020\001\022\n\n\006FILTER\020\002\"\351" +
+      "Type\022\t\n\005TOPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006FILTER\020\002\"\351" +
       "\001\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\013" +
       "2\r.arke.Address\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto" +
       "_delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132\014.arke.Fil" +

@@ -67,7 +67,7 @@ Represents the publishing destination for a message.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The name of this destination address. |
 | subjects | [string](#string) | repeated | The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish. |
-| type | [Address.TargetType](#arke.Address.TargetType) |  | Target type, default is QUEUE. |
+| type | [Address.TargetType](#arke.Address.TargetType) |  | Target type, default is TOPIC. |
 | durable | [bool](#bool) |  | Should the address be durable. |
 | auto_delete | [bool](#bool) |  | Should the address automatically delete. |
 
@@ -309,8 +309,8 @@ Represents the source for consumer subscriptions.
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
-| QUEUE | 0 | The address is a message queue. |
-| TOPIC | 1 | The address is a message topic. |
+| TOPIC | 0 | The address is a message topic. |
+| QUEUE | 1 | The address is a message queue. |
 | FILTER | 2 | The address is a filtered queue. |
 
 
