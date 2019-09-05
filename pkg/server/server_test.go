@@ -147,7 +147,7 @@ func (prov *MockProvider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error 
 }
 
 // Connect connect to broker
-func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration) *pb.Error {
+func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
 	args := prov.Called(ctx, cf)
 
 	err := args.Get(0).(*pb.Error)

@@ -140,24 +140,30 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Err
 }
 
 // Connect connect to rabbitmq
-func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration) *pb.Error {
+func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
 	var conn *amqp.Connection
 	var err error
 	var tenant = cf.GetTenant()
 	if tenant == "" {
 		tenant = "/"
 	}
-	if string(cf.GetCaCertificate()) != "" {
+
+	if tlsSkipVerify { // force TLS and also skip verification if true
 		tlsConfig := new(tls.Config)
-		tlsConfig.RootCAs = x509.NewCertPool()
-		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
-		// FIXME: DO NOT DO THIS (cert in k8s deployment is not created with hostname I am using for testing)
 		tlsConfig.InsecureSkipVerify = true
 		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 		log.Printf("Connecting to broker with URI : %s", connStr)
 		conn, err = amqp.DialTLS(connStr, tlsConfig)
-	} else {
+	} else if string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
+		tlsConfig := new(tls.Config)
+		tlsConfig.RootCAs = x509.NewCertPool()
+		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
+		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
+			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
+		conn, err = amqp.DialTLS(connStr, tlsConfig)
+	} else { // no tls
 		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 		log.Printf("Connecting to broker with URI : %s", connStr)

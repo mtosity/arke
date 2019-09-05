@@ -26,6 +26,7 @@ const (
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
 
 func main() {
 	// Set up cpu and memory profiling if passed in as args
@@ -66,8 +67,8 @@ func main() {
 		}
 	}()
 
-	pb.RegisterProducerServer(s, &server.ProducerServer{})
-	pb.RegisterConsumerServer(s, &server.ConsumerServer{})
+	pb.RegisterProducerServer(s, &server.ProducerServer{TLSSkipVerify: *tlsSkipVerify})
+	pb.RegisterConsumerServer(s, &server.ConsumerServer{TLSSkipVerify: *tlsSkipVerify})
 
 	server.RegisterHealthServer(s)
 	reflection.Register(s)

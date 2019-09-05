@@ -23,21 +23,23 @@ var connectionMap = util.NewConcurrentMap()
 
 // ProducerServer producer server struct
 type ProducerServer struct {
+	TLSSkipVerify bool
 }
 
 // ConsumerServer consumer server struct
 type ConsumerServer struct {
+	TLSSkipVerify bool
 }
 
 // Connect Connect for the producer server
 func (s *ProducerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	resp, err := brokerConnect(ctx, cf)
+	resp, err := brokerConnect(ctx, cf, s.TLSSkipVerify)
 	return resp, err
 }
 
 // Connect Connect for the consumer server
 func (s *ConsumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
-	resp, err := brokerConnect(ctx, cf)
+	resp, err := brokerConnect(ctx, cf, s.TLSSkipVerify)
 	return resp, err
 }
 
@@ -219,7 +221,7 @@ func (s *ProducerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.E
 	return retVal, nil
 }
 
-func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
+func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) (*pb.ConnectResponse, error) {
 	prov, er := provider.GetProvider(cf.GetProvider())
 	if er != nil {
 		errMsg := &pb.Error{
@@ -239,7 +241,7 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.Con
 		err := errors.New("can not call Connect more than once. Call Disconnect and try again")
 		return &pb.ConnectResponse{Success: false, Error: nil}, err
 	}
-	errMsg := prov.Connect(&ctx, cf)
+	errMsg := prov.Connect(&ctx, cf, tlsSkipVerify)
 	success := true
 	var err error
 	if errMsg != nil && errMsg.GetMessage() != "" {

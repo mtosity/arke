@@ -19,7 +19,7 @@ type Provider interface {
 	Subscribe(*context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
 	Ack(*context.Context, *pb.Message) *pb.Error
 	Nack(*context.Context, *pb.Message) *pb.Error
-	Connect(*context.Context, *pb.ConnectionConfiguration) *pb.Error
+	Connect(*context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
 	Disconnect(*context.Context)
 	SupportedSourceOptions() map[string]bool
 }
