@@ -111,31 +111,47 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 		return errors.New(errMsg)
 	}
 
-	messageChannel := make(chan *pb.Message)
-	forever := make(chan bool)
+	// forever := make(chan bool)
+	endloop := false
 	var returnError error
-	go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context) {
+	for {
+		log.Println("BEGINNING OF LOOP")
+		messageChannel := make(chan *pb.Message)
+		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, endloop bool) {
 
-		for {
-			message := <-mc
-			err := stream.Send(message)
-			if err != nil {
-				log.Printf("Could not send message: %s", err.Error())
-				// Could not send the message, so disconnect
-				prov.Disconnect(ctx)
-				returnError = err
-				forever <- false
-				break
+			for {
+				message := <-mc
+				err := stream.Send(message)
+				if err != nil {
+					log.Printf("Could not send message: %s", err.Error())
+					// Could not send the message to the client, so disconnect
+					prov.Disconnect(ctx)
+					returnError = err
+					endloop = true
+					// close(messageChannel)
+					break
+				}
 			}
+		}(messageChannel, prov, &ctx, endloop)
+
+		err := prov.Subscribe(&ctx, source, messageChannel)
+		if err != nil {
+			if clientExists(ctx) {
+				connected := prov.WaitForConnect(&ctx)
+				if connected {
+					continue
+				}
+				log.Println("Failed to reconnect to broker")
+			} else {
+				log.Println("Client details no longer exist. Stopping subscribe.")
+			}
+			returnError = fmt.Errorf(err.GetMessage())
+			break
 		}
-	}(messageChannel, prov, &ctx)
-
-	err := prov.Subscribe(&ctx, source, messageChannel)
-	if err != nil {
-		return fmt.Errorf(err.GetMessage())
+		if endloop {
+			break
+		}
 	}
-
-	<-forever
 	return returnError
 }
 
@@ -147,7 +163,6 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 		ftlError := errors.New(findErr.Message)
 		log.Printf("Send Message failed: %s.", findErr.Message)
 		return ftlError
-		// return &pb.MessageResponse{Success: false, Error: findErr}, ftlError
 	}
 
 	var err error
@@ -160,53 +175,80 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 		return err
 	}
 
-	go func(mc <-chan *pb.Message, ec chan<- *pb.Error, prov provider.Provider, ctx *context.Context) {
-		prov.Publish(ctx, mc, ec)
-	}(messageChannel, errChan, prov, &ctx)
+	var returnError error
+	endLoop := false
 
 	for {
-		msg, err = stream.Recv()
-		if err == io.EOF {
-			log.Printf("EOF received on producer stream for client %s", clientUUID)
-			return nil
-		}
+		go func(mc chan<- *pb.Message, ec chan<- *pb.Error) {
+			for {
+				msg, err = stream.Recv()
+				if err == io.EOF {
+					log.Printf("EOF received on producer stream for client %s", clientUUID)
+					returnError = nil
+					endLoop = true
+					break
+				}
+				if err != nil {
+					log.Printf("Error on producer stream for client %s: %v", clientUUID, err)
+					returnError = err
+					endLoop = true
+					break
+				}
+
+				var resp *pb.MessageResponse
+
+				if len(msg.GetAddress().GetSubjects()) != 1 {
+
+					errMsg := &pb.Error{
+						Message: "exactly one subject allowed in an Address",
+						IsFatal: false,
+					}
+
+					resp = &pb.MessageResponse{Success: false, Error: errMsg}
+
+				} else {
+
+					mc <- msg
+					pubErr := <-errChan
+					if err != nil {
+						resp = &pb.MessageResponse{Success: false, Error: pubErr}
+					} else {
+						resp = &pb.MessageResponse{Success: true}
+					}
+				}
+				err = stream.Send(resp)
+				if err == io.EOF {
+					log.Print(err)
+					break
+				}
+				if err != nil {
+					log.Printf("Error while sending response to publisher %s", err)
+					returnError = err
+					endLoop = true
+					break
+				}
+			}
+		}(messageChannel, errChan)
+
+		err := prov.Publish(&ctx, messageChannel, errChan)
 		if err != nil {
-			log.Printf("Error on producer stream for client %s: %v", clientUUID, err)
-			return err
-		}
-
-		var resp *pb.MessageResponse
-
-		if len(msg.GetAddress().GetSubjects()) != 1 {
-
-			errMsg := &pb.Error{
-				Message: "exactly one subject allowed in an Address",
-				IsFatal: false,
-			}
-
-			resp = &pb.MessageResponse{Success: false, Error: errMsg}
-
-		} else {
-
-			messageChannel <- msg
-			pubErr := <-errChan
-			if err != nil {
-				resp = &pb.MessageResponse{Success: false, Error: pubErr}
+			if clientExists(ctx) {
+				connected := prov.WaitForConnect(&ctx)
+				if connected {
+					continue
+				}
+				log.Println("Failed to reconnect to broker")
 			} else {
-				resp = &pb.MessageResponse{Success: true}
+				log.Println("Client details no longer exist. Stopping subscribe.")
 			}
-		}
-		err = stream.Send(resp)
-		if err == io.EOF {
-			log.Print(err)
+			returnError = fmt.Errorf(err.GetMessage())
 			break
 		}
-		if err != nil {
-			log.Print(err)
+		if endLoop {
 			break
 		}
 	}
-	return err
+	return returnError
 }
 
 // Disconnect disconnect from the consumer server
@@ -289,4 +331,17 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 	providerType := cf.(*pb.ConnectionConfiguration).GetProvider()
 	prov, _ := provider.GetProvider(providerType)
 	return prov, nil
+}
+
+func clientExists(ctx context.Context) bool {
+	// We don't allow a client to call Connect more than once
+	clientUUID, clientErr := GetClientUUID(ctx)
+	if clientErr != nil {
+		return false
+	}
+	_, exists := connectionMap.Get(clientUUID)
+	if exists {
+		return true
+	}
+	return false
 }

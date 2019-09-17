@@ -15,13 +15,14 @@ import (
 
 // Provider provider interface
 type Provider interface {
-	Publish(*context.Context, <-chan *pb.Message, chan<- *pb.Error) (bool, *pb.Error)
+	Publish(*context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
 	Subscribe(*context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
 	Ack(*context.Context, *pb.Message) *pb.Error
 	Nack(*context.Context, *pb.Message) *pb.Error
 	Connect(*context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
 	Disconnect(*context.Context)
 	SupportedSourceOptions() map[string]bool
+	WaitForConnect(*context.Context) bool
 }
 
 // Factory method for creating a specific provider

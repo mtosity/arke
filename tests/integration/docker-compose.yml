@@ -22,5 +22,7 @@ services:
       - "15672:15672"
     networks:
     - arketest
+    # volumes:
+    # - ./rabbitdata:/var/lib/rabbitmq
 networks:
   arketest:

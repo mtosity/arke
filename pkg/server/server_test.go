@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
@@ -62,7 +64,9 @@ func NewMockConsumerSubscribeServerStream() pb.Consumer_SubscribeServer {
 }
 
 func (stream *MockConsumerSubscribeServerStream) Send(msg *pb.Message) error {
+	log.Println("send called on subscribe stream")
 	args := stream.Called(msg)
+
 	errArg := args.Get(0)
 	var err error
 	if errArg == nil {
@@ -156,7 +160,6 @@ func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfigu
 
 // Subscribe subscribe to a stream of messages from the broker
 func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
-	// prov.MessageChannel
 	args := prov.Called(ctx, cf)
 
 	var err *pb.Error
@@ -169,7 +172,6 @@ func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, mes
 	for _, msg := range prov.MockMessages {
 		messageChannel <- msg
 	}
-	close(messageChannel)
 	return err
 }
 
@@ -178,12 +180,31 @@ func (prov *MockProvider) Disconnect(ctx *context.Context) {
 }
 
 // Publish publish a message to the broker
-func (prov *MockProvider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) (bool, *pb.Error) {
+func (prov *MockProvider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) *pb.Error {
+
+	args := prov.Called(ctx, cf)
+
+	errArg := args.Get(0)
+	if errArg != nil {
+		err := errArg.(*pb.Error)
+		return err
+	}
 
 	for {
-		_ = <-messageChannel
-		errChan <- nil
+		select {
+		case _ = <-messageChannel:
+			errChan <- nil
+		case <-time.After(2 * time.Second):
+			return nil
+		}
 	}
+}
+
+func (prov *MockProvider) WaitForConnect(ctx *context.Context) bool {
+	args := prov.Called(ctx)
+
+	tf := args.Get(0).(bool)
+	return tf
 }
 
 func (prov *MockProvider) SupportedSourceOptions() map[string]bool {
@@ -354,6 +375,10 @@ func TestProducerServerPublish_Success(t *testing.T) {
 	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
 	stream.Receives = append(stream.Receives, &MockPubRecv{Error: io.EOF})
 
+	mockp.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	// mockp.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(&pb.Error{}).Once()
+	// mockp.On("WaitForConnect", mock.Anything).Return(false)
+
 	stream.SendErrors = make([]error, 0)
 	stream.SendErrors = append(stream.SendErrors, nil)
 	stream.SendErrors = append(stream.SendErrors, nil)
@@ -377,6 +402,9 @@ func TestProducerServerPublishRecv_Fail(t *testing.T) {
 	stream.SendErrors = make([]error, 0)
 	stream.SendErrors = append(stream.SendErrors, nil)
 	stream.SendErrors = append(stream.SendErrors, nil)
+
+	mockp.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
 	err := proSrv.Publish(stream)
 	assert.NotNil(t, err)
 	assert.Equal(t, "recverror", err.Error())
@@ -398,6 +426,9 @@ func TestProducerServerPublishSend_Fail(t *testing.T) {
 	stream.SendErrors = make([]error, 0)
 	stream.SendErrors = append(stream.SendErrors, nil)
 	stream.SendErrors = append(stream.SendErrors, errors.New("senderror"))
+
+	mockp.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
 	err := proSrv.Publish(stream)
 	assert.NotNil(t, err)
 	assert.Equal(t, "senderror", err.Error())
@@ -418,7 +449,10 @@ func TestConsumerServerSubscribe(t *testing.T) {
 	stream.On("Send", mock.Anything).Return(nil).Once()
 	// Have to send an error to stop the loop
 	stream.On("Send", mock.Anything).Return(errors.New(expectedErrorMessage)).Once()
-	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mockp.On("WaitForConnect", mock.Anything).Return(false)
+	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(&pb.Error{}).Once()
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Subscribe(source, stream)
 	assert.NotNil(t, err)
@@ -434,6 +468,7 @@ func TestConsumerServerSubscribe_Error(t *testing.T) {
 	stream := &MockConsumerSubscribeServerStream{}
 
 	mockp.On("Subscribe", mock.Anything, mock.Anything, mock.Anything).Return(&pb.Error{Message: "error message"})
+	mockp.On("WaitForConnect", mock.Anything).Return(false)
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Subscribe(source, stream)
 	assert.NotNil(t, err)

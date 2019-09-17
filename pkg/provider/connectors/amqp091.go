@@ -4,11 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/streadway/amqp"
 	pb "sassoftware.io/convoy/arke/api"
@@ -27,13 +28,19 @@ type amqp091provider struct {
 	connections *util.ConcurrentMap
 }
 
+// BrokerDetails struct houses connection specific information for the broker
 type BrokerDetails struct {
-	Connection     *amqp.Connection
-	Channel        *amqp.Channel
-	ClientUUID     string
-	knownExchanges *util.ConcurrentMap
-	activeMessages *util.ConcurrentMap
-	prefetchCount  int
+	sync.Mutex
+	Connection       *amqp.Connection
+	ErrorChannel     chan *amqp.Error
+	Channel          *amqp.Channel
+	ClientUUID       string
+	knownExchanges   *util.ConcurrentMap
+	activeMessages   *util.ConcurrentMap
+	prefetchCount    int
+	state            uint16
+	connectionConfig *pb.ConnectionConfiguration
+	tlsSkipVerify    bool
 }
 
 func init() {
@@ -78,11 +85,19 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 		return bd.(*BrokerDetails), nil
 	}
 
-	return &BrokerDetails{}, errors.New("could not retrieve broker details for this connection")
+	return &BrokerDetails{}, fmt.Errorf("could not retrieve broker details for this connection: %s", clientUUID)
 }
 
 // Ack ack a message
 func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Error {
+	defer func() *pb.Error {
+		if err := recover(); err != nil {
+			log.Printf("recovered: %v", err)
+			return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
+		}
+		return nil
+	}()
+
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -141,14 +156,84 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Err
 
 // Connect connect to rabbitmq
 func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
+	clientUUID, err := util.GetClientUUID(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	activeMessages := util.NewConcurrentMap()
+
+	bd := BrokerDetails{
+		connectionConfig: cf,
+		ClientUUID:       clientUUID,
+		prefetchCount:    int(cf.GetPrefetchCount()),
+		ErrorChannel:     make(chan *amqp.Error),
+		activeMessages:   activeMessages,
+		tlsSkipVerify:    tlsSkipVerify,
+	}
+
+	_, bdErr := bd.connect()
+	if bdErr != nil {
+		log.Printf("error connecting to the broker: %v", bdErr)
+		return &pb.Error{Message: bdErr.Error()}
+	}
+	prov.connections.Add(bd.ClientUUID, &bd)
+	log.Printf("%v is connected", clientUUID)
+
+	return nil
+
+}
+
+// connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
+// if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
+func (bd *BrokerDetails) connectionWatcher() {
+	err := <-bd.ErrorChannel
+	bd.Lock()
+	if err != nil {
+		bd.state = DISCONNECTED
+		bd.Unlock()
+		bd.connect()
+		return
+	}
+	bd.Unlock()
+}
+
+func (bd *BrokerDetails) connect() (bool, error) {
+
+	if bd.state == CONNECTING {
+		for start := time.Now(); time.Since(start) < 30*time.Second; {
+			switch bd.state {
+			case CONNECTED:
+				return true, nil
+			case CONNECTING:
+				time.Sleep(100 * time.Millisecond)
+				continue
+			case CLOSED:
+				return false, nil
+			case DISCONNECTED:
+				break
+			}
+		}
+	}
+	log.Println("continuing with connecting...")
+	bd.Lock()
+	defer bd.Unlock()
+	if bd.state == CONNECTED {
+		return true, nil
+	}
+
+	bd.state = CONNECTING
 	var conn *amqp.Connection
 	var err error
+
+	cf := bd.connectionConfig
+
 	var tenant = cf.GetTenant()
 	if tenant == "" {
 		tenant = "/"
 	}
 
-	if tlsSkipVerify { // force TLS and also skip verification if true
+	if bd.tlsSkipVerify { // force TLS and also skip verification if true
 		tlsConfig := new(tls.Config)
 		tlsConfig.InsecureSkipVerify = true
 		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
@@ -170,38 +255,23 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		conn, err = amqp.Dial(connStr)
 	}
 
-	if err == nil {
-
-		clientUUID, err := util.GetClientUUID(*ctx)
-		if err != nil {
-			log.Print("no client-id metadata")
-			return &pb.Error{Message: err.Error()}
-		}
-
-		knownExchanges := util.NewConcurrentMap()
-		activeMessages := util.NewConcurrentMap()
-		bd := BrokerDetails{
-			Connection:     conn,
-			ClientUUID:     clientUUID,
-			knownExchanges: knownExchanges,
-			prefetchCount:  int(cf.GetPrefetchCount()),
-			activeMessages: activeMessages,
-		}
-		channel, err := conn.Channel()
-		if err != nil {
-			// rabbitChannel.Close()
-			bd.Connection.Close()
-			fmt.Printf("Failed to open a channel: %s", err.Error())
-			return &pb.Error{Message: err.Error()}
-		}
-		channel.Qos(bd.prefetchCount, 0, true)
-		bd.Channel = channel
-		prov.connections.Add(bd.ClientUUID, &bd)
-		log.Printf("Client %s is connected", clientUUID)
-		return nil
+	if err != nil {
+		log.Printf("we got an error connecting to the broker: %v", err)
+		bd.state = CLOSED
+		// return &pb.Error{Message: err.Error()}
+		return false, err
 	}
 
-	return &pb.Error{Message: err.Error()}
+	bd.Connection = conn
+	bd.ErrorChannel = make(chan *amqp.Error)
+	conn.NotifyClose(bd.ErrorChannel)
+	go bd.connectionWatcher()
+	bd.state = CONNECTED
+	bd.knownExchanges = util.NewConcurrentMap()
+
+	log.Printf("Client %s is connected", bd.ClientUUID)
+
+	return true, nil
 
 }
 
@@ -226,12 +296,21 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		default:
 			return fmt.Errorf("%s is not a valid address type", address.GetType())
 		}
+
+		amqpChannel, err := bd.Connection.Channel()
+		if err != nil {
+			return err
+		}
+		defer amqpChannel.Close()
+
 		log.Printf("Declaring exchange %s", address.GetName())
-		err := bd.Channel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete(), false, false, nil)
+
+		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete(), false, false, nil)
 		if err != nil {
 			log.Printf("Error creating exchange: %s", err.Error())
 			return err
 		}
+
 		bd.knownExchanges.Add(address.GetName(), true)
 	}
 	return nil
@@ -327,25 +406,47 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
-	for msg := range messages {
-		messageUUID := util.GenUUID()
-		headers := make(map[string]string)
-		for header, value := range msg.Headers {
-			// make everything a string
-			headers[header] = fmt.Sprintf("%v", value)
+	connErrChan := make(chan *amqp.Error)
+	bd.Connection.NotifyClose(connErrChan)
+
+	for {
+		select {
+		case chanErr, ok := <-connErrChan:
+			if !ok {
+				return &pb.Error{Message: "Connection to broker closed"}
+			}
+
+			if chanErr != nil {
+				return &pb.Error{Message: chanErr.Error()}
+			} else if bd.state != CONNECTED {
+				// The connection was closed without an error on the channel, so this was expected.
+				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				return nil
+			}
+		case msg := <-messages:
+			// Sometimes we get a message with a DeliveryTag == 0, which is bad and I'm not sure
+			// how this actually happens
+			if msg.DeliveryTag == 0 {
+				continue
+			}
+			messageUUID := util.GenUUID()
+			headers := make(map[string]string)
+			for header, value := range msg.Headers {
+				// make everything a string
+				headers[header] = fmt.Sprintf("%v", value)
+			}
+			if msg.ContentType != "" {
+				headers["Content-Type"] = msg.ContentType
+			}
+			if msg.ContentEncoding != "" {
+				headers["Content-Encoding"] = msg.ContentEncoding
+			}
+			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
+			bd.activeMessages.Add(messageUUID, msg)
+			log.Printf("Delivering %s", messageUUID)
+			messageChannel <- message
 		}
-		if msg.ContentType != "" {
-			headers["Content-Type"] = msg.ContentType
-		}
-		if msg.ContentEncoding != "" {
-			headers["Content-Encoding"] = msg.ContentEncoding
-		}
-		message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
-		bd.activeMessages.Add(messageUUID, msg)
-		log.Printf("Delivering %s", messageUUID)
-		messageChannel <- message
 	}
-	return nil
 }
 
 // Disconnect disconnect from the broker
@@ -376,70 +477,87 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 }
 
 // Publish publish a message to the broker
-func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) (bool, *pb.Error) {
+func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) *pb.Error {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
-		return false, &pb.Error{Message: err.Error()}
+		return &pb.Error{Message: err.Error()}
 	}
 	amqpChannel, err := bd.Connection.Channel()
 	if err != nil {
-		return false, &pb.Error{Message: err.Error()}
+		return &pb.Error{Message: err.Error()}
 	}
 	defer amqpChannel.Close()
 
+	connErrChan := make(chan *amqp.Error)
+	bd.Connection.NotifyClose(connErrChan)
+
 	for {
-		message := <-messageChannel
-		address := message.GetAddress()
-		deliveryMode := 1
-		if message.GetPersistent() {
-			deliveryMode = 2
-		}
-
-		prov.declareExchange(message.GetAddress(), bd)
-
-		amqpMessage := amqp.Publishing{
-			Body:         message.GetBody(),
-			DeliveryMode: uint8(deliveryMode),
-		}
-		headers := amqp.Table{}
-
-		for headerName, headerValue := range message.GetHeaders() {
-			headers[headerName] = headerValue
-			switch headerName {
-			case "Content-Type":
-				amqpMessage.ContentType = headerValue
-			case "Content-Encoding":
-				amqpMessage.ContentEncoding = headerValue
+		select {
+		case chanErr, ok := <-connErrChan:
+			if !ok {
+				return &pb.Error{Message: "Connection to broker closed"}
 			}
-		}
 
-		amqpMessage.Headers = headers
-
-		log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
-		err = amqpChannel.Publish(
-			address.GetName(),        // exchange
-			address.GetSubjects()[0], // routing key
-			false,                    // mandatory
-			false,                    // immediate
-			amqpMessage)
-
-		if err != nil {
-			switch err {
-			case *amqp.ErrClosed:
-				log.Printf("amqp closed: %s", err)
-			default:
-				log.Printf("default: %s", err)
+			if chanErr != nil {
+				return &pb.Error{Message: chanErr.Error()}
+			} else if bd.state != CONNECTED {
+				// The connection was closed without an error on the channel, so this was expected.
+				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				return nil
 			}
-			log.Println("Failed to publish a message")
-			log.Println(err.Error())
-
-			errMsg := &pb.Error{
-				Message: err.Error(),
-				IsFatal: true,
+		case message := <-messageChannel:
+			address := message.GetAddress()
+			deliveryMode := 1
+			if message.GetPersistent() {
+				deliveryMode = 2
 			}
-			errChan <- errMsg
+
+			prov.declareExchange(message.GetAddress(), bd)
+
+			amqpMessage := amqp.Publishing{
+				Body:         message.GetBody(),
+				DeliveryMode: uint8(deliveryMode),
+			}
+			headers := amqp.Table{}
+
+			for headerName, headerValue := range message.GetHeaders() {
+				headers[headerName] = headerValue
+				switch headerName {
+				case "Content-Type":
+					amqpMessage.ContentType = headerValue
+				case "Content-Encoding":
+					amqpMessage.ContentEncoding = headerValue
+				}
+			}
+
+			amqpMessage.Headers = headers
+
+			log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
+			err = amqpChannel.Publish(
+				address.GetName(),        // exchange
+				address.GetSubjects()[0], // routing key
+				false,                    // mandatory
+				false,                    // immediate
+				amqpMessage)
+
+			if err != nil {
+				switch err {
+				case *amqp.ErrClosed:
+					log.Printf("amqp closed: %s", err)
+				default:
+					log.Printf("default: %s", err)
+				}
+				log.Println("Failed to publish a message")
+				log.Println(err.Error())
+
+				errMsg := &pb.Error{
+					Message: err.Error(),
+					IsFatal: true,
+				}
+				errChan <- errMsg
+			}
+			errChan <- nil
 		}
-		errChan <- nil
 	}
 
 }
@@ -447,4 +565,34 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 // SupportSourceOptions returns a map[string]bool of support options for Source.Options
 func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 	return supportedSourceOptions
+}
+
+// WaitForConnect returns true if connected, false if connection fails
+func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
+	log.Println("waiting for connect...")
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		log.Println("Could not retrieve broker details in WaitForConnect")
+		return false
+	}
+
+	for start := time.Now(); time.Since(start) < CONNECT_TIMEOUT*time.Second; {
+		log.Println("bd.state: ", bd.state)
+		if bd.state == CONNECTED {
+			log.Println("Client is connected.")
+			return true
+		}
+		bd, err = prov.getBrokerDetails(*ctx)
+		if err != nil {
+			log.Println("Broker details no longer exist. Client initiated disconnect.")
+			return false
+		}
+
+		if bd.state == CLOSED {
+			bd.connect()
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
 }

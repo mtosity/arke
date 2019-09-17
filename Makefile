@@ -44,16 +44,22 @@ linux: setup generate ## Builds binary for linux_amd64 (lax)
 	${BUILD_ENV} CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
 	$(MAKE) -C test/test_producer linux
 	$(MAKE) -C test/test_consumer linux
+	$(MAKE) -C test/simple_consumer linux
+	$(MAKE) -C test/simple_consumer linux
 
 osx: setup generate ## Builds binary for darwin_amd64 (osx)
 	${BUILD_ENV} GOARCH=amd64 GOOS=darwin go build -o build/osx/${OUT_FILE}
 	$(MAKE) -C test/test_producer osx
 	$(MAKE) -C test/test_consumer osx
+	$(MAKE) -C test/simple_consumer osx
+	$(MAKE) -C test/simple_consumer osx
 
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE}
 	$(MAKE) -C test/test_producer windows
 	$(MAKE) -C test/test_consumer windows
+	$(MAKE) -C test/simple_consumer windows
+	$(MAKE) -C test/simple_consumer windows
 
 test: generate ## Executes unit tests
 	go test --coverprofile coverage.out ./pkg/... -cover -v

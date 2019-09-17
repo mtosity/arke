@@ -138,6 +138,8 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
+	time.Sleep(500 * time.Millisecond)
+
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	err := produceMessages(producerConnection, expectedMessageCount, message)
@@ -151,7 +153,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 			msgCount++
 		case <-done:
 			break
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			break
 		}
 	}
@@ -176,6 +178,8 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
+
+	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
@@ -298,6 +302,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 
 	<-clientConnected
+	time.Sleep(500 * time.Millisecond)
 
 	headers1 := make(map[string]string)
 	headers2 := make(map[string]string)
@@ -369,6 +374,8 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 	<-clientConnected
 
+	time.Sleep(500 * time.Millisecond)
+
 	headers1 := make(map[string]string)
 	headers2 := make(map[string]string)
 	headers3 := make(map[string]string)
@@ -438,6 +445,8 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	source.Name = "sas.test.proxy.TPSCSCTN.Consumer2"
 	go consumeMessages(consumerConnection2, messages, done2, clientConnected2, source)
 	<-clientConnected2
+
+	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
@@ -675,6 +684,7 @@ func TestSubscribeMultiSubject(t *testing.T) {
 	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
+	time.Sleep(500 * time.Millisecond)
 
 	// Produce to binding one
 	subjects = make([]string, 0)
