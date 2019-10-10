@@ -45,3 +45,7 @@ func (cm *ConcurrentMap) GetList() []string {
 	}
 	return items
 }
+
+func (cm *ConcurrentMap) Length() int {
+	return len(cm.items)
+}

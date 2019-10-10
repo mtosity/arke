@@ -23,6 +23,7 @@ type Provider interface {
 	Disconnect(*context.Context)
 	SupportedSourceOptions() map[string]bool
 	WaitForConnect(*context.Context) bool
+	Stats() *Stats
 }
 
 // Factory method for creating a specific provider
@@ -37,6 +38,21 @@ var registeredProviders = util.NewConcurrentMap()
 type providerOnce struct {
 	m    sync.Mutex
 	done uint32
+}
+
+// ClientStats stats for each connected client
+type ClientStats struct {
+	sync.Mutex
+	ID             string
+	ActiveMessages int
+	Streams        int
+	Produced       int
+	Consumed       int
+}
+
+// Stats metrics for the provider
+type Stats struct {
+	Clients []*ClientStats
 }
 
 var providerVault = make(map[string]*providerOnce)
@@ -71,7 +87,7 @@ func NewProvider(providerType string) (Provider, error) {
 
 func GetProvider(providerType string) (Provider, error) {
 	prov, registered := registeredProviders.Get(providerType)
-	log.Printf("Looking up provider %s.\n", providerType)
+	// log.Printf("Looking up provider %s.\n", providerType)
 	if !registered {
 		log.Printf("Provider %s not found in cache, creating new provider\n", providerType)
 		prov, newProvErr := NewProvider(providerType)
@@ -99,4 +115,16 @@ func Register(name string, factory Factory) {
 			log.Printf("Registering Provider %s.", name)
 		}
 	}
+}
+
+func RegisteredProviders() *util.ConcurrentMap {
+	// provs := make([]Provider, 0)
+	// for _, provName := range registeredProviders.GetList() {
+	// 	prov, exists := registeredProviders.Get(provName)
+	// 	if !exists {
+	// 		continue
+	// 	}
+	// 	provs = append(provs, prov.(Provider))
+	// }
+	return registeredProviders
 }

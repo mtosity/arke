@@ -41,6 +41,9 @@ type BrokerDetails struct {
 	state            uint16
 	connectionConfig *pb.ConnectionConfiguration
 	tlsSkipVerify    bool
+	ActiveStreams    int
+	consumed         int
+	produced         int
 }
 
 func init() {
@@ -103,7 +106,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 		return &pb.Error{Message: err.Error()}
 	}
 
-	log.Printf("Ack message with UUID : %s", msg.GetUuid())
+	// log.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msg.GetUuid()); ok {
 		rm := rmu.(amqp.Delivery)
 		err = rm.Ack(false)
@@ -170,6 +173,9 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		ErrorChannel:     make(chan *amqp.Error),
 		activeMessages:   activeMessages,
 		tlsSkipVerify:    tlsSkipVerify,
+		produced:         0,
+		consumed:         0,
+		ActiveStreams:    0,
 	}
 
 	_, bdErr := bd.connect()
@@ -181,97 +187,6 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 	log.Printf("%v is connected", clientUUID)
 
 	return nil
-
-}
-
-// connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
-// if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
-func (bd *BrokerDetails) connectionWatcher() {
-	err := <-bd.ErrorChannel
-	bd.Lock()
-	if err != nil {
-		bd.state = DISCONNECTED
-		bd.Unlock()
-		bd.connect()
-		return
-	}
-	bd.Unlock()
-}
-
-func (bd *BrokerDetails) connect() (bool, error) {
-
-	if bd.state == CONNECTING {
-		for start := time.Now(); time.Since(start) < 30*time.Second; {
-			switch bd.state {
-			case CONNECTED:
-				return true, nil
-			case CONNECTING:
-				time.Sleep(100 * time.Millisecond)
-				continue
-			case CLOSED:
-				return false, nil
-			case DISCONNECTED:
-				break
-			}
-		}
-	}
-
-	bd.Lock()
-	defer bd.Unlock()
-	if bd.state == CONNECTED {
-		return true, nil
-	}
-
-	bd.state = CONNECTING
-	var conn *amqp.Connection
-	var err error
-
-	cf := bd.connectionConfig
-
-	var tenant = cf.GetTenant()
-	if tenant == "" {
-		tenant = "/"
-	}
-
-	if bd.tlsSkipVerify { // force TLS and also skip verification if true
-		tlsConfig := new(tls.Config)
-		tlsConfig.InsecureSkipVerify = true
-		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		log.Printf("Connecting to broker with URI : %s", connStr)
-		conn, err = amqp.DialTLS(connStr, tlsConfig)
-	} else if string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
-		tlsConfig := new(tls.Config)
-		tlsConfig.RootCAs = x509.NewCertPool()
-		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
-		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		log.Printf("Connecting to broker with URI : %s", connStr)
-		conn, err = amqp.DialTLS(connStr, tlsConfig)
-	} else { // no tls
-		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		log.Printf("Connecting to broker with URI : %s", connStr)
-		conn, err = amqp.Dial(connStr)
-	}
-
-	if err != nil {
-		log.Printf("we got an error connecting to the broker: %v", err)
-		bd.state = CLOSED
-		// return &pb.Error{Message: err.Error()}
-		return false, err
-	}
-
-	bd.Connection = conn
-	bd.ErrorChannel = make(chan *amqp.Error)
-	conn.NotifyClose(bd.ErrorChannel)
-	go bd.connectionWatcher()
-	bd.state = CONNECTED
-	bd.knownExchanges = util.NewConcurrentMap()
-
-	log.Printf("Client %s is connected", bd.ClientUUID)
-
-	return true, nil
 
 }
 
@@ -382,13 +297,21 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		}
 	}
 
-	log.Printf("Arguments (matches): %s", matchHeaders)
+	if len(matchHeaders) > 0 {
+		log.Printf("Arguments (matches): %s", matchHeaders)
+	}
+
 	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
-	log.Printf("Error from queue create : %s", qErr)
+	if qErr != nil {
+		log.Printf("Error from queue create : %s", qErr)
+	}
+
 	for _, subject := range source.GetAddress().GetSubjects() {
 
 		bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), true, matchHeaders)
-		log.Printf("Error from bind : %s", bErr)
+		if bErr != nil {
+			log.Printf("Error from bind : %s", bErr)
+		}
 	}
 	log.Printf("Client subscribed : %s", source.GetName())
 	messages, err := amqpChannel.Consume(
@@ -408,6 +331,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	connErrChan := make(chan *amqp.Error)
 	bd.Connection.NotifyClose(connErrChan)
+
+	bd.ActiveStreams++
+	defer func() { bd.ActiveStreams-- }()
 
 	for {
 		select {
@@ -443,8 +369,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
 			bd.activeMessages.Add(messageUUID, msg)
-			log.Printf("Delivering %s", messageUUID)
+			// log.Printf("Delivering %s", messageUUID)
 			messageChannel <- message
+			bd.consumed++
 		}
 	}
 }
@@ -455,8 +382,8 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 	if err != nil {
 		return
 	}
+
 	var bd *BrokerDetails
-	// := prov.connections.Get(clientUUID).(*BrokerDetails)
 	if bdu, ok := prov.connections.Get(clientUUID); ok {
 		bd = bdu.(*BrokerDetails)
 	} else {
@@ -468,6 +395,7 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 			return
 		}
 	}()
+
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
 		log.Printf("Closing connection for %s", bd.ClientUUID)
 		// bd.Channel.Close()
@@ -490,6 +418,9 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 	connErrChan := make(chan *amqp.Error)
 	bd.Connection.NotifyClose(connErrChan)
+
+	bd.ActiveStreams++
+	defer func() { bd.ActiveStreams-- }()
 
 	for {
 		select {
@@ -532,7 +463,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 			amqpMessage.Headers = headers
 
-			log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
+			// log.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
 			err = amqpChannel.Publish(
 				address.GetName(),        // exchange
 				address.GetSubjects()[0], // routing key
@@ -555,6 +486,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 					IsFatal: true,
 				}
 				errChan <- errMsg
+			} else {
+				bd.produced++
 			}
 			errChan <- nil
 		}
@@ -593,4 +526,117 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return false
+}
+
+// connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
+// if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
+func (bd *BrokerDetails) connectionWatcher() {
+	err := <-bd.ErrorChannel
+	bd.Lock()
+	if err != nil {
+		bd.state = DISCONNECTED
+		bd.Unlock()
+		bd.connect()
+		return
+	}
+	bd.Unlock()
+}
+
+func (bd *BrokerDetails) connect() (bool, error) {
+
+	if bd.state == CONNECTING {
+		for start := time.Now(); time.Since(start) < 30*time.Second; {
+			switch bd.state {
+			case CONNECTED:
+				return true, nil
+			case CONNECTING:
+				time.Sleep(100 * time.Millisecond)
+				continue
+			case CLOSED:
+				return false, nil
+			case DISCONNECTED:
+				break
+			}
+		}
+	}
+	log.Println("continuing with connecting...")
+	bd.Lock()
+	defer bd.Unlock()
+	if bd.state == CONNECTED {
+		return true, nil
+	}
+
+	bd.state = CONNECTING
+	var conn *amqp.Connection
+	var err error
+
+	cf := bd.connectionConfig
+
+	var tenant = cf.GetTenant()
+	if tenant == "" {
+		tenant = "/"
+	}
+
+	if bd.tlsSkipVerify { // force TLS and also skip verification if true
+		tlsConfig := new(tls.Config)
+		tlsConfig.InsecureSkipVerify = true
+		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
+			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
+		conn, err = amqp.DialTLS(connStr, tlsConfig)
+	} else if string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
+		tlsConfig := new(tls.Config)
+		tlsConfig.RootCAs = x509.NewCertPool()
+		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
+		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
+			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
+		conn, err = amqp.DialTLS(connStr, tlsConfig)
+	} else { // no tls
+		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
+			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+		log.Printf("Connecting to broker with URI : %s", connStr)
+		conn, err = amqp.Dial(connStr)
+	}
+
+	if err != nil {
+		log.Printf("we got an error connecting to the broker: %v", err)
+		bd.state = CLOSED
+		// return &pb.Error{Message: err.Error()}
+		return false, err
+	}
+
+	bd.Connection = conn
+	bd.ErrorChannel = make(chan *amqp.Error)
+	conn.NotifyClose(bd.ErrorChannel)
+	go bd.connectionWatcher()
+	bd.state = CONNECTED
+	bd.knownExchanges = util.NewConcurrentMap()
+
+	log.Printf("Client %s is connected", bd.ClientUUID)
+
+	return true, nil
+
+}
+
+func (prov *amqp091provider) Stats() *provider.Stats {
+
+	stats := &provider.Stats{}
+	stats.Clients = make([]*provider.ClientStats, 0)
+	for _, connID := range prov.connections.GetList() {
+		clientStat := &provider.ClientStats{}
+		connRaw, exists := prov.connections.Get(connID)
+		if !exists {
+			continue
+		}
+		conn := connRaw.(*BrokerDetails)
+		clientStat.ID = conn.ClientUUID
+		clientStat.ActiveMessages = conn.activeMessages.Length()
+		clientStat.Streams = conn.ActiveStreams
+		clientStat.Produced = conn.produced
+		clientStat.Consumed = conn.consumed
+		stats.Clients = append(stats.Clients, clientStat)
+
+	}
+	return stats
 }

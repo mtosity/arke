@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"google.golang.org/grpc/reflection"
+
+	_ "sassoftware.io/convoy/arke/pkg/metrics"
 )
 
 const (
@@ -56,7 +58,10 @@ func main() {
 		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
 		PermitWithoutStream: true,            // Allow pings even when there are no active streams
 	}
-	s := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kp))
+	s := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep),
+		grpc.KeepaliveParams(kp),
+		grpc.UnaryInterceptor(server.UnaryInterceptor),
+		grpc.StreamInterceptor(server.StreamInterceptor))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

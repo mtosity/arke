@@ -119,6 +119,7 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, endloop bool) {
 
 			for {
+
 				message := <-mc
 				err := stream.Send(message)
 				if err != nil {
