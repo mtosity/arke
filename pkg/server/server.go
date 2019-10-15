@@ -115,7 +115,6 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	endloop := false
 	var returnError error
 	for {
-		log.Println("BEGINNING OF LOOP")
 		messageChannel := make(chan *pb.Message)
 		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, endloop bool) {
 

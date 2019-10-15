@@ -215,7 +215,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 			}
 		}
 	}
-	log.Println("continuing with connecting...")
+
 	bd.Lock()
 	defer bd.Unlock()
 	if bd.state == CONNECTED {
@@ -569,7 +569,6 @@ func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 
 // WaitForConnect returns true if connected, false if connection fails
 func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
-	log.Println("waiting for connect...")
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		log.Println("Could not retrieve broker details in WaitForConnect")
@@ -577,7 +576,6 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 	}
 
 	for start := time.Now(); time.Since(start) < CONNECT_TIMEOUT*time.Second; {
-		log.Println("bd.state: ", bd.state)
 		if bd.state == CONNECTED {
 			log.Println("Client is connected.")
 			return true
