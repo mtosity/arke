@@ -3,14 +3,14 @@ package provider_test
 import (
 	"bytes"
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	. "sassoftware.io/convoy/arke/pkg/provider"
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
+	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/zlog"
 )
 
 func TestNewProvider(t *testing.T) {
@@ -69,9 +69,12 @@ func TestGetProvider_Fail(t *testing.T) {
 
 func captureOutput(f func()) string {
 	var buf bytes.Buffer
-	log.SetOutput(&buf)
+	oldLogger := util.Logger
+	defer func() { util.Logger = oldLogger }()
+	util.Logger = zlog.New(&buf, "term")
+	util.Logger.Level = zlog.Debug
+
 	f()
-	log.SetOutput(os.Stderr)
 	return buf.String()
 }
 

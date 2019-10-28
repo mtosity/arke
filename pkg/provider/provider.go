@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -87,9 +86,9 @@ func NewProvider(providerType string) (Provider, error) {
 
 func GetProvider(providerType string) (Provider, error) {
 	prov, registered := registeredProviders.Get(providerType)
-	// log.Printf("Looking up provider %s.\n", providerType)
+
 	if !registered {
-		log.Printf("Provider %s not found in cache, creating new provider\n", providerType)
+		util.Logger.Debugf("Provider %s not found in cache, creating new provider\n", providerType)
 		prov, newProvErr := NewProvider(providerType)
 		if prov != nil {
 			registeredProviders.Add(providerType, prov)
@@ -105,14 +104,14 @@ func GetProvider(providerType string) (Provider, error) {
 
 func Register(name string, factory Factory) {
 	if factory == nil {
-		log.Printf("Provider factory %s can not be nil.", name)
+		util.Logger.Debugf("Provider factory %s can not be nil.", name)
 	} else {
 		_, registered := registeredProviderTypes.Get(name)
 		if registered {
-			log.Printf("Provider factory %s already registered. Ignoring.", name)
+			util.Logger.Debugf("Provider factory %s already registered. Ignoring.", name)
 		} else {
 			registeredProviderTypes.Add(name, factory)
-			log.Printf("Registering Provider %s.", name)
+			util.Logger.Debugf("Registering Provider %s.", name)
 		}
 	}
 }

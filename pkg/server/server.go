@@ -50,7 +50,7 @@ func (s *ConsumerServer) AckMessage(ctx context.Context, msg *pb.Message) (*pb.A
 
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
-		log.Printf("Ack Message failed: %s.", findErr.Message)
+		util.Logger.ErrorI("error.ack", findErr.Message)
 		return &pb.AckResponse{Success: false, Error: findErr}, ftlError
 	}
 
@@ -70,7 +70,7 @@ func (s *ConsumerServer) NackMessage(ctx context.Context, msg *pb.Message) (*pb.
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
-		log.Printf("Nack Message failed: %s.", findErr.Message)
+		util.Logger.ErrorI("error.nack", findErr.Message)
 		return &pb.NackResponse{Success: false, Error: findErr}, ftlError
 	}
 
@@ -90,7 +90,7 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
-		log.Printf("Subscribe failed: %s.", findErr.Message)
+		util.Logger.ErrorI("error.subscribe", findErr.Message)
 		return ftlError
 	}
 
@@ -100,7 +100,7 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	options := source.GetOptions()
 	for option := range options {
 		if _, ok := validOptions[option]; !ok {
-			log.Printf("%s is an unsupported option", option)
+			util.Logger.InfoI("info.unsupportedsourceoption", option)
 			unsupported = append(unsupported, option)
 		}
 	}
@@ -123,7 +123,7 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 				message := <-mc
 				err := stream.Send(message)
 				if err != nil {
-					log.Printf("Could not send message: %s", err.Error())
+					util.Logger.ErrorI("error.streamsend", err.Error())
 					// Could not send the message to the client, so disconnect
 					prov.Disconnect(ctx)
 					returnError = err
@@ -141,9 +141,9 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 				if connected {
 					continue
 				}
-				log.Println("Failed to reconnect to broker")
+				util.Logger.ErrorI("error.brokerconnect", err.Message)
 			} else {
-				log.Println("Client details no longer exist. Stopping subscribe.")
+				util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
 			}
 			returnError = fmt.Errorf(err.GetMessage())
 			break
@@ -161,7 +161,6 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
-		log.Printf("Send Message failed: %s.", findErr.Message)
 		return ftlError
 	}
 
@@ -183,13 +182,12 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 			for {
 				msg, err = stream.Recv()
 				if err == io.EOF {
-					log.Printf("EOF received on producer stream for client %s", clientUUID)
 					returnError = nil
 					endLoop = true
 					break
 				}
 				if err != nil {
-					log.Printf("Error on producer stream for client %s: %v", clientUUID, err)
+					util.Logger.Debugf("Error on producer stream for client %s: %v", clientUUID, err)
 					returnError = err
 					endLoop = true
 					break
@@ -222,7 +220,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					break
 				}
 				if err != nil {
-					log.Printf("Error while sending response to publisher %s", err)
+					util.Logger.ErrorI("error.streamsend", err)
 					returnError = err
 					endLoop = true
 					break
@@ -237,9 +235,9 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				if connected {
 					continue
 				}
-				log.Println("Failed to reconnect to broker")
+				util.Logger.ErrorI("error.brokerconnect", err.Message)
 			} else {
-				log.Println("Client details no longer exist. Stopping subscribe.")
+				util.Logger.Debugf("Client no longer exists. Stopping publish.")
 			}
 			returnError = fmt.Errorf(err.GetMessage())
 			break
@@ -308,11 +306,11 @@ func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 		prov, _ := provider.GetProvider(providerType)
 		prov.Disconnect(&ctx)
 		connectionMap.Delete(clientUUID)
-		log.Printf("Client %s disconnected", clientUUID)
+		util.Logger.InfoI("client.disconnect", clientUUID)
 		return &pb.Empty{}, nil
 	}
 
-	log.Printf("Disconnect called for client %s, but no connection information found.", clientUUID)
+	util.Logger.Debugf("Disconnect called for client %s, but no connection information found.", clientUUID)
 	return &pb.Empty{}, nil
 }
 
@@ -324,7 +322,7 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 			Message: "Failed to find connection information.",
 			IsFatal: true,
 		}
-		log.Printf("Could not find connection information for %s.", clientUUID)
+		util.Logger.ErrorI("error.clientnoprovider", clientUUID)
 		return nil, errMsg
 	}
 

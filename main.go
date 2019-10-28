@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
+	"sassoftware.io/convoy/arke/pkg/util"
 
 	pb "sassoftware.io/convoy/arke/api"
 	"google.golang.org/grpc"
@@ -36,18 +36,30 @@ func main() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
+			util.Logger.FatalI("error.cpuprofile", err)
 		}
 		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
+			util.Logger.FatalI("error.cpuprofile", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
 
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			util.Logger.FatalI("error.memprofile", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			util.Logger.FatalI("error.memprofile", err)
+		}
+	}
+
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		util.Logger.FatalI("error.netlisten", err)
 	}
 	kp := keepalive.ServerParameters{
 		Time:    5 * time.Second,
@@ -72,25 +84,18 @@ func main() {
 		}
 	}()
 
+	util.Logger.Debug("Registering producer and consumer services")
 	pb.RegisterProducerServer(s, &server.ProducerServer{TLSSkipVerify: *tlsSkipVerify})
 	pb.RegisterConsumerServer(s, &server.ConsumerServer{TLSSkipVerify: *tlsSkipVerify})
 
+	util.Logger.Debug("Registering health check service")
 	server.RegisterHealthServer(s)
+
+	util.Logger.Debug("Registering reflection service")
 	reflection.Register(s)
 
+	util.Logger.Info("info.starting")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
-
-	if *memprofile != "" {
-		f, err := os.Create(*memprofile)
-		if err != nil {
-			log.Fatal("could not create memory profile: ", err)
-		}
-		defer f.Close()
-		runtime.GC() // get up-to-date statistics
-		if err := pprof.WriteHeapProfile(f); err != nil {
-			log.Fatal("could not write memory profile: ", err)
-		}
+		util.Logger.FatalI("error.failedserve", err)
 	}
 }

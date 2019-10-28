@@ -14,4 +14,5 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20190626174449-989357319d63 // indirect
 	google.golang.org/grpc v1.21.1
+	sassoftware.io/viya/zlog v0.1.4
 )

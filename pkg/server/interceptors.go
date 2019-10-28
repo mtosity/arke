@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
-	"log"
 	"strings"
 	"time"
 
 	"sassoftware.io/convoy/arke/pkg/metrics"
+	"sassoftware.io/convoy/arke/pkg/util"
 	"google.golang.org/grpc"
 )
 
@@ -24,7 +24,7 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 
 	m, err := handler(ctx, req)
 	if err != nil {
-		log.Printf("RPC failed with error %v", err)
+		util.Logger.Debugf("RPC failed with error %s", err.Error())
 		status = "error"
 	}
 
@@ -95,8 +95,8 @@ func StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamS
 
 	err := handler(srv, newWrappedStream(ss, fullMethod))
 	if err != nil {
+		util.Logger.Debugf("RPC failed with error %s", err.Error())
 		status = "error"
-		log.Printf("RPC failed with error %v", err)
 	}
 
 	elapsed := float32(time.Now().Sub(start).Nanoseconds()) / float32(time.Millisecond)
