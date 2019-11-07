@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 
 	pb "sassoftware.io/convoy/arke/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
 	"google.golang.org/grpc/reflection"
@@ -70,10 +72,23 @@ func main() {
 		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
 		PermitWithoutStream: true,            // Allow pings even when there are no active streams
 	}
-	s := grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep),
-		grpc.KeepaliveParams(kp),
-		grpc.UnaryInterceptor(server.UnaryInterceptor),
-		grpc.StreamInterceptor(server.StreamInterceptor))
+
+	certFile := os.Getenv("CERT_FILE")
+	certKey := os.Getenv("CERT_KEY")
+
+	serverOptions := make([]grpc.ServerOption, 0)
+	serverOptions = append(serverOptions, grpc.KeepaliveEnforcementPolicy(kaep))
+	serverOptions = append(serverOptions, grpc.KeepaliveParams(kp))
+
+	if certFile != "" && certKey != "" {
+		creds, err := credentials.NewServerTLSFromFile(certFile, certKey)
+		if err != nil {
+			panic(fmt.Sprintf("Could not load TLS cert and key: %v", err))
+		}
+		serverOptions = append(serverOptions, grpc.Creds(creds))
+	}
+
+	s := grpc.NewServer(serverOptions...)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
