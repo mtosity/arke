@@ -10,6 +10,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/soheilhy/cmux"
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
 	"sassoftware.io/convoy/arke/pkg/util"
@@ -21,13 +22,10 @@ import (
 
 	"google.golang.org/grpc/reflection"
 
-	_ "sassoftware.io/convoy/arke/pkg/metrics"
+	"sassoftware.io/convoy/arke/pkg/metrics"
 )
 
-const (
-	port = ":50051"
-)
-
+var port = flag.String("port", "50051", "Port to serve gRPC and metrics requests")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
@@ -59,9 +57,19 @@ func main() {
 		}
 	}
 
-	lis, err := net.Listen("tcp", port)
+	portEnv := os.Getenv("PORT")
+	if portEnv != "" {
+		*port = portEnv
+		// var err error
+		// *port, err = strconv.Atoi(portEnv)
+		// if err != nil {
+		// 	util.Logger.FatalI("error.port", err)
+		// }
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", *port))
 	if err != nil {
-		util.Logger.FatalI("error.netlisten", err)
+		util.Logger.FatalI("error.netlisten", err.Error())
 	}
 	kp := keepalive.ServerParameters{
 		Time:    5 * time.Second,
@@ -94,7 +102,6 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for range c {
-			// sig is a ^C, handle it
 			s.Stop()
 		}
 	}()
@@ -109,8 +116,22 @@ func main() {
 	util.Logger.Debug("Registering reflection service")
 	reflection.Register(s)
 
-	util.Logger.Info("info.starting")
-	if err := s.Serve(lis); err != nil {
-		util.Logger.FatalI("error.failedserve", err)
+	util.Logger.InfoI("info.starting", *port)
+
+	mx := cmux.New(lis)
+	httpListener := mx.Match(cmux.HTTP1Fast())
+	// Matching on application/grpc Content-Type (as suggested) does not seem to work
+	// so if we're not HTTP/1, assume gRPC.
+	grpcListener := mx.Match(cmux.Any())
+
+	go s.Serve(grpcListener)
+	go metrics.Serve(&httpListener)
+
+	if err := mx.Serve(); err != nil {
+		switch err.(type) {
+		case *net.OpError:
+			return
+		}
+		util.Logger.FatalI("error.failedserve", err.Error())
 	}
 }

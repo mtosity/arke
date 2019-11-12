@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"net"
 	"net/http"
 	"strings"
 
@@ -9,6 +9,8 @@ import (
 	promet "github.com/armon/go-metrics/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"sassoftware.io/convoy/arke/pkg/provider"
+
+	"sassoftware.io/convoy/arke/pkg/util"
 )
 
 type stats struct {
@@ -22,10 +24,6 @@ type LabelSet struct {
 	Labels []met.Label
 }
 
-const (
-	metricsPort = ":50052"
-)
-
 // Stats global Stats variable for access to the sinks
 var Stats *stats
 
@@ -36,19 +34,19 @@ func init() {
 
 	met.NewGlobal(met.DefaultConfig(""), Stats.Sink)
 
+}
+
+// Serve Create a new HTTP server and Serve metrics requests
+func Serve(lis *net.Listener) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", gatherClientStatsHandler())
 	metricsServer := &http.Server{
-		Addr:    metricsPort,
 		Handler: mux,
 	}
 
-	go func() {
-		if err := metricsServer.ListenAndServe(); err != nil {
-			log.Fatal("Unable to start metrics HTTP server", err)
-		}
-	}()
-
+	if err := metricsServer.Serve(*lis); err != nil {
+		util.Logger.FatalI("error.metricsserve", err)
+	}
 }
 
 func gatherClientStatsHandler() http.Handler {

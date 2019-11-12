@@ -306,7 +306,7 @@ func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 		prov, _ := provider.GetProvider(providerType)
 		prov.Disconnect(&ctx)
 		connectionMap.Delete(clientUUID)
-		util.Logger.InfoI("client.disconnect", clientUUID)
+		util.Logger.InfoI("info.clientdisconnect", clientUUID)
 		return &pb.Empty{}, nil
 	}
 

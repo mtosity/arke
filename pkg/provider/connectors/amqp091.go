@@ -575,7 +575,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		tenant = "/"
 	}
 
-	util.Logger.InfoI("client.brokerconnect", bd.ClientUUID, cf.GetHost(), cf.GetPort())
+	util.Logger.InfoI("info.clientconnect", bd.ClientUUID, cf.GetHost())
 
 	if bd.tlsSkipVerify { // force TLS and also skip verification if true
 		tlsConfig := new(tls.Config)
