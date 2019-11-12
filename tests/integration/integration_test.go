@@ -47,9 +47,9 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error 
 
 	stream, err := c.Publish(ctx)
 	for i := 0; i < cnt; i++ {
-		// r, err := c.Publish(ctx, message)
 		err = stream.Send(message)
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		r, _ := stream.Recv()
@@ -735,4 +735,80 @@ func TestProduceMultiSubject_FAIL(t *testing.T) {
 	assert.NotNil(t, err)
 
 	assert.Contains(t, err.Error(), "exactly one subject allowed in an Address")
+}
+
+func TestParentExchange(t *testing.T) {
+	// Create a ParentAddress with name test.parent
+	// Create an Address with name test.child and Parent ParentAddress
+	// Consume messages from queue bound to test.child
+	// Produce messages to test.parent
+
+	producerConnection := connect()
+	produceCount := 5
+	defer producerConnection.Close()
+
+	subjects := make([]string, 0)
+	parentSubjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPE.1")
+	subjects = append(subjects, "sas.test.proxy.TPE.2")
+	parentSubjects = append(parentSubjects, "sas.test.proxy.TPE.1")
+
+	parent := &pb.Address{Name: "test.parent", Type: pb.Address_TOPIC, Subjects: parentSubjects}
+
+	child := &pb.Address{Name: "test.child", Subjects: subjects, Type: pb.Address_FILTER, ParentAddress: parent}
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	// Subscribe to the child Address
+	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	<-clientConnected
+
+	time.Sleep(500 * time.Millisecond)
+
+	// Publish to the parent address
+	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
+	err := produceMessages(producerConnection, produceCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(2 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, produceCount, msgCount)
+}
+
+func TestAddressType_FAIL(t *testing.T) {
+	// Create a ParentAddress with name test.parent
+	// Create an Address with name test.child and Parent ParentAddress
+	// Consume messages from queue bound to test.child
+	// Produce messages to test.parent
+
+	producerConnection := connect()
+	produceCount := 5
+	defer producerConnection.Close()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TATF.1")
+
+	parent := &pb.Address{Name: "test.parent", Type: 5, Subjects: subjects}
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
+	err := produceMessages(producerConnection, produceCount, message)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "5 is not a valid address type")
 }

@@ -198,7 +198,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				if len(msg.GetAddress().GetSubjects()) != 1 {
 
 					errMsg := &pb.Error{
-						Message: "exactly one subject allowed in an Address",
+						Message: "exactly one subject allowed in an Address with Publish",
 						IsFatal: false,
 					}
 
@@ -208,7 +208,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 
 					mc <- msg
 					pubErr := <-errChan
-					if err != nil {
+					if pubErr != nil {
 						resp = &pb.MessageResponse{Success: false, Error: pubErr}
 					} else {
 						resp = &pb.MessageResponse{Success: true}

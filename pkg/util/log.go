@@ -26,6 +26,7 @@ error.streamsend=Error sending on stream: {0}
 error.clientnoprovider=Could not find connection information for {0}
 error.metricsserve=Could not serve metrics handler: {0}
 error.port=Error parsing PORT environment variable: {0}
+error.addresstype={0} is not a valid address type
 info.starting=Serving on port {0}
 info.clientconnected={0} is connected
 info.exchangedeclare=Declaring exchange {0}

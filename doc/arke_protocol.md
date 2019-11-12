@@ -70,6 +70,7 @@ Represents the publishing destination for a message.
 | type | [Address.TargetType](#arke.Address.TargetType) |  | Target type, default is TOPIC. |
 | durable | [bool](#bool) |  | Should the address be durable. |
 | auto_delete | [bool](#bool) |  | Should the address automatically delete. |
+| parent_address | [Address](#arke.Address) |  | A parent Address. Usage includes Address to Address binding. |
 
 
 

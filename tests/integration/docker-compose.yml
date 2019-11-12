@@ -10,12 +10,14 @@ services:
     - arketest
     ports:
       - "50051:50051"
+    environment:
+      - LOG_FORMAT=term
+      - LOG_LEVEL=debug
   rabbitmq:
     image: rabbitmq:3.7-management
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
-
     ports:
       - "5672:5672"
       - "5671:5671"

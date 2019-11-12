@@ -5522,6 +5522,31 @@ public final class ArkeProtos {
      * <code>bool auto_delete = 5;</code>
      */
     boolean getAutoDelete();
+
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    boolean hasParentAddress();
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    org.arke.ArkeProtos.Address getParentAddress();
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    org.arke.ArkeProtos.AddressOrBuilder getParentAddressOrBuilder();
   }
   /**
    * <pre>
@@ -5606,6 +5631,19 @@ public final class ArkeProtos {
             case 40: {
 
               autoDelete_ = input.readBool();
+              break;
+            }
+            case 50: {
+              org.arke.ArkeProtos.Address.Builder subBuilder = null;
+              if (parentAddress_ != null) {
+                subBuilder = parentAddress_.toBuilder();
+              }
+              parentAddress_ = input.readMessage(org.arke.ArkeProtos.Address.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom(parentAddress_);
+                parentAddress_ = subBuilder.buildPartial();
+              }
+
               break;
             }
             default: {
@@ -5912,6 +5950,39 @@ public final class ArkeProtos {
       return autoDelete_;
     }
 
+    public static final int PARENT_ADDRESS_FIELD_NUMBER = 6;
+    private org.arke.ArkeProtos.Address parentAddress_;
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    public boolean hasParentAddress() {
+      return parentAddress_ != null;
+    }
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    public org.arke.ArkeProtos.Address getParentAddress() {
+      return parentAddress_ == null ? org.arke.ArkeProtos.Address.getDefaultInstance() : parentAddress_;
+    }
+    /**
+     * <pre>
+     * A parent Address. Usage includes Address to Address binding.
+     * </pre>
+     *
+     * <code>.arke.Address parent_address = 6;</code>
+     */
+    public org.arke.ArkeProtos.AddressOrBuilder getParentAddressOrBuilder() {
+      return getParentAddress();
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -5940,6 +6011,9 @@ public final class ArkeProtos {
       }
       if (autoDelete_ != false) {
         output.writeBool(5, autoDelete_);
+      }
+      if (parentAddress_ != null) {
+        output.writeMessage(6, getParentAddress());
       }
       unknownFields.writeTo(output);
     }
@@ -5973,6 +6047,10 @@ public final class ArkeProtos {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(5, autoDelete_);
       }
+      if (parentAddress_ != null) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(6, getParentAddress());
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -5997,6 +6075,11 @@ public final class ArkeProtos {
           != other.getDurable()) return false;
       if (getAutoDelete()
           != other.getAutoDelete()) return false;
+      if (hasParentAddress() != other.hasParentAddress()) return false;
+      if (hasParentAddress()) {
+        if (!getParentAddress()
+            .equals(other.getParentAddress())) return false;
+      }
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -6022,6 +6105,10 @@ public final class ArkeProtos {
       hash = (37 * hash) + AUTO_DELETE_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getAutoDelete());
+      if (hasParentAddress()) {
+        hash = (37 * hash) + PARENT_ADDRESS_FIELD_NUMBER;
+        hash = (53 * hash) + getParentAddress().hashCode();
+      }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -6170,6 +6257,12 @@ public final class ArkeProtos {
 
         autoDelete_ = false;
 
+        if (parentAddressBuilder_ == null) {
+          parentAddress_ = null;
+        } else {
+          parentAddress_ = null;
+          parentAddressBuilder_ = null;
+        }
         return this;
       }
 
@@ -6206,6 +6299,11 @@ public final class ArkeProtos {
         result.type_ = type_;
         result.durable_ = durable_;
         result.autoDelete_ = autoDelete_;
+        if (parentAddressBuilder_ == null) {
+          result.parentAddress_ = parentAddress_;
+        } else {
+          result.parentAddress_ = parentAddressBuilder_.build();
+        }
         onBuilt();
         return result;
       }
@@ -6276,6 +6374,9 @@ public final class ArkeProtos {
         }
         if (other.getAutoDelete() != false) {
           setAutoDelete(other.getAutoDelete());
+        }
+        if (other.hasParentAddress()) {
+          mergeParentAddress(other.getParentAddress());
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -6665,6 +6766,159 @@ public final class ArkeProtos {
         autoDelete_ = false;
         onChanged();
         return this;
+      }
+
+      private org.arke.ArkeProtos.Address parentAddress_;
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Address, org.arke.ArkeProtos.Address.Builder, org.arke.ArkeProtos.AddressOrBuilder> parentAddressBuilder_;
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public boolean hasParentAddress() {
+        return parentAddressBuilder_ != null || parentAddress_ != null;
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public org.arke.ArkeProtos.Address getParentAddress() {
+        if (parentAddressBuilder_ == null) {
+          return parentAddress_ == null ? org.arke.ArkeProtos.Address.getDefaultInstance() : parentAddress_;
+        } else {
+          return parentAddressBuilder_.getMessage();
+        }
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public Builder setParentAddress(org.arke.ArkeProtos.Address value) {
+        if (parentAddressBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          parentAddress_ = value;
+          onChanged();
+        } else {
+          parentAddressBuilder_.setMessage(value);
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public Builder setParentAddress(
+          org.arke.ArkeProtos.Address.Builder builderForValue) {
+        if (parentAddressBuilder_ == null) {
+          parentAddress_ = builderForValue.build();
+          onChanged();
+        } else {
+          parentAddressBuilder_.setMessage(builderForValue.build());
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public Builder mergeParentAddress(org.arke.ArkeProtos.Address value) {
+        if (parentAddressBuilder_ == null) {
+          if (parentAddress_ != null) {
+            parentAddress_ =
+              org.arke.ArkeProtos.Address.newBuilder(parentAddress_).mergeFrom(value).buildPartial();
+          } else {
+            parentAddress_ = value;
+          }
+          onChanged();
+        } else {
+          parentAddressBuilder_.mergeFrom(value);
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public Builder clearParentAddress() {
+        if (parentAddressBuilder_ == null) {
+          parentAddress_ = null;
+          onChanged();
+        } else {
+          parentAddress_ = null;
+          parentAddressBuilder_ = null;
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public org.arke.ArkeProtos.Address.Builder getParentAddressBuilder() {
+        
+        onChanged();
+        return getParentAddressFieldBuilder().getBuilder();
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      public org.arke.ArkeProtos.AddressOrBuilder getParentAddressOrBuilder() {
+        if (parentAddressBuilder_ != null) {
+          return parentAddressBuilder_.getMessageOrBuilder();
+        } else {
+          return parentAddress_ == null ?
+              org.arke.ArkeProtos.Address.getDefaultInstance() : parentAddress_;
+        }
+      }
+      /**
+       * <pre>
+       * A parent Address. Usage includes Address to Address binding.
+       * </pre>
+       *
+       * <code>.arke.Address parent_address = 6;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Address, org.arke.ArkeProtos.Address.Builder, org.arke.ArkeProtos.AddressOrBuilder> 
+          getParentAddressFieldBuilder() {
+        if (parentAddressBuilder_ == null) {
+          parentAddressBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.Address, org.arke.ArkeProtos.Address.Builder, org.arke.ArkeProtos.AddressOrBuilder>(
+                  getParentAddress(),
+                  getParentForChildren(),
+                  isClean());
+          parentAddress_ = null;
+        }
+        return parentAddressBuilder_;
       }
       @java.lang.Override
       public final Builder setUnknownFields(
@@ -13205,38 +13459,39 @@ public final class ArkeProtos {
       "nt\030\005 \001(\010\022\032\n\005error\030\006 \001(\0132\013.arke.Error\032.\n\014" +
       "HeadersEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t" +
       ":\0028\001\">\n\017MessageResponse\022\017\n\007success\030\001 \001(\010" +
-      "\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"\247\001\n\007Address" +
+      "\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"\316\001\n\007Address" +
       "\022\014\n\004name\030\001 \001(\t\022\020\n\010subjects\030\002 \003(\t\022&\n\004type" +
       "\030\003 \001(\0162\030.arke.Address.TargetType\022\017\n\007dura" +
-      "ble\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(\010\".\n\nTarget" +
-      "Type\022\t\n\005TOPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006FILTER\020\002\"\351" +
-      "\001\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\013" +
-      "2\r.arke.Address\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto" +
-      "_delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132\014.arke.Fil" +
-      "ter\022*\n\007options\030\007 \003(\0132\031.arke.Source.Optio" +
-      "nsEntry\022\021\n\texclusive\030\010 \001(\010\032.\n\014OptionsEnt" +
-      "ry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"k\n\006Fi" +
-      "lter\022\034\n\007matches\030\001 \003(\0132\013.arke.Match\022$\n\004ty" +
-      "pe\030\002 \001(\0162\026.arke.Filter.MatchType\"\035\n\tMatc" +
-      "hType\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name" +
-      "\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\":\n\013AckResponse\022\017\n\007" +
-      "success\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Erro" +
-      "r\";\n\014NackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005er" +
-      "ror\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error" +
-      "\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fa" +
-      "tal\030\003 \001(\0102\256\001\n\010Producer\022A\n\007Connect\022\035.arke" +
-      ".ConnectionConfiguration\032\025.arke.ConnectR" +
-      "esponse\"\000\0225\n\007Publish\022\r.arke.Message\032\025.ar" +
-      "ke.MessageResponse\"\000(\0010\001\022(\n\nDisconnect\022\013" +
-      ".arke.Empty\032\013.arke.Empty\"\0002\213\002\n\010Consumer\022" +
-      "A\n\007Connect\022\035.arke.ConnectionConfiguratio" +
-      "n\032\025.arke.ConnectResponse\"\000\022,\n\tSubscribe\022" +
-      "\014.arke.Source\032\r.arke.Message\"\0000\001\0220\n\nAckM" +
-      "essage\022\r.arke.Message\032\021.arke.AckResponse" +
-      "\"\000\0222\n\013NackMessage\022\r.arke.Message\032\022.arke." +
-      "NackResponse\"\000\022(\n\nDisconnect\022\013.arke.Empt" +
-      "y\032\013.arke.Empty\"\000B\026\n\010org.arkeB\nArkeProtos" +
-      "b\006proto3"
+      "ble\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(\010\022%\n\016parent" +
+      "_address\030\006 \001(\0132\r.arke.Address\".\n\nTargetT" +
+      "ype\022\t\n\005TOPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006FILTER\020\002\"\351\001" +
+      "\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\0132" +
+      "\r.arke.Address\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto_" +
+      "delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132\014.arke.Filt" +
+      "er\022*\n\007options\030\007 \003(\0132\031.arke.Source.Option" +
+      "sEntry\022\021\n\texclusive\030\010 \001(\010\032.\n\014OptionsEntr" +
+      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"k\n\006Fil" +
+      "ter\022\034\n\007matches\030\001 \003(\0132\013.arke.Match\022$\n\004typ" +
+      "e\030\002 \001(\0162\026.arke.Filter.MatchType\"\035\n\tMatch" +
+      "Type\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name\030" +
+      "\001 \001(\t\022\r\n\005value\030\002 \001(\t\":\n\013AckResponse\022\017\n\007s" +
+      "uccess\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Error" +
+      "\";\n\014NackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005err" +
+      "or\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error\022" +
+      "\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fat" +
+      "al\030\003 \001(\0102\256\001\n\010Producer\022A\n\007Connect\022\035.arke." +
+      "ConnectionConfiguration\032\025.arke.ConnectRe" +
+      "sponse\"\000\0225\n\007Publish\022\r.arke.Message\032\025.ark" +
+      "e.MessageResponse\"\000(\0010\001\022(\n\nDisconnect\022\013." +
+      "arke.Empty\032\013.arke.Empty\"\0002\213\002\n\010Consumer\022A" +
+      "\n\007Connect\022\035.arke.ConnectionConfiguration" +
+      "\032\025.arke.ConnectResponse\"\000\022,\n\tSubscribe\022\014" +
+      ".arke.Source\032\r.arke.Message\"\0000\001\0220\n\nAckMe" +
+      "ssage\022\r.arke.Message\032\021.arke.AckResponse\"" +
+      "\000\0222\n\013NackMessage\022\r.arke.Message\032\022.arke.N" +
+      "ackResponse\"\000\022(\n\nDisconnect\022\013.arke.Empty" +
+      "\032\013.arke.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb" +
+      "\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -13283,7 +13538,7 @@ public final class ArkeProtos {
     internal_static_arke_Address_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_Address_descriptor,
-        new java.lang.String[] { "Name", "Subjects", "Type", "Durable", "AutoDelete", });
+        new java.lang.String[] { "Name", "Subjects", "Type", "Durable", "AutoDelete", "ParentAddress", });
     internal_static_arke_Source_descriptor =
       getDescriptor().getMessageTypes().get(6);
     internal_static_arke_Source_fieldAccessorTable = new

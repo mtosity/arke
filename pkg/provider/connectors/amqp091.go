@@ -191,6 +191,23 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 }
 
+func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
+
+	exchangeType := "topic"
+	switch aType {
+	case pb.Address_TOPIC:
+		exchangeType = "topic"
+	case pb.Address_FILTER:
+		exchangeType = "headers"
+	case pb.Address_QUEUE:
+		exchangeType = "direct"
+	default:
+		util.Logger.ErrorI("error.addresstype", aType.String())
+		return "", fmt.Errorf("%s is not a valid address type", aType)
+	}
+	return exchangeType, nil
+}
+
 func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails) error {
 
 	// don't try to declare an exchange with amq. in the name
@@ -201,16 +218,11 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	_, ok := bd.knownExchanges.Get(address.GetName())
 
 	if !ok {
-		exchangeType := "topic"
-		switch address.GetType() {
-		case pb.Address_TOPIC:
-			exchangeType = "topic"
-		case pb.Address_FILTER:
-			exchangeType = "headers"
-		case pb.Address_QUEUE:
-			exchangeType = "direct"
-		default:
-			return fmt.Errorf("%s is not a valid address type", address.GetType())
+
+		exchangeType, err := addressTypeToAmqpType(address.GetType())
+
+		if err != nil {
+			return err
 		}
 
 		amqpChannel, err := bd.Connection.Channel()
@@ -228,6 +240,21 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		}
 
 		bd.knownExchanges.Add(address.GetName(), true)
+
+		if parent := address.GetParentAddress(); parent != nil {
+			err = prov.declareExchange(parent, bd)
+			if err != nil {
+				return err
+			}
+
+			// Bind each subject from the Address exchange to the ParentAddress exchange
+			for _, subject := range address.GetSubjects() {
+				err = amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName(), false, nil)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -251,7 +278,10 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	defer amqpChannel.Close()
 	amqpChannel.Qos(bd.prefetchCount, 0, false)
 
-	prov.declareExchange(source.GetAddress(), bd)
+	err = prov.declareExchange(source.GetAddress(), bd)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
 
 	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
 	matchHeaders := make(amqp.Table)
@@ -441,7 +471,14 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				deliveryMode = 2
 			}
 
-			prov.declareExchange(message.GetAddress(), bd)
+			err = prov.declareExchange(message.GetAddress(), bd)
+			if err != nil {
+				errChan <- &pb.Error{
+					Message: err.Error(),
+					IsFatal: true,
+				}
+				continue
+			}
 
 			amqpMessage := amqp.Publishing{
 				Body:         message.GetBody(),
