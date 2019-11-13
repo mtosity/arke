@@ -208,6 +208,12 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 	return exchangeType, nil
 }
 
+func (bd *BrokerDetails) exchangeKnow(name string) bool {
+
+	_, ok := bd.knownExchanges.Get(name)
+	return ok
+}
+
 func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails) error {
 
 	// don't try to declare an exchange with amq. in the name
@@ -215,9 +221,9 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		return nil
 	}
 
-	_, ok := bd.knownExchanges.Get(address.GetName())
+	known := bd.exchangeKnow(address.GetName())
 
-	if !ok {
+	if !known {
 
 		exchangeType, err := addressTypeToAmqpType(address.GetType())
 
@@ -240,8 +246,18 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		}
 
 		bd.knownExchanges.Add(address.GetName(), true)
+	}
 
-		if parent := address.GetParentAddress(); parent != nil {
+	if parent := address.GetParentAddress(); parent != nil {
+
+		known = bd.exchangeKnow(parent.GetName())
+		if !known {
+			amqpChannel, err := bd.Connection.Channel()
+			if err != nil {
+				return err
+			}
+			defer amqpChannel.Close()
+
 			err = prov.declareExchange(parent, bd)
 			if err != nil {
 				return err
@@ -249,11 +265,13 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 			// Bind each subject from the Address exchange to the ParentAddress exchange
 			for _, subject := range address.GetSubjects() {
+				util.Logger.Debugf("Binding exchange %s to %s with key %s", address.GetName(), parent.GetName(), subject)
 				err = amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName(), false, nil)
 				if err != nil {
 					return err
 				}
 			}
+			bd.knownExchanges.Add(parent.GetName(), true)
 		}
 	}
 	return nil
@@ -615,12 +633,14 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	util.Logger.InfoI("info.clientconnect", bd.ClientUUID, cf.GetHost())
 
 	if bd.tlsSkipVerify { // force TLS and also skip verification if true
+		util.Logger.Debugf("%s connecting with TLS enabled but verification off", bd.ClientUUID)
 		tlsConfig := new(tls.Config)
 		tlsConfig.InsecureSkipVerify = true
 		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 		conn, err = amqp.DialTLS(connStr, tlsConfig)
 	} else if string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
+		util.Logger.Debugf("%s connecting with TLS", bd.ClientUUID)
 		tlsConfig := new(tls.Config)
 		tlsConfig.RootCAs = x509.NewCertPool()
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
@@ -628,6 +648,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 		conn, err = amqp.DialTLS(connStr, tlsConfig)
 	} else { // no tls
+		util.Logger.Debugf("%s connecting without TLS", bd.ClientUUID)
 		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
 			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 		conn, err = amqp.Dial(connStr)

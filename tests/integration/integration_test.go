@@ -26,6 +26,7 @@ func connectConfig() *pb.ConnectionConfiguration {
 	connConfig.Provider = "amqp091"
 	connConfig.Tenant = "/"
 	connConfig.PrefetchCount = 5
+
 	return connConfig
 }
 
