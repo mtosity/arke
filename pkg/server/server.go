@@ -220,7 +220,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					break
 				}
 				if err != nil {
-					util.Logger.ErrorI("error.streamsend", err)
+					util.Logger.ErrorI("error.streamsend", err.Error())
 					returnError = err
 					endLoop = true
 					break

@@ -182,7 +182,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 	_, bdErr := bd.connect()
 	if bdErr != nil {
-		util.Logger.ErrorI("error.brokerconnect", bdErr)
+		util.Logger.ErrorI("error.brokerconnect", bdErr.Error())
 		return &pb.Error{Message: bdErr.Error()}
 	}
 	prov.connections.Add(bd.ClientUUID, &bd)
@@ -331,14 +331,14 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
 	if qErr != nil {
-		util.Logger.ErrorI("error.queuedeclare", qErr)
+		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
 	}
 
 	for _, subject := range source.GetAddress().GetSubjects() {
 
 		bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), true, matchHeaders)
 		if bErr != nil {
-			util.Logger.ErrorI("error.queuebind", bErr)
+			util.Logger.ErrorI("error.queuebind", bErr.Error())
 		}
 	}
 	messages, err := amqpChannel.Consume(
@@ -352,7 +352,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	)
 
 	if err != nil {
-		util.Logger.ErrorI("error.clientsubscribe", bd.ClientUUID, source.GetName(), err)
+		util.Logger.ErrorI("error.clientsubscribe", bd.ClientUUID, source.GetName(), err.Error())
 		return &pb.Error{Message: err.Error()}
 	}
 
@@ -513,7 +513,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				default:
 					util.Logger.Debugf("default: %s", err)
 				}
-				util.Logger.ErrorI("error.publish", err)
+				util.Logger.ErrorI("error.publish", err.Error())
 
 				errMsg := &pb.Error{
 					Message: err.Error(),
@@ -634,7 +634,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.brokerconnect", err)
+		util.Logger.ErrorI("error.brokerconnect", err.Error())
 		bd.state = CLOSED
 		// return &pb.Error{Message: err.Error()}
 		return false, err
