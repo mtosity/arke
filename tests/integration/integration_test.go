@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +29,18 @@ func connectConfig() *pb.ConnectionConfiguration {
 	connConfig.Provider = "amqp091"
 	connConfig.Tenant = "/"
 	connConfig.PrefetchCount = 5
+
+	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
+
+	if providerTLS == "true" {
+		cacert, err := ioutil.ReadFile("certs/testca/ca_certificate.pem")
+		if err != nil {
+			log.Fatalf("Error reading provider CA cert: %v", err)
+		}
+		connConfig.Tls = true
+		connConfig.CaCertificate = cacert
+		connConfig.Port = 5671
+	}
 
 	return connConfig
 }
@@ -581,6 +596,8 @@ func TestHeaders(t *testing.T) {
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
+
+	time.Sleep(250 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Headers: headers}
 

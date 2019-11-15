@@ -110,7 +110,8 @@ RabbitMQ and Kafka.
 | tenant | [string](#string) |  | Tenant name for this connection. Tenant is not required |
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
 | prefetch_count | [int32](#int32) |  | Consumer prefetch count. |
-| ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. |
+| ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
+| tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
 
 
 

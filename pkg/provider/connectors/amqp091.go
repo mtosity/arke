@@ -642,32 +642,44 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	util.Logger.InfoI("info.clientconnect", bd.ClientUUID, cf.GetHost())
 
-	if bd.tlsSkipVerify { // force TLS and also skip verification if true
-		util.Logger.Debugf("%s connecting with TLS enabled but verification off", bd.ClientUUID)
-		tlsConfig := new(tls.Config)
+	tlsEnabled := false
+	scheme := "amqp"
+
+	// Use TLS in these scenarios:
+	// * ConnectionConfiguration.TLS = true
+	// * ConnectionConfiguration.CaCertificate is not empty
+	if cf.GetTls() || len(cf.GetCaCertificate()) > 0 {
+		tlsEnabled = true
+		scheme = "amqps"
+	}
+
+	var connStr string
+	var tlsConfig = &tls.Config{}
+
+	if tlsEnabled && bd.tlsSkipVerify { // force TLS and also skip verification if true
+		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientUUID, cf.GetHost(), cf.GetPort())
 		tlsConfig.InsecureSkipVerify = true
-		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		conn, err = amqp.DialTLS(connStr, tlsConfig)
-	} else if string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
-		util.Logger.Debugf("%s connecting with TLS", bd.ClientUUID)
-		tlsConfig := new(tls.Config)
+
+	} else if tlsEnabled && string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
+		util.Logger.Debugf("%s connecting with TLS and provided certificate: %s:%d", bd.ClientUUID, cf.GetHost(), cf.GetPort())
 		tlsConfig.RootCAs = x509.NewCertPool()
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
-		connStr := fmt.Sprintf("amqps://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		conn, err = amqp.DialTLS(connStr, tlsConfig)
+
+	} else if tlsEnabled { // Regular TLS with cert verification against system certs
+		util.Logger.Debugf("%s connecting with TLS using system certs: %s:%d", bd.ClientUUID, cf.GetHost(), cf.GetPort())
+
 	} else { // no tls
-		util.Logger.Debugf("%s connecting without TLS", bd.ClientUUID)
-		connStr := fmt.Sprintf("amqp://%s:%s@%s:%d/%s", cf.GetCredentials().GetUsername(),
-			cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
-		conn, err = amqp.Dial(connStr)
+		util.Logger.Debugf("%s connecting without TLS: %s:%d", bd.ClientUUID, cf.GetHost(), cf.GetPort())
 	}
+
+	connStr = fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme, cf.GetCredentials().GetUsername(),
+		cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
+	// amqp.DialTLS will use non-TLS if the scheme of the URI is 'amqp'
+	conn, err = amqp.DialTLS(connStr, tlsConfig)
 
 	if err != nil {
 		util.Logger.ErrorI("error.brokerconnect", err.Error())
 		bd.state = CLOSED
-		// return &pb.Error{Message: err.Error()}
 		return false, err
 	}
 

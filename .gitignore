@@ -6,3 +6,5 @@ build
 tests/integration/arke
 coverage.out
 coverage.html
+tests/integration/certs/server
+tests/integration/certs/testca
