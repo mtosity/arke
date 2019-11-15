@@ -494,6 +494,8 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
+	time.Sleep(500 * time.Millisecond)
+
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	err := produceMessages(producerConnection, expectedMessageCount, message)
@@ -574,9 +576,9 @@ func TestHeaders(t *testing.T) {
 	headers["Content-Type"] = "text/yaml"
 	headers["CONTENT-ENCODING"] = "base64"
 	subjects := make([]string, 0)
-	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
+	subjects = append(subjects, "sas.test.proxy.TH")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -812,4 +814,45 @@ func TestAddressType_FAIL(t *testing.T) {
 	err := produceMessages(producerConnection, produceCount, message)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "5 is not a valid address type")
+}
+
+func TestHeadersNoSubscribeSubject(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 30
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.THNSS")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	<-clientConnected
+
+	time.Sleep(500 * time.Millisecond)
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
 }

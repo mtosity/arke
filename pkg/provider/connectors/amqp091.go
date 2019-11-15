@@ -347,18 +347,28 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		util.Logger.Debugf("Arguments (matches): %s", matchHeaders)
 	}
 
-	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, nil)
+	_, qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), false, false, args)
 	if qErr != nil {
 		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
 	}
 
-	for _, subject := range source.GetAddress().GetSubjects() {
+	// If the address has subjects, bind to each subject.
+	// But if the address has no subjects, bind without a subject. Don't do both.
+	if len(source.GetAddress().GetSubjects()) > 0 {
+		for _, subject := range source.GetAddress().GetSubjects() {
 
-		bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), true, matchHeaders)
+			bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), true, matchHeaders)
+			if bErr != nil {
+				util.Logger.ErrorI("error.queuebind", bErr.Error())
+			}
+		}
+	} else {
+		bErr := amqpChannel.QueueBind(source.GetName(), "", source.GetAddress().GetName(), true, matchHeaders)
 		if bErr != nil {
 			util.Logger.ErrorI("error.queuebind", bErr.Error())
 		}
 	}
+
 	messages, err := amqpChannel.Consume(
 		source.GetName(),      // queue name
 		"",                    // consumer string
