@@ -62,7 +62,7 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	$(MAKE) -C test/simple_consumer windows
 
 test: generate ## Executes unit tests
-	go test --coverprofile coverage.out ./pkg/... -cover -v
+	LOG_FORMAT=term go test --coverprofile coverage.out ./pkg/... -cover -v
 	go tool cover -html=coverage.out -o coverage.html
 
 compose: linux ## Builds and runs docker image(s) for integration tests

@@ -24,6 +24,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string host = 1;</code>
+     * @return The host.
      */
     java.lang.String getHost();
     /**
@@ -32,6 +33,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string host = 1;</code>
+     * @return The bytes for host.
      */
     com.google.protobuf.ByteString
         getHostBytes();
@@ -42,6 +44,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 port = 2;</code>
+     * @return The port.
      */
     int getPort();
 
@@ -51,6 +54,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string provider = 3;</code>
+     * @return The provider.
      */
     java.lang.String getProvider();
     /**
@@ -59,6 +63,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string provider = 3;</code>
+     * @return The bytes for provider.
      */
     com.google.protobuf.ByteString
         getProviderBytes();
@@ -69,6 +74,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string tenant = 4;</code>
+     * @return The tenant.
      */
     java.lang.String getTenant();
     /**
@@ -77,6 +83,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string tenant = 4;</code>
+     * @return The bytes for tenant.
      */
     com.google.protobuf.ByteString
         getTenantBytes();
@@ -87,6 +94,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Credentials credentials = 5;</code>
+     * @return Whether the credentials field is set.
      */
     boolean hasCredentials();
     /**
@@ -95,6 +103,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Credentials credentials = 5;</code>
+     * @return The credentials.
      */
     org.arke.ArkeProtos.Credentials getCredentials();
     /**
@@ -112,6 +121,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 prefetch_count = 6;</code>
+     * @return The prefetchCount.
      */
     int getPrefetchCount();
 
@@ -121,6 +131,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bytes ca_certificate = 7;</code>
+     * @return The caCertificate.
      */
     com.google.protobuf.ByteString getCaCertificate();
 
@@ -130,6 +141,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool tls = 8;</code>
+     * @return The tls.
      */
     boolean getTls();
   }
@@ -281,6 +293,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string host = 1;</code>
+     * @return The host.
      */
     public java.lang.String getHost() {
       java.lang.Object ref = host_;
@@ -300,6 +313,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string host = 1;</code>
+     * @return The bytes for host.
      */
     public com.google.protobuf.ByteString
         getHostBytes() {
@@ -323,6 +337,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 port = 2;</code>
+     * @return The port.
      */
     public int getPort() {
       return port_;
@@ -336,6 +351,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string provider = 3;</code>
+     * @return The provider.
      */
     public java.lang.String getProvider() {
       java.lang.Object ref = provider_;
@@ -355,6 +371,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string provider = 3;</code>
+     * @return The bytes for provider.
      */
     public com.google.protobuf.ByteString
         getProviderBytes() {
@@ -378,6 +395,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string tenant = 4;</code>
+     * @return The tenant.
      */
     public java.lang.String getTenant() {
       java.lang.Object ref = tenant_;
@@ -397,6 +415,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string tenant = 4;</code>
+     * @return The bytes for tenant.
      */
     public com.google.protobuf.ByteString
         getTenantBytes() {
@@ -420,6 +439,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Credentials credentials = 5;</code>
+     * @return Whether the credentials field is set.
      */
     public boolean hasCredentials() {
       return credentials_ != null;
@@ -430,6 +450,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Credentials credentials = 5;</code>
+     * @return The credentials.
      */
     public org.arke.ArkeProtos.Credentials getCredentials() {
       return credentials_ == null ? org.arke.ArkeProtos.Credentials.getDefaultInstance() : credentials_;
@@ -453,6 +474,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 prefetch_count = 6;</code>
+     * @return The prefetchCount.
      */
     public int getPrefetchCount() {
       return prefetchCount_;
@@ -466,6 +488,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bytes ca_certificate = 7;</code>
+     * @return The caCertificate.
      */
     public com.google.protobuf.ByteString getCaCertificate() {
       return caCertificate_;
@@ -479,6 +502,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool tls = 8;</code>
+     * @return The tls.
      */
     public boolean getTls() {
       return tls_;
@@ -934,6 +958,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string host = 1;</code>
+       * @return The host.
        */
       public java.lang.String getHost() {
         java.lang.Object ref = host_;
@@ -953,6 +978,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string host = 1;</code>
+       * @return The bytes for host.
        */
       public com.google.protobuf.ByteString
           getHostBytes() {
@@ -973,6 +999,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string host = 1;</code>
+       * @param value The host to set.
+       * @return This builder for chaining.
        */
       public Builder setHost(
           java.lang.String value) {
@@ -990,6 +1018,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string host = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearHost() {
         
@@ -1003,6 +1032,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string host = 1;</code>
+       * @param value The bytes for host to set.
+       * @return This builder for chaining.
        */
       public Builder setHostBytes(
           com.google.protobuf.ByteString value) {
@@ -1023,6 +1054,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 port = 2;</code>
+       * @return The port.
        */
       public int getPort() {
         return port_;
@@ -1033,6 +1065,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 port = 2;</code>
+       * @param value The port to set.
+       * @return This builder for chaining.
        */
       public Builder setPort(int value) {
         
@@ -1046,6 +1080,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 port = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearPort() {
         
@@ -1061,6 +1096,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string provider = 3;</code>
+       * @return The provider.
        */
       public java.lang.String getProvider() {
         java.lang.Object ref = provider_;
@@ -1080,6 +1116,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string provider = 3;</code>
+       * @return The bytes for provider.
        */
       public com.google.protobuf.ByteString
           getProviderBytes() {
@@ -1100,6 +1137,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string provider = 3;</code>
+       * @param value The provider to set.
+       * @return This builder for chaining.
        */
       public Builder setProvider(
           java.lang.String value) {
@@ -1117,6 +1156,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string provider = 3;</code>
+       * @return This builder for chaining.
        */
       public Builder clearProvider() {
         
@@ -1130,6 +1170,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string provider = 3;</code>
+       * @param value The bytes for provider to set.
+       * @return This builder for chaining.
        */
       public Builder setProviderBytes(
           com.google.protobuf.ByteString value) {
@@ -1150,6 +1192,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string tenant = 4;</code>
+       * @return The tenant.
        */
       public java.lang.String getTenant() {
         java.lang.Object ref = tenant_;
@@ -1169,6 +1212,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string tenant = 4;</code>
+       * @return The bytes for tenant.
        */
       public com.google.protobuf.ByteString
           getTenantBytes() {
@@ -1189,6 +1233,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string tenant = 4;</code>
+       * @param value The tenant to set.
+       * @return This builder for chaining.
        */
       public Builder setTenant(
           java.lang.String value) {
@@ -1206,6 +1252,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string tenant = 4;</code>
+       * @return This builder for chaining.
        */
       public Builder clearTenant() {
         
@@ -1219,6 +1266,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string tenant = 4;</code>
+       * @param value The bytes for tenant to set.
+       * @return This builder for chaining.
        */
       public Builder setTenantBytes(
           com.google.protobuf.ByteString value) {
@@ -1241,6 +1290,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Credentials credentials = 5;</code>
+       * @return Whether the credentials field is set.
        */
       public boolean hasCredentials() {
         return credentialsBuilder_ != null || credentials_ != null;
@@ -1251,6 +1301,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Credentials credentials = 5;</code>
+       * @return The credentials.
        */
       public org.arke.ArkeProtos.Credentials getCredentials() {
         if (credentialsBuilder_ == null) {
@@ -1392,6 +1443,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 prefetch_count = 6;</code>
+       * @return The prefetchCount.
        */
       public int getPrefetchCount() {
         return prefetchCount_;
@@ -1402,6 +1454,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 prefetch_count = 6;</code>
+       * @param value The prefetchCount to set.
+       * @return This builder for chaining.
        */
       public Builder setPrefetchCount(int value) {
         
@@ -1415,6 +1469,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 prefetch_count = 6;</code>
+       * @return This builder for chaining.
        */
       public Builder clearPrefetchCount() {
         
@@ -1430,6 +1485,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes ca_certificate = 7;</code>
+       * @return The caCertificate.
        */
       public com.google.protobuf.ByteString getCaCertificate() {
         return caCertificate_;
@@ -1440,6 +1496,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes ca_certificate = 7;</code>
+       * @param value The caCertificate to set.
+       * @return This builder for chaining.
        */
       public Builder setCaCertificate(com.google.protobuf.ByteString value) {
         if (value == null) {
@@ -1456,6 +1514,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes ca_certificate = 7;</code>
+       * @return This builder for chaining.
        */
       public Builder clearCaCertificate() {
         
@@ -1471,6 +1530,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool tls = 8;</code>
+       * @return The tls.
        */
       public boolean getTls() {
         return tls_;
@@ -1481,6 +1541,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool tls = 8;</code>
+       * @param value The tls to set.
+       * @return This builder for chaining.
        */
       public Builder setTls(boolean value) {
         
@@ -1494,6 +1556,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool tls = 8;</code>
+       * @return This builder for chaining.
        */
       public Builder clearTls() {
         
@@ -1564,6 +1627,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string username = 1;</code>
+     * @return The username.
      */
     java.lang.String getUsername();
     /**
@@ -1572,6 +1636,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string username = 1;</code>
+     * @return The bytes for username.
      */
     com.google.protobuf.ByteString
         getUsernameBytes();
@@ -1582,6 +1647,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string password = 2;</code>
+     * @return The password.
      */
     java.lang.String getPassword();
     /**
@@ -1590,6 +1656,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string password = 2;</code>
+     * @return The bytes for password.
      */
     com.google.protobuf.ByteString
         getPasswordBytes();
@@ -1698,6 +1765,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string username = 1;</code>
+     * @return The username.
      */
     public java.lang.String getUsername() {
       java.lang.Object ref = username_;
@@ -1717,6 +1785,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string username = 1;</code>
+     * @return The bytes for username.
      */
     public com.google.protobuf.ByteString
         getUsernameBytes() {
@@ -1740,6 +1809,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string password = 2;</code>
+     * @return The password.
      */
     public java.lang.String getPassword() {
       java.lang.Object ref = password_;
@@ -1759,6 +1829,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string password = 2;</code>
+     * @return The bytes for password.
      */
     public com.google.protobuf.ByteString
         getPasswordBytes() {
@@ -2105,6 +2176,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string username = 1;</code>
+       * @return The username.
        */
       public java.lang.String getUsername() {
         java.lang.Object ref = username_;
@@ -2124,6 +2196,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string username = 1;</code>
+       * @return The bytes for username.
        */
       public com.google.protobuf.ByteString
           getUsernameBytes() {
@@ -2144,6 +2217,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string username = 1;</code>
+       * @param value The username to set.
+       * @return This builder for chaining.
        */
       public Builder setUsername(
           java.lang.String value) {
@@ -2161,6 +2236,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string username = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearUsername() {
         
@@ -2174,6 +2250,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string username = 1;</code>
+       * @param value The bytes for username to set.
+       * @return This builder for chaining.
        */
       public Builder setUsernameBytes(
           com.google.protobuf.ByteString value) {
@@ -2194,6 +2272,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string password = 2;</code>
+       * @return The password.
        */
       public java.lang.String getPassword() {
         java.lang.Object ref = password_;
@@ -2213,6 +2292,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string password = 2;</code>
+       * @return The bytes for password.
        */
       public com.google.protobuf.ByteString
           getPasswordBytes() {
@@ -2233,6 +2313,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string password = 2;</code>
+       * @param value The password to set.
+       * @return This builder for chaining.
        */
       public Builder setPassword(
           java.lang.String value) {
@@ -2250,6 +2332,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string password = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearPassword() {
         
@@ -2263,6 +2346,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string password = 2;</code>
+       * @param value The bytes for password to set.
+       * @return This builder for chaining.
        */
       public Builder setPasswordBytes(
           com.google.protobuf.ByteString value) {
@@ -2338,6 +2423,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     boolean getSuccess();
 
@@ -2347,6 +2433,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     boolean hasError();
     /**
@@ -2355,6 +2442,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     org.arke.ArkeProtos.Error getError();
     /**
@@ -2474,6 +2562,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     public boolean getSuccess() {
       return success_;
@@ -2487,6 +2576,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     public boolean hasError() {
       return error_ != null;
@@ -2497,6 +2587,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     public org.arke.ArkeProtos.Error getError() {
       return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
@@ -2857,6 +2948,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return The success.
        */
       public boolean getSuccess() {
         return success_;
@@ -2867,6 +2959,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @param value The success to set.
+       * @return This builder for chaining.
        */
       public Builder setSuccess(boolean value) {
         
@@ -2880,6 +2974,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSuccess() {
         
@@ -2897,6 +2992,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return Whether the error field is set.
        */
       public boolean hasError() {
         return errorBuilder_ != null || error_ != null;
@@ -2907,6 +3003,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return The error.
        */
       public org.arke.ArkeProtos.Error getError() {
         if (errorBuilder_ == null) {
@@ -3103,6 +3200,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string uuid = 1;</code>
+     * @return The uuid.
      */
     java.lang.String getUuid();
     /**
@@ -3111,6 +3209,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
      */
     com.google.protobuf.ByteString
         getUuidBytes();
@@ -3175,6 +3274,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bytes body = 3;</code>
+     * @return The body.
      */
     com.google.protobuf.ByteString getBody();
 
@@ -3184,6 +3284,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 4;</code>
+     * @return Whether the address field is set.
      */
     boolean hasAddress();
     /**
@@ -3192,6 +3293,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 4;</code>
+     * @return The address.
      */
     org.arke.ArkeProtos.Address getAddress();
     /**
@@ -3209,6 +3311,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool persistent = 5;</code>
+     * @return The persistent.
      */
     boolean getPersistent();
 
@@ -3218,6 +3321,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 6;</code>
+     * @return Whether the error field is set.
      */
     boolean hasError();
     /**
@@ -3226,6 +3330,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 6;</code>
+     * @return The error.
      */
     org.arke.ArkeProtos.Error getError();
     /**
@@ -3399,6 +3504,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string uuid = 1;</code>
+     * @return The uuid.
      */
     public java.lang.String getUuid() {
       java.lang.Object ref = uuid_;
@@ -3418,6 +3524,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
      */
     public com.google.protobuf.ByteString
         getUuidBytes() {
@@ -3533,6 +3640,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bytes body = 3;</code>
+     * @return The body.
      */
     public com.google.protobuf.ByteString getBody() {
       return body_;
@@ -3546,6 +3654,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 4;</code>
+     * @return Whether the address field is set.
      */
     public boolean hasAddress() {
       return address_ != null;
@@ -3556,6 +3665,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 4;</code>
+     * @return The address.
      */
     public org.arke.ArkeProtos.Address getAddress() {
       return address_ == null ? org.arke.ArkeProtos.Address.getDefaultInstance() : address_;
@@ -3579,6 +3689,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool persistent = 5;</code>
+     * @return The persistent.
      */
     public boolean getPersistent() {
       return persistent_;
@@ -3592,6 +3703,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 6;</code>
+     * @return Whether the error field is set.
      */
     public boolean hasError() {
       return error_ != null;
@@ -3602,6 +3714,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 6;</code>
+     * @return The error.
      */
     public org.arke.ArkeProtos.Error getError() {
       return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
@@ -4079,6 +4192,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string uuid = 1;</code>
+       * @return The uuid.
        */
       public java.lang.String getUuid() {
         java.lang.Object ref = uuid_;
@@ -4098,6 +4212,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string uuid = 1;</code>
+       * @return The bytes for uuid.
        */
       public com.google.protobuf.ByteString
           getUuidBytes() {
@@ -4118,6 +4233,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string uuid = 1;</code>
+       * @param value The uuid to set.
+       * @return This builder for chaining.
        */
       public Builder setUuid(
           java.lang.String value) {
@@ -4135,6 +4252,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string uuid = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearUuid() {
         
@@ -4148,6 +4266,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string uuid = 1;</code>
+       * @param value The bytes for uuid to set.
+       * @return This builder for chaining.
        */
       public Builder setUuidBytes(
           com.google.protobuf.ByteString value) {
@@ -4319,6 +4439,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes body = 3;</code>
+       * @return The body.
        */
       public com.google.protobuf.ByteString getBody() {
         return body_;
@@ -4329,6 +4450,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes body = 3;</code>
+       * @param value The body to set.
+       * @return This builder for chaining.
        */
       public Builder setBody(com.google.protobuf.ByteString value) {
         if (value == null) {
@@ -4345,6 +4468,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bytes body = 3;</code>
+       * @return This builder for chaining.
        */
       public Builder clearBody() {
         
@@ -4362,6 +4486,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address address = 4;</code>
+       * @return Whether the address field is set.
        */
       public boolean hasAddress() {
         return addressBuilder_ != null || address_ != null;
@@ -4372,6 +4497,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address address = 4;</code>
+       * @return The address.
        */
       public org.arke.ArkeProtos.Address getAddress() {
         if (addressBuilder_ == null) {
@@ -4513,6 +4639,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool persistent = 5;</code>
+       * @return The persistent.
        */
       public boolean getPersistent() {
         return persistent_;
@@ -4523,6 +4650,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool persistent = 5;</code>
+       * @param value The persistent to set.
+       * @return This builder for chaining.
        */
       public Builder setPersistent(boolean value) {
         
@@ -4536,6 +4665,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool persistent = 5;</code>
+       * @return This builder for chaining.
        */
       public Builder clearPersistent() {
         
@@ -4553,6 +4683,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 6;</code>
+       * @return Whether the error field is set.
        */
       public boolean hasError() {
         return errorBuilder_ != null || error_ != null;
@@ -4563,6 +4694,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 6;</code>
+       * @return The error.
        */
       public org.arke.ArkeProtos.Error getError() {
         if (errorBuilder_ == null) {
@@ -4759,6 +4891,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     boolean getSuccess();
 
@@ -4768,6 +4901,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     boolean hasError();
     /**
@@ -4776,6 +4910,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     org.arke.ArkeProtos.Error getError();
     /**
@@ -4895,6 +5030,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     public boolean getSuccess() {
       return success_;
@@ -4908,6 +5044,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     public boolean hasError() {
       return error_ != null;
@@ -4918,6 +5055,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     public org.arke.ArkeProtos.Error getError() {
       return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
@@ -5278,6 +5416,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return The success.
        */
       public boolean getSuccess() {
         return success_;
@@ -5288,6 +5427,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @param value The success to set.
+       * @return This builder for chaining.
        */
       public Builder setSuccess(boolean value) {
         
@@ -5301,6 +5442,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSuccess() {
         
@@ -5318,6 +5460,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return Whether the error field is set.
        */
       public boolean hasError() {
         return errorBuilder_ != null || error_ != null;
@@ -5328,6 +5471,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return The error.
        */
       public org.arke.ArkeProtos.Error getError() {
         if (errorBuilder_ == null) {
@@ -5524,6 +5668,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     java.lang.String getName();
     /**
@@ -5532,6 +5677,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     com.google.protobuf.ByteString
         getNameBytes();
@@ -5542,6 +5688,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @return A list containing the subjects.
      */
     java.util.List<java.lang.String>
         getSubjectsList();
@@ -5551,6 +5698,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @return The count of subjects.
      */
     int getSubjectsCount();
     /**
@@ -5559,6 +5707,8 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @param index The index of the element to return.
+     * @return The subjects at the given index.
      */
     java.lang.String getSubjects(int index);
     /**
@@ -5567,6 +5717,8 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @param index The index of the value to return.
+     * @return The bytes of the subjects at the given index.
      */
     com.google.protobuf.ByteString
         getSubjectsBytes(int index);
@@ -5577,6 +5729,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
+     * @return The enum numeric value on the wire for type.
      */
     int getTypeValue();
     /**
@@ -5585,6 +5738,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
+     * @return The type.
      */
     org.arke.ArkeProtos.Address.TargetType getType();
 
@@ -5594,6 +5748,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool durable = 4;</code>
+     * @return The durable.
      */
     boolean getDurable();
 
@@ -5603,6 +5758,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool auto_delete = 5;</code>
+     * @return The autoDelete.
      */
     boolean getAutoDelete();
 
@@ -5612,6 +5768,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address parent_address = 6;</code>
+     * @return Whether the parentAddress field is set.
      */
     boolean hasParentAddress();
     /**
@@ -5620,6 +5777,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address parent_address = 6;</code>
+     * @return The parentAddress.
      */
     org.arke.ArkeProtos.Address getParentAddress();
     /**
@@ -5831,6 +5989,8 @@ public final class ArkeProtos {
       }
 
       /**
+       * @param value The numeric wire value of the corresponding enum entry.
+       * @return The enum associated with the given numeric wire value.
        * @deprecated Use {@link #forNumber(int)} instead.
        */
       @java.lang.Deprecated
@@ -5838,6 +5998,10 @@ public final class ArkeProtos {
         return forNumber(value);
       }
 
+      /**
+       * @param value The numeric wire value of the corresponding enum entry.
+       * @return The enum associated with the given numeric wire value.
+       */
       public static TargetType forNumber(int value) {
         switch (value) {
           case 0: return TOPIC;
@@ -5903,6 +6067,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     public java.lang.String getName() {
       java.lang.Object ref = name_;
@@ -5922,6 +6087,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     public com.google.protobuf.ByteString
         getNameBytes() {
@@ -5945,6 +6111,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @return A list containing the subjects.
      */
     public com.google.protobuf.ProtocolStringList
         getSubjectsList() {
@@ -5956,6 +6123,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @return The count of subjects.
      */
     public int getSubjectsCount() {
       return subjects_.size();
@@ -5966,6 +6134,8 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @param index The index of the element to return.
+     * @return The subjects at the given index.
      */
     public java.lang.String getSubjects(int index) {
       return subjects_.get(index);
@@ -5976,6 +6146,8 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>repeated string subjects = 2;</code>
+     * @param index The index of the value to return.
+     * @return The bytes of the subjects at the given index.
      */
     public com.google.protobuf.ByteString
         getSubjectsBytes(int index) {
@@ -5990,6 +6162,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
+     * @return The enum numeric value on the wire for type.
      */
     public int getTypeValue() {
       return type_;
@@ -6000,6 +6173,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address.TargetType type = 3;</code>
+     * @return The type.
      */
     public org.arke.ArkeProtos.Address.TargetType getType() {
       @SuppressWarnings("deprecation")
@@ -6015,6 +6189,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool durable = 4;</code>
+     * @return The durable.
      */
     public boolean getDurable() {
       return durable_;
@@ -6028,6 +6203,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool auto_delete = 5;</code>
+     * @return The autoDelete.
      */
     public boolean getAutoDelete() {
       return autoDelete_;
@@ -6041,6 +6217,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address parent_address = 6;</code>
+     * @return Whether the parentAddress field is set.
      */
     public boolean hasParentAddress() {
       return parentAddress_ != null;
@@ -6051,6 +6228,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address parent_address = 6;</code>
+     * @return The parentAddress.
      */
     public org.arke.ArkeProtos.Address getParentAddress() {
       return parentAddress_ == null ? org.arke.ArkeProtos.Address.getDefaultInstance() : parentAddress_;
@@ -6498,6 +6676,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The name.
        */
       public java.lang.String getName() {
         java.lang.Object ref = name_;
@@ -6517,6 +6696,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The bytes for name.
        */
       public com.google.protobuf.ByteString
           getNameBytes() {
@@ -6537,6 +6717,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The name to set.
+       * @return This builder for chaining.
        */
       public Builder setName(
           java.lang.String value) {
@@ -6554,6 +6736,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearName() {
         
@@ -6567,6 +6750,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The bytes for name to set.
+       * @return This builder for chaining.
        */
       public Builder setNameBytes(
           com.google.protobuf.ByteString value) {
@@ -6593,6 +6778,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @return A list containing the subjects.
        */
       public com.google.protobuf.ProtocolStringList
           getSubjectsList() {
@@ -6604,6 +6790,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @return The count of subjects.
        */
       public int getSubjectsCount() {
         return subjects_.size();
@@ -6614,6 +6801,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param index The index of the element to return.
+       * @return The subjects at the given index.
        */
       public java.lang.String getSubjects(int index) {
         return subjects_.get(index);
@@ -6624,6 +6813,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the subjects at the given index.
        */
       public com.google.protobuf.ByteString
           getSubjectsBytes(int index) {
@@ -6635,6 +6826,9 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param index The index to set the value at.
+       * @param value The subjects to set.
+       * @return This builder for chaining.
        */
       public Builder setSubjects(
           int index, java.lang.String value) {
@@ -6652,6 +6846,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param value The subjects to add.
+       * @return This builder for chaining.
        */
       public Builder addSubjects(
           java.lang.String value) {
@@ -6669,6 +6865,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param values The subjects to add.
+       * @return This builder for chaining.
        */
       public Builder addAllSubjects(
           java.lang.Iterable<java.lang.String> values) {
@@ -6684,6 +6882,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSubjects() {
         subjects_ = com.google.protobuf.LazyStringArrayList.EMPTY;
@@ -6697,6 +6896,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>repeated string subjects = 2;</code>
+       * @param value The bytes of the subjects to add.
+       * @return This builder for chaining.
        */
       public Builder addSubjectsBytes(
           com.google.protobuf.ByteString value) {
@@ -6717,6 +6918,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
+       * @return The enum numeric value on the wire for type.
        */
       public int getTypeValue() {
         return type_;
@@ -6727,6 +6929,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
+       * @param value The enum numeric value on the wire for type to set.
+       * @return This builder for chaining.
        */
       public Builder setTypeValue(int value) {
         type_ = value;
@@ -6739,6 +6943,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
+       * @return The type.
        */
       public org.arke.ArkeProtos.Address.TargetType getType() {
         @SuppressWarnings("deprecation")
@@ -6751,6 +6956,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
+       * @param value The type to set.
+       * @return This builder for chaining.
        */
       public Builder setType(org.arke.ArkeProtos.Address.TargetType value) {
         if (value == null) {
@@ -6767,6 +6974,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address.TargetType type = 3;</code>
+       * @return This builder for chaining.
        */
       public Builder clearType() {
         
@@ -6782,6 +6990,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @return The durable.
        */
       public boolean getDurable() {
         return durable_;
@@ -6792,6 +7001,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @param value The durable to set.
+       * @return This builder for chaining.
        */
       public Builder setDurable(boolean value) {
         
@@ -6805,6 +7016,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @return This builder for chaining.
        */
       public Builder clearDurable() {
         
@@ -6820,6 +7032,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @return The autoDelete.
        */
       public boolean getAutoDelete() {
         return autoDelete_;
@@ -6830,6 +7043,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @param value The autoDelete to set.
+       * @return This builder for chaining.
        */
       public Builder setAutoDelete(boolean value) {
         
@@ -6843,6 +7058,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @return This builder for chaining.
        */
       public Builder clearAutoDelete() {
         
@@ -6860,6 +7076,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address parent_address = 6;</code>
+       * @return Whether the parentAddress field is set.
        */
       public boolean hasParentAddress() {
         return parentAddressBuilder_ != null || parentAddress_ != null;
@@ -6870,6 +7087,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address parent_address = 6;</code>
+       * @return The parentAddress.
        */
       public org.arke.ArkeProtos.Address getParentAddress() {
         if (parentAddressBuilder_ == null) {
@@ -7066,6 +7284,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     java.lang.String getName();
     /**
@@ -7074,6 +7293,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     com.google.protobuf.ByteString
         getNameBytes();
@@ -7084,6 +7304,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 3;</code>
+     * @return Whether the address field is set.
      */
     boolean hasAddress();
     /**
@@ -7092,6 +7313,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 3;</code>
+     * @return The address.
      */
     org.arke.ArkeProtos.Address getAddress();
     /**
@@ -7109,6 +7331,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool durable = 4;</code>
+     * @return The durable.
      */
     boolean getDurable();
 
@@ -7118,6 +7341,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool auto_delete = 5;</code>
+     * @return The autoDelete.
      */
     boolean getAutoDelete();
 
@@ -7127,6 +7351,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter filter = 6;</code>
+     * @return Whether the filter field is set.
      */
     boolean hasFilter();
     /**
@@ -7135,6 +7360,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter filter = 6;</code>
+     * @return The filter.
      */
     org.arke.ArkeProtos.Filter getFilter();
     /**
@@ -7206,6 +7432,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool exclusive = 8;</code>
+     * @return The exclusive.
      */
     boolean getExclusive();
   }
@@ -7373,6 +7600,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     public java.lang.String getName() {
       java.lang.Object ref = name_;
@@ -7392,6 +7620,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     public com.google.protobuf.ByteString
         getNameBytes() {
@@ -7415,6 +7644,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 3;</code>
+     * @return Whether the address field is set.
      */
     public boolean hasAddress() {
       return address_ != null;
@@ -7425,6 +7655,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Address address = 3;</code>
+     * @return The address.
      */
     public org.arke.ArkeProtos.Address getAddress() {
       return address_ == null ? org.arke.ArkeProtos.Address.getDefaultInstance() : address_;
@@ -7448,6 +7679,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool durable = 4;</code>
+     * @return The durable.
      */
     public boolean getDurable() {
       return durable_;
@@ -7461,6 +7693,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool auto_delete = 5;</code>
+     * @return The autoDelete.
      */
     public boolean getAutoDelete() {
       return autoDelete_;
@@ -7474,6 +7707,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter filter = 6;</code>
+     * @return Whether the filter field is set.
      */
     public boolean hasFilter() {
       return filter_ != null;
@@ -7484,6 +7718,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter filter = 6;</code>
+     * @return The filter.
      */
     public org.arke.ArkeProtos.Filter getFilter() {
       return filter_ == null ? org.arke.ArkeProtos.Filter.getDefaultInstance() : filter_;
@@ -7599,6 +7834,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool exclusive = 8;</code>
+     * @return The exclusive.
      */
     public boolean getExclusive() {
       return exclusive_;
@@ -8083,6 +8319,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The name.
        */
       public java.lang.String getName() {
         java.lang.Object ref = name_;
@@ -8102,6 +8339,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The bytes for name.
        */
       public com.google.protobuf.ByteString
           getNameBytes() {
@@ -8122,6 +8360,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The name to set.
+       * @return This builder for chaining.
        */
       public Builder setName(
           java.lang.String value) {
@@ -8139,6 +8379,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearName() {
         
@@ -8152,6 +8393,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The bytes for name to set.
+       * @return This builder for chaining.
        */
       public Builder setNameBytes(
           com.google.protobuf.ByteString value) {
@@ -8174,6 +8417,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address address = 3;</code>
+       * @return Whether the address field is set.
        */
       public boolean hasAddress() {
         return addressBuilder_ != null || address_ != null;
@@ -8184,6 +8428,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Address address = 3;</code>
+       * @return The address.
        */
       public org.arke.ArkeProtos.Address getAddress() {
         if (addressBuilder_ == null) {
@@ -8325,6 +8570,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @return The durable.
        */
       public boolean getDurable() {
         return durable_;
@@ -8335,6 +8581,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @param value The durable to set.
+       * @return This builder for chaining.
        */
       public Builder setDurable(boolean value) {
         
@@ -8348,6 +8596,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool durable = 4;</code>
+       * @return This builder for chaining.
        */
       public Builder clearDurable() {
         
@@ -8363,6 +8612,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @return The autoDelete.
        */
       public boolean getAutoDelete() {
         return autoDelete_;
@@ -8373,6 +8623,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @param value The autoDelete to set.
+       * @return This builder for chaining.
        */
       public Builder setAutoDelete(boolean value) {
         
@@ -8386,6 +8638,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool auto_delete = 5;</code>
+       * @return This builder for chaining.
        */
       public Builder clearAutoDelete() {
         
@@ -8403,6 +8656,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter filter = 6;</code>
+       * @return Whether the filter field is set.
        */
       public boolean hasFilter() {
         return filterBuilder_ != null || filter_ != null;
@@ -8413,6 +8667,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter filter = 6;</code>
+       * @return The filter.
        */
       public org.arke.ArkeProtos.Filter getFilter() {
         if (filterBuilder_ == null) {
@@ -8705,6 +8960,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool exclusive = 8;</code>
+       * @return The exclusive.
        */
       public boolean getExclusive() {
         return exclusive_;
@@ -8715,6 +8971,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool exclusive = 8;</code>
+       * @param value The exclusive to set.
+       * @return This builder for chaining.
        */
       public Builder setExclusive(boolean value) {
         
@@ -8728,6 +8986,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool exclusive = 8;</code>
+       * @return This builder for chaining.
        */
       public Builder clearExclusive() {
         
@@ -8842,6 +9101,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter.MatchType type = 2;</code>
+     * @return The enum numeric value on the wire for type.
      */
     int getTypeValue();
     /**
@@ -8850,6 +9110,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter.MatchType type = 2;</code>
+     * @return The type.
      */
     org.arke.ArkeProtos.Filter.MatchType getType();
   }
@@ -9008,6 +9269,8 @@ public final class ArkeProtos {
       }
 
       /**
+       * @param value The numeric wire value of the corresponding enum entry.
+       * @return The enum associated with the given numeric wire value.
        * @deprecated Use {@link #forNumber(int)} instead.
        */
       @java.lang.Deprecated
@@ -9015,6 +9278,10 @@ public final class ArkeProtos {
         return forNumber(value);
       }
 
+      /**
+       * @param value The numeric wire value of the corresponding enum entry.
+       * @return The enum associated with the given numeric wire value.
+       */
       public static MatchType forNumber(int value) {
         switch (value) {
           case 0: return ALL;
@@ -9134,6 +9401,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter.MatchType type = 2;</code>
+     * @return The enum numeric value on the wire for type.
      */
     public int getTypeValue() {
       return type_;
@@ -9144,6 +9412,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Filter.MatchType type = 2;</code>
+     * @return The type.
      */
     public org.arke.ArkeProtos.Filter.MatchType getType() {
       @SuppressWarnings("deprecation")
@@ -9834,6 +10103,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter.MatchType type = 2;</code>
+       * @return The enum numeric value on the wire for type.
        */
       public int getTypeValue() {
         return type_;
@@ -9844,6 +10114,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter.MatchType type = 2;</code>
+       * @param value The enum numeric value on the wire for type to set.
+       * @return This builder for chaining.
        */
       public Builder setTypeValue(int value) {
         type_ = value;
@@ -9856,6 +10128,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter.MatchType type = 2;</code>
+       * @return The type.
        */
       public org.arke.ArkeProtos.Filter.MatchType getType() {
         @SuppressWarnings("deprecation")
@@ -9868,6 +10141,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter.MatchType type = 2;</code>
+       * @param value The type to set.
+       * @return This builder for chaining.
        */
       public Builder setType(org.arke.ArkeProtos.Filter.MatchType value) {
         if (value == null) {
@@ -9884,6 +10159,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Filter.MatchType type = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearType() {
         
@@ -9954,6 +10230,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     java.lang.String getName();
     /**
@@ -9962,6 +10239,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     com.google.protobuf.ByteString
         getNameBytes();
@@ -9972,6 +10250,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string value = 2;</code>
+     * @return The value.
      */
     java.lang.String getValue();
     /**
@@ -9980,6 +10259,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string value = 2;</code>
+     * @return The bytes for value.
      */
     com.google.protobuf.ByteString
         getValueBytes();
@@ -10089,6 +10369,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The name.
      */
     public java.lang.String getName() {
       java.lang.Object ref = name_;
@@ -10108,6 +10389,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string name = 1;</code>
+     * @return The bytes for name.
      */
     public com.google.protobuf.ByteString
         getNameBytes() {
@@ -10131,6 +10413,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string value = 2;</code>
+     * @return The value.
      */
     public java.lang.String getValue() {
       java.lang.Object ref = value_;
@@ -10150,6 +10433,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string value = 2;</code>
+     * @return The bytes for value.
      */
     public com.google.protobuf.ByteString
         getValueBytes() {
@@ -10497,6 +10781,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The name.
        */
       public java.lang.String getName() {
         java.lang.Object ref = name_;
@@ -10516,6 +10801,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return The bytes for name.
        */
       public com.google.protobuf.ByteString
           getNameBytes() {
@@ -10536,6 +10822,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The name to set.
+       * @return This builder for chaining.
        */
       public Builder setName(
           java.lang.String value) {
@@ -10553,6 +10841,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearName() {
         
@@ -10566,6 +10855,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string name = 1;</code>
+       * @param value The bytes for name to set.
+       * @return This builder for chaining.
        */
       public Builder setNameBytes(
           com.google.protobuf.ByteString value) {
@@ -10586,6 +10877,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string value = 2;</code>
+       * @return The value.
        */
       public java.lang.String getValue() {
         java.lang.Object ref = value_;
@@ -10605,6 +10897,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string value = 2;</code>
+       * @return The bytes for value.
        */
       public com.google.protobuf.ByteString
           getValueBytes() {
@@ -10625,6 +10918,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string value = 2;</code>
+       * @param value The value to set.
+       * @return This builder for chaining.
        */
       public Builder setValue(
           java.lang.String value) {
@@ -10642,6 +10937,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string value = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearValue() {
         
@@ -10655,6 +10951,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string value = 2;</code>
+       * @param value The bytes for value to set.
+       * @return This builder for chaining.
        */
       public Builder setValueBytes(
           com.google.protobuf.ByteString value) {
@@ -10730,6 +11028,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     boolean getSuccess();
 
@@ -10739,6 +11038,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     boolean hasError();
     /**
@@ -10747,6 +11047,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     org.arke.ArkeProtos.Error getError();
     /**
@@ -10866,6 +11167,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     public boolean getSuccess() {
       return success_;
@@ -10879,6 +11181,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     public boolean hasError() {
       return error_ != null;
@@ -10889,6 +11192,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     public org.arke.ArkeProtos.Error getError() {
       return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
@@ -11249,6 +11553,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return The success.
        */
       public boolean getSuccess() {
         return success_;
@@ -11259,6 +11564,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @param value The success to set.
+       * @return This builder for chaining.
        */
       public Builder setSuccess(boolean value) {
         
@@ -11272,6 +11579,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSuccess() {
         
@@ -11289,6 +11597,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return Whether the error field is set.
        */
       public boolean hasError() {
         return errorBuilder_ != null || error_ != null;
@@ -11299,6 +11608,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return The error.
        */
       public org.arke.ArkeProtos.Error getError() {
         if (errorBuilder_ == null) {
@@ -11495,6 +11805,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     boolean getSuccess();
 
@@ -11504,6 +11815,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     boolean hasError();
     /**
@@ -11512,6 +11824,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     org.arke.ArkeProtos.Error getError();
     /**
@@ -11631,6 +11944,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool success = 1;</code>
+     * @return The success.
      */
     public boolean getSuccess() {
       return success_;
@@ -11644,6 +11958,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return Whether the error field is set.
      */
     public boolean hasError() {
       return error_ != null;
@@ -11654,6 +11969,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>.arke.Error error = 2;</code>
+     * @return The error.
      */
     public org.arke.ArkeProtos.Error getError() {
       return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
@@ -12014,6 +12330,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return The success.
        */
       public boolean getSuccess() {
         return success_;
@@ -12024,6 +12341,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @param value The success to set.
+       * @return This builder for chaining.
        */
       public Builder setSuccess(boolean value) {
         
@@ -12037,6 +12356,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool success = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSuccess() {
         
@@ -12054,6 +12374,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return Whether the error field is set.
        */
       public boolean hasError() {
         return errorBuilder_ != null || error_ != null;
@@ -12064,6 +12385,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>.arke.Error error = 2;</code>
+       * @return The error.
        */
       public org.arke.ArkeProtos.Error getError() {
         if (errorBuilder_ == null) {
@@ -12688,6 +13010,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string message = 1;</code>
+     * @return The message.
      */
     java.lang.String getMessage();
     /**
@@ -12696,6 +13019,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string message = 1;</code>
+     * @return The bytes for message.
      */
     com.google.protobuf.ByteString
         getMessageBytes();
@@ -12706,6 +13030,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 code = 2;</code>
+     * @return The code.
      */
     int getCode();
 
@@ -12715,6 +13040,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool is_fatal = 3;</code>
+     * @return The isFatal.
      */
     boolean getIsFatal();
   }
@@ -12825,6 +13151,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string message = 1;</code>
+     * @return The message.
      */
     public java.lang.String getMessage() {
       java.lang.Object ref = message_;
@@ -12844,6 +13171,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>string message = 1;</code>
+     * @return The bytes for message.
      */
     public com.google.protobuf.ByteString
         getMessageBytes() {
@@ -12867,6 +13195,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>int32 code = 2;</code>
+     * @return The code.
      */
     public int getCode() {
       return code_;
@@ -12880,6 +13209,7 @@ public final class ArkeProtos {
      * </pre>
      *
      * <code>bool is_fatal = 3;</code>
+     * @return The isFatal.
      */
     public boolean getIsFatal() {
       return isFatal_;
@@ -13234,6 +13564,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string message = 1;</code>
+       * @return The message.
        */
       public java.lang.String getMessage() {
         java.lang.Object ref = message_;
@@ -13253,6 +13584,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string message = 1;</code>
+       * @return The bytes for message.
        */
       public com.google.protobuf.ByteString
           getMessageBytes() {
@@ -13273,6 +13605,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string message = 1;</code>
+       * @param value The message to set.
+       * @return This builder for chaining.
        */
       public Builder setMessage(
           java.lang.String value) {
@@ -13290,6 +13624,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string message = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearMessage() {
         
@@ -13303,6 +13638,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>string message = 1;</code>
+       * @param value The bytes for message to set.
+       * @return This builder for chaining.
        */
       public Builder setMessageBytes(
           com.google.protobuf.ByteString value) {
@@ -13323,6 +13660,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 code = 2;</code>
+       * @return The code.
        */
       public int getCode() {
         return code_;
@@ -13333,6 +13671,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 code = 2;</code>
+       * @param value The code to set.
+       * @return This builder for chaining.
        */
       public Builder setCode(int value) {
         
@@ -13346,6 +13686,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>int32 code = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearCode() {
         
@@ -13361,6 +13702,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool is_fatal = 3;</code>
+       * @return The isFatal.
        */
       public boolean getIsFatal() {
         return isFatal_;
@@ -13371,6 +13713,8 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool is_fatal = 3;</code>
+       * @param value The isFatal to set.
+       * @return This builder for chaining.
        */
       public Builder setIsFatal(boolean value) {
         
@@ -13384,6 +13728,7 @@ public final class ArkeProtos {
        * </pre>
        *
        * <code>bool is_fatal = 3;</code>
+       * @return This builder for chaining.
        */
       public Builder clearIsFatal() {
         

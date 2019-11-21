@@ -21,7 +21,7 @@ import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
  * </pre>
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.22.1)",
+    value = "by gRPC proto compiler (version 1.25.0)",
     comments = "Source: arke.proto")
 public final class ProducerGrpc {
 
@@ -44,22 +44,21 @@ public final class ProducerGrpc {
     if ((getConnectMethod = ProducerGrpc.getConnectMethod) == null) {
       synchronized (ProducerGrpc.class) {
         if ((getConnectMethod = ProducerGrpc.getConnectMethod) == null) {
-          ProducerGrpc.getConnectMethod = getConnectMethod = 
+          ProducerGrpc.getConnectMethod = getConnectMethod =
               io.grpc.MethodDescriptor.<org.arke.ArkeProtos.ConnectionConfiguration, org.arke.ArkeProtos.ConnectResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-              .setFullMethodName(generateFullMethodName(
-                  "arke.Producer", "Connect"))
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Connect"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.ConnectionConfiguration.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.ConnectResponse.getDefaultInstance()))
-                  .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Connect"))
-                  .build();
-          }
+              .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Connect"))
+              .build();
         }
-     }
-     return getConnectMethod;
+      }
+    }
+    return getConnectMethod;
   }
 
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
@@ -76,22 +75,21 @@ public final class ProducerGrpc {
     if ((getPublishMethod = ProducerGrpc.getPublishMethod) == null) {
       synchronized (ProducerGrpc.class) {
         if ((getPublishMethod = ProducerGrpc.getPublishMethod) == null) {
-          ProducerGrpc.getPublishMethod = getPublishMethod = 
+          ProducerGrpc.getPublishMethod = getPublishMethod =
               io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.MessageResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
-              .setFullMethodName(generateFullMethodName(
-                  "arke.Producer", "Publish"))
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Publish"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.Message.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.MessageResponse.getDefaultInstance()))
-                  .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Publish"))
-                  .build();
-          }
+              .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Publish"))
+              .build();
         }
-     }
-     return getPublishMethod;
+      }
+    }
+    return getPublishMethod;
   }
 
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Empty,
@@ -108,22 +106,21 @@ public final class ProducerGrpc {
     if ((getDisconnectMethod = ProducerGrpc.getDisconnectMethod) == null) {
       synchronized (ProducerGrpc.class) {
         if ((getDisconnectMethod = ProducerGrpc.getDisconnectMethod) == null) {
-          ProducerGrpc.getDisconnectMethod = getDisconnectMethod = 
+          ProducerGrpc.getDisconnectMethod = getDisconnectMethod =
               io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Empty, org.arke.ArkeProtos.Empty>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-              .setFullMethodName(generateFullMethodName(
-                  "arke.Producer", "Disconnect"))
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Disconnect"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.Empty.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
                   org.arke.ArkeProtos.Empty.getDefaultInstance()))
-                  .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Disconnect"))
-                  .build();
-          }
+              .setSchemaDescriptor(new ProducerMethodDescriptorSupplier("Disconnect"))
+              .build();
         }
-     }
-     return getDisconnectMethod;
+      }
+    }
+    return getDisconnectMethod;
   }
 
   /**

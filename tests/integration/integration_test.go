@@ -195,7 +195,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
