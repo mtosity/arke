@@ -87,6 +87,8 @@ func main() {
 	serverOptions := make([]grpc.ServerOption, 0)
 	serverOptions = append(serverOptions, grpc.KeepaliveEnforcementPolicy(kaep))
 	serverOptions = append(serverOptions, grpc.KeepaliveParams(kp))
+	serverOptions = append(serverOptions, grpc.UnaryInterceptor(server.UnaryInterceptor))
+	serverOptions = append(serverOptions, grpc.StreamInterceptor(server.StreamInterceptor))
 
 	if certFile != "" && certKey != "" {
 		creds, err := credentials.NewServerTLSFromFile(certFile, certKey)

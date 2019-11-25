@@ -573,7 +573,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 
 	for start := time.Now(); time.Since(start) < CONNECT_TIMEOUT*time.Second; {
 		if bd.state == CONNECTED {
-			util.Logger.InfoI("client.connected", bd.ClientUUID)
+			util.Logger.InfoI("info.clientconnected", bd.ClientUUID)
 			return true
 		}
 		bd, err = prov.getBrokerDetails(*ctx)
