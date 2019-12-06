@@ -137,7 +137,10 @@ func (ch *Amqp091Channel) QueueDeclare(name string, durable, autoDelete, exclusi
 
 // SetPrefetch Sets quality of service on the channel
 func (ch *Amqp091Channel) SetPrefetch(prefetchCount int) error {
-	return ch.channel.Qos(prefetchCount, 0, false)
+	if prefetchCount > 0 {
+		return ch.channel.Qos(prefetchCount, 0, false)
+	}
+	return nil
 }
 
 // QueueBind Binds an queue to an exchange with subject/arguments
@@ -230,6 +233,11 @@ func (msg *Amqp091Message) Nack() error {
 // Error Error
 func (e *Amqp091Error) Error() string {
 	return e.error.Error()
+}
+
+// Code Error code from amqp.Error
+func (e *Amqp091Error) Code() int {
+	return e.error.Code
 }
 
 // NewAmqp091Error New error

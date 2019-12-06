@@ -7350,7 +7350,7 @@ public final class ArkeProtos {
 
     /**
      * <pre>
-     * Override the prefetch count on the connection for this source subscription.
+     * Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
      * </pre>
      *
      * <code>int32 prefetch_count = 9;</code>
@@ -7771,7 +7771,7 @@ public final class ArkeProtos {
     private int prefetchCount_;
     /**
      * <pre>
-     * Override the prefetch count on the connection for this source subscription.
+     * Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
      * </pre>
      *
      * <code>int32 prefetch_count = 9;</code>
@@ -8956,7 +8956,7 @@ public final class ArkeProtos {
       private int prefetchCount_ ;
       /**
        * <pre>
-       * Override the prefetch count on the connection for this source subscription.
+       * Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
        * </pre>
        *
        * <code>int32 prefetch_count = 9;</code>
@@ -8967,7 +8967,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Override the prefetch count on the connection for this source subscription.
+       * Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
        * </pre>
        *
        * <code>int32 prefetch_count = 9;</code>
@@ -8982,7 +8982,7 @@ public final class ArkeProtos {
       }
       /**
        * <pre>
-       * Override the prefetch count on the connection for this source subscription.
+       * Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
        * </pre>
        *
        * <code>int32 prefetch_count = 9;</code>
@@ -13789,6 +13789,3558 @@ public final class ArkeProtos {
 
   }
 
+  public interface MessageConsumedOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:arke.MessageConsumed)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <pre>
+     * arke.Message UUID returned from Consume.
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The uuid.
+     */
+    java.lang.String getUuid();
+    /**
+     * <pre>
+     * arke.Message UUID returned from Consume.
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
+     */
+    com.google.protobuf.ByteString
+        getUuidBytes();
+
+    /**
+     * <pre>
+     * Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+     * </pre>
+     *
+     * <code>bool nack = 2;</code>
+     * @return The nack.
+     */
+    boolean getNack();
+  }
+  /**
+   * <pre>
+   **
+   * Message used to ack or nack a message UUID
+   * </pre>
+   *
+   * Protobuf type {@code arke.MessageConsumed}
+   */
+  public  static final class MessageConsumed extends
+      com.google.protobuf.GeneratedMessageV3 implements
+      // @@protoc_insertion_point(message_implements:arke.MessageConsumed)
+      MessageConsumedOrBuilder {
+  private static final long serialVersionUID = 0L;
+    // Use MessageConsumed.newBuilder() to construct.
+    private MessageConsumed(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+    private MessageConsumed() {
+      uuid_ = "";
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new MessageConsumed();
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+    getUnknownFields() {
+      return this.unknownFields;
+    }
+    private MessageConsumed(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              java.lang.String s = input.readStringRequireUtf8();
+
+              uuid_ = s;
+              break;
+            }
+            case 16: {
+
+              nack_ = input.readBool();
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.arke.ArkeProtos.internal_static_arke_MessageConsumed_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.arke.ArkeProtos.internal_static_arke_MessageConsumed_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.arke.ArkeProtos.MessageConsumed.class, org.arke.ArkeProtos.MessageConsumed.Builder.class);
+    }
+
+    public static final int UUID_FIELD_NUMBER = 1;
+    private volatile java.lang.Object uuid_;
+    /**
+     * <pre>
+     * arke.Message UUID returned from Consume.
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The uuid.
+     */
+    public java.lang.String getUuid() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        uuid_ = s;
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * arke.Message UUID returned from Consume.
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
+     */
+    public com.google.protobuf.ByteString
+        getUuidBytes() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        uuid_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int NACK_FIELD_NUMBER = 2;
+    private boolean nack_;
+    /**
+     * <pre>
+     * Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+     * </pre>
+     *
+     * <code>bool nack = 2;</code>
+     * @return The nack.
+     */
+    public boolean getNack() {
+      return nack_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!getUuidBytes().isEmpty()) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 1, uuid_);
+      }
+      if (nack_ != false) {
+        output.writeBool(2, nack_);
+      }
+      unknownFields.writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!getUuidBytes().isEmpty()) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(1, uuid_);
+      }
+      if (nack_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(2, nack_);
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.arke.ArkeProtos.MessageConsumed)) {
+        return super.equals(obj);
+      }
+      org.arke.ArkeProtos.MessageConsumed other = (org.arke.ArkeProtos.MessageConsumed) obj;
+
+      if (!getUuid()
+          .equals(other.getUuid())) return false;
+      if (getNack()
+          != other.getNack()) return false;
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + UUID_FIELD_NUMBER;
+      hash = (53 * hash) + getUuid().hashCode();
+      hash = (37 * hash) + NACK_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getNack());
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumed parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.arke.ArkeProtos.MessageConsumed prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * <pre>
+     **
+     * Message used to ack or nack a message UUID
+     * </pre>
+     *
+     * Protobuf type {@code arke.MessageConsumed}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:arke.MessageConsumed)
+        org.arke.ArkeProtos.MessageConsumedOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumed_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumed_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.arke.ArkeProtos.MessageConsumed.class, org.arke.ArkeProtos.MessageConsumed.Builder.class);
+      }
+
+      // Construct using org.arke.ArkeProtos.MessageConsumed.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
+        }
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        uuid_ = "";
+
+        nack_ = false;
+
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumed_descriptor;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumed getDefaultInstanceForType() {
+        return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumed build() {
+        org.arke.ArkeProtos.MessageConsumed result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumed buildPartial() {
+        org.arke.ArkeProtos.MessageConsumed result = new org.arke.ArkeProtos.MessageConsumed(this);
+        result.uuid_ = uuid_;
+        result.nack_ = nack_;
+        onBuilt();
+        return result;
+      }
+
+      @java.lang.Override
+      public Builder clone() {
+        return super.clone();
+      }
+      @java.lang.Override
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.setField(field, value);
+      }
+      @java.lang.Override
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return super.clearField(field);
+      }
+      @java.lang.Override
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return super.clearOneof(oneof);
+      }
+      @java.lang.Override
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, java.lang.Object value) {
+        return super.setRepeatedField(field, index, value);
+      }
+      @java.lang.Override
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.addRepeatedField(field, value);
+      }
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.arke.ArkeProtos.MessageConsumed) {
+          return mergeFrom((org.arke.ArkeProtos.MessageConsumed)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.arke.ArkeProtos.MessageConsumed other) {
+        if (other == org.arke.ArkeProtos.MessageConsumed.getDefaultInstance()) return this;
+        if (!other.getUuid().isEmpty()) {
+          uuid_ = other.uuid_;
+          onChanged();
+        }
+        if (other.getNack() != false) {
+          setNack(other.getNack());
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        org.arke.ArkeProtos.MessageConsumed parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (org.arke.ArkeProtos.MessageConsumed) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+
+      private java.lang.Object uuid_ = "";
+      /**
+       * <pre>
+       * arke.Message UUID returned from Consume.
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return The uuid.
+       */
+      public java.lang.String getUuid() {
+        java.lang.Object ref = uuid_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          uuid_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * arke.Message UUID returned from Consume.
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return The bytes for uuid.
+       */
+      public com.google.protobuf.ByteString
+          getUuidBytes() {
+        java.lang.Object ref = uuid_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          uuid_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * arke.Message UUID returned from Consume.
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @param value The uuid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUuid(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * arke.Message UUID returned from Consume.
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearUuid() {
+        
+        uuid_ = getDefaultInstance().getUuid();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * arke.Message UUID returned from Consume.
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @param value The bytes for uuid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUuidBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
+        
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+
+      private boolean nack_ ;
+      /**
+       * <pre>
+       * Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+       * </pre>
+       *
+       * <code>bool nack = 2;</code>
+       * @return The nack.
+       */
+      public boolean getNack() {
+        return nack_;
+      }
+      /**
+       * <pre>
+       * Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+       * </pre>
+       *
+       * <code>bool nack = 2;</code>
+       * @param value The nack to set.
+       * @return This builder for chaining.
+       */
+      public Builder setNack(boolean value) {
+        
+        nack_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+       * </pre>
+       *
+       * <code>bool nack = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearNack() {
+        
+        nack_ = false;
+        onChanged();
+        return this;
+      }
+      @java.lang.Override
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      @java.lang.Override
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
+      // @@protoc_insertion_point(builder_scope:arke.MessageConsumed)
+    }
+
+    // @@protoc_insertion_point(class_scope:arke.MessageConsumed)
+    private static final org.arke.ArkeProtos.MessageConsumed DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.arke.ArkeProtos.MessageConsumed();
+    }
+
+    public static org.arke.ArkeProtos.MessageConsumed getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<MessageConsumed>
+        PARSER = new com.google.protobuf.AbstractParser<MessageConsumed>() {
+      @java.lang.Override
+      public MessageConsumed parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new MessageConsumed(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<MessageConsumed> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<MessageConsumed> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.arke.ArkeProtos.MessageConsumed getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface MessageConsumedResponseOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:arke.MessageConsumedResponse)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <pre>
+     * Message UUID of the arke.Message
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The uuid.
+     */
+    java.lang.String getUuid();
+    /**
+     * <pre>
+     * Message UUID of the arke.Message
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
+     */
+    com.google.protobuf.ByteString
+        getUuidBytes();
+
+    /**
+     * <pre>
+     * Was the ack or nack successful.
+     * </pre>
+     *
+     * <code>bool success = 2;</code>
+     * @return The success.
+     */
+    boolean getSuccess();
+
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     * @return Whether the error field is set.
+     */
+    boolean hasError();
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     * @return The error.
+     */
+    org.arke.ArkeProtos.Error getError();
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     */
+    org.arke.ArkeProtos.ErrorOrBuilder getErrorOrBuilder();
+  }
+  /**
+   * <pre>
+   ** 
+   * Response to a MessageConsumed message
+   * </pre>
+   *
+   * Protobuf type {@code arke.MessageConsumedResponse}
+   */
+  public  static final class MessageConsumedResponse extends
+      com.google.protobuf.GeneratedMessageV3 implements
+      // @@protoc_insertion_point(message_implements:arke.MessageConsumedResponse)
+      MessageConsumedResponseOrBuilder {
+  private static final long serialVersionUID = 0L;
+    // Use MessageConsumedResponse.newBuilder() to construct.
+    private MessageConsumedResponse(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+    private MessageConsumedResponse() {
+      uuid_ = "";
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new MessageConsumedResponse();
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+    getUnknownFields() {
+      return this.unknownFields;
+    }
+    private MessageConsumedResponse(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              java.lang.String s = input.readStringRequireUtf8();
+
+              uuid_ = s;
+              break;
+            }
+            case 16: {
+
+              success_ = input.readBool();
+              break;
+            }
+            case 26: {
+              org.arke.ArkeProtos.Error.Builder subBuilder = null;
+              if (error_ != null) {
+                subBuilder = error_.toBuilder();
+              }
+              error_ = input.readMessage(org.arke.ArkeProtos.Error.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom(error_);
+                error_ = subBuilder.buildPartial();
+              }
+
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.arke.ArkeProtos.internal_static_arke_MessageConsumedResponse_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.arke.ArkeProtos.internal_static_arke_MessageConsumedResponse_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.arke.ArkeProtos.MessageConsumedResponse.class, org.arke.ArkeProtos.MessageConsumedResponse.Builder.class);
+    }
+
+    public static final int UUID_FIELD_NUMBER = 1;
+    private volatile java.lang.Object uuid_;
+    /**
+     * <pre>
+     * Message UUID of the arke.Message
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The uuid.
+     */
+    public java.lang.String getUuid() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        uuid_ = s;
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * Message UUID of the arke.Message
+     * </pre>
+     *
+     * <code>string uuid = 1;</code>
+     * @return The bytes for uuid.
+     */
+    public com.google.protobuf.ByteString
+        getUuidBytes() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        uuid_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int SUCCESS_FIELD_NUMBER = 2;
+    private boolean success_;
+    /**
+     * <pre>
+     * Was the ack or nack successful.
+     * </pre>
+     *
+     * <code>bool success = 2;</code>
+     * @return The success.
+     */
+    public boolean getSuccess() {
+      return success_;
+    }
+
+    public static final int ERROR_FIELD_NUMBER = 3;
+    private org.arke.ArkeProtos.Error error_;
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     * @return Whether the error field is set.
+     */
+    public boolean hasError() {
+      return error_ != null;
+    }
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     * @return The error.
+     */
+    public org.arke.ArkeProtos.Error getError() {
+      return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
+    }
+    /**
+     * <pre>
+     * Error if the MessageConsumed failed
+     * </pre>
+     *
+     * <code>.arke.Error error = 3;</code>
+     */
+    public org.arke.ArkeProtos.ErrorOrBuilder getErrorOrBuilder() {
+      return getError();
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!getUuidBytes().isEmpty()) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 1, uuid_);
+      }
+      if (success_ != false) {
+        output.writeBool(2, success_);
+      }
+      if (error_ != null) {
+        output.writeMessage(3, getError());
+      }
+      unknownFields.writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!getUuidBytes().isEmpty()) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(1, uuid_);
+      }
+      if (success_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(2, success_);
+      }
+      if (error_ != null) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, getError());
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.arke.ArkeProtos.MessageConsumedResponse)) {
+        return super.equals(obj);
+      }
+      org.arke.ArkeProtos.MessageConsumedResponse other = (org.arke.ArkeProtos.MessageConsumedResponse) obj;
+
+      if (!getUuid()
+          .equals(other.getUuid())) return false;
+      if (getSuccess()
+          != other.getSuccess()) return false;
+      if (hasError() != other.hasError()) return false;
+      if (hasError()) {
+        if (!getError()
+            .equals(other.getError())) return false;
+      }
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + UUID_FIELD_NUMBER;
+      hash = (53 * hash) + getUuid().hashCode();
+      hash = (37 * hash) + SUCCESS_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getSuccess());
+      if (hasError()) {
+        hash = (37 * hash) + ERROR_FIELD_NUMBER;
+        hash = (53 * hash) + getError().hashCode();
+      }
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.MessageConsumedResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.arke.ArkeProtos.MessageConsumedResponse prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * <pre>
+     ** 
+     * Response to a MessageConsumed message
+     * </pre>
+     *
+     * Protobuf type {@code arke.MessageConsumedResponse}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:arke.MessageConsumedResponse)
+        org.arke.ArkeProtos.MessageConsumedResponseOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumedResponse_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumedResponse_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.arke.ArkeProtos.MessageConsumedResponse.class, org.arke.ArkeProtos.MessageConsumedResponse.Builder.class);
+      }
+
+      // Construct using org.arke.ArkeProtos.MessageConsumedResponse.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
+        }
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        uuid_ = "";
+
+        success_ = false;
+
+        if (errorBuilder_ == null) {
+          error_ = null;
+        } else {
+          error_ = null;
+          errorBuilder_ = null;
+        }
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.arke.ArkeProtos.internal_static_arke_MessageConsumedResponse_descriptor;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumedResponse getDefaultInstanceForType() {
+        return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumedResponse build() {
+        org.arke.ArkeProtos.MessageConsumedResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.MessageConsumedResponse buildPartial() {
+        org.arke.ArkeProtos.MessageConsumedResponse result = new org.arke.ArkeProtos.MessageConsumedResponse(this);
+        result.uuid_ = uuid_;
+        result.success_ = success_;
+        if (errorBuilder_ == null) {
+          result.error_ = error_;
+        } else {
+          result.error_ = errorBuilder_.build();
+        }
+        onBuilt();
+        return result;
+      }
+
+      @java.lang.Override
+      public Builder clone() {
+        return super.clone();
+      }
+      @java.lang.Override
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.setField(field, value);
+      }
+      @java.lang.Override
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return super.clearField(field);
+      }
+      @java.lang.Override
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return super.clearOneof(oneof);
+      }
+      @java.lang.Override
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, java.lang.Object value) {
+        return super.setRepeatedField(field, index, value);
+      }
+      @java.lang.Override
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.addRepeatedField(field, value);
+      }
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.arke.ArkeProtos.MessageConsumedResponse) {
+          return mergeFrom((org.arke.ArkeProtos.MessageConsumedResponse)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.arke.ArkeProtos.MessageConsumedResponse other) {
+        if (other == org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance()) return this;
+        if (!other.getUuid().isEmpty()) {
+          uuid_ = other.uuid_;
+          onChanged();
+        }
+        if (other.getSuccess() != false) {
+          setSuccess(other.getSuccess());
+        }
+        if (other.hasError()) {
+          mergeError(other.getError());
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        org.arke.ArkeProtos.MessageConsumedResponse parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (org.arke.ArkeProtos.MessageConsumedResponse) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+
+      private java.lang.Object uuid_ = "";
+      /**
+       * <pre>
+       * Message UUID of the arke.Message
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return The uuid.
+       */
+      public java.lang.String getUuid() {
+        java.lang.Object ref = uuid_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          uuid_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Message UUID of the arke.Message
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return The bytes for uuid.
+       */
+      public com.google.protobuf.ByteString
+          getUuidBytes() {
+        java.lang.Object ref = uuid_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          uuid_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * Message UUID of the arke.Message
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @param value The uuid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUuid(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Message UUID of the arke.Message
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearUuid() {
+        
+        uuid_ = getDefaultInstance().getUuid();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Message UUID of the arke.Message
+       * </pre>
+       *
+       * <code>string uuid = 1;</code>
+       * @param value The bytes for uuid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUuidBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
+        
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+
+      private boolean success_ ;
+      /**
+       * <pre>
+       * Was the ack or nack successful.
+       * </pre>
+       *
+       * <code>bool success = 2;</code>
+       * @return The success.
+       */
+      public boolean getSuccess() {
+        return success_;
+      }
+      /**
+       * <pre>
+       * Was the ack or nack successful.
+       * </pre>
+       *
+       * <code>bool success = 2;</code>
+       * @param value The success to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSuccess(boolean value) {
+        
+        success_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Was the ack or nack successful.
+       * </pre>
+       *
+       * <code>bool success = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSuccess() {
+        
+        success_ = false;
+        onChanged();
+        return this;
+      }
+
+      private org.arke.ArkeProtos.Error error_;
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Error, org.arke.ArkeProtos.Error.Builder, org.arke.ArkeProtos.ErrorOrBuilder> errorBuilder_;
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       * @return Whether the error field is set.
+       */
+      public boolean hasError() {
+        return errorBuilder_ != null || error_ != null;
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       * @return The error.
+       */
+      public org.arke.ArkeProtos.Error getError() {
+        if (errorBuilder_ == null) {
+          return error_ == null ? org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
+        } else {
+          return errorBuilder_.getMessage();
+        }
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public Builder setError(org.arke.ArkeProtos.Error value) {
+        if (errorBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          error_ = value;
+          onChanged();
+        } else {
+          errorBuilder_.setMessage(value);
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public Builder setError(
+          org.arke.ArkeProtos.Error.Builder builderForValue) {
+        if (errorBuilder_ == null) {
+          error_ = builderForValue.build();
+          onChanged();
+        } else {
+          errorBuilder_.setMessage(builderForValue.build());
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public Builder mergeError(org.arke.ArkeProtos.Error value) {
+        if (errorBuilder_ == null) {
+          if (error_ != null) {
+            error_ =
+              org.arke.ArkeProtos.Error.newBuilder(error_).mergeFrom(value).buildPartial();
+          } else {
+            error_ = value;
+          }
+          onChanged();
+        } else {
+          errorBuilder_.mergeFrom(value);
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public Builder clearError() {
+        if (errorBuilder_ == null) {
+          error_ = null;
+          onChanged();
+        } else {
+          error_ = null;
+          errorBuilder_ = null;
+        }
+
+        return this;
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public org.arke.ArkeProtos.Error.Builder getErrorBuilder() {
+        
+        onChanged();
+        return getErrorFieldBuilder().getBuilder();
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      public org.arke.ArkeProtos.ErrorOrBuilder getErrorOrBuilder() {
+        if (errorBuilder_ != null) {
+          return errorBuilder_.getMessageOrBuilder();
+        } else {
+          return error_ == null ?
+              org.arke.ArkeProtos.Error.getDefaultInstance() : error_;
+        }
+      }
+      /**
+       * <pre>
+       * Error if the MessageConsumed failed
+       * </pre>
+       *
+       * <code>.arke.Error error = 3;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Error, org.arke.ArkeProtos.Error.Builder, org.arke.ArkeProtos.ErrorOrBuilder> 
+          getErrorFieldBuilder() {
+        if (errorBuilder_ == null) {
+          errorBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.Error, org.arke.ArkeProtos.Error.Builder, org.arke.ArkeProtos.ErrorOrBuilder>(
+                  getError(),
+                  getParentForChildren(),
+                  isClean());
+          error_ = null;
+        }
+        return errorBuilder_;
+      }
+      @java.lang.Override
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      @java.lang.Override
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
+      // @@protoc_insertion_point(builder_scope:arke.MessageConsumedResponse)
+    }
+
+    // @@protoc_insertion_point(class_scope:arke.MessageConsumedResponse)
+    private static final org.arke.ArkeProtos.MessageConsumedResponse DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.arke.ArkeProtos.MessageConsumedResponse();
+    }
+
+    public static org.arke.ArkeProtos.MessageConsumedResponse getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<MessageConsumedResponse>
+        PARSER = new com.google.protobuf.AbstractParser<MessageConsumedResponse>() {
+      @java.lang.Override
+      public MessageConsumedResponse parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new MessageConsumedResponse(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<MessageConsumedResponse> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<MessageConsumedResponse> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.arke.ArkeProtos.MessageConsumedResponse getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface ConsumeOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:arke.Consume)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>.arke.Source src = 1;</code>
+     * @return Whether the src field is set.
+     */
+    boolean hasSrc();
+    /**
+     * <code>.arke.Source src = 1;</code>
+     * @return The src.
+     */
+    org.arke.ArkeProtos.Source getSrc();
+    /**
+     * <code>.arke.Source src = 1;</code>
+     */
+    org.arke.ArkeProtos.SourceOrBuilder getSrcOrBuilder();
+
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     * @return Whether the ack field is set.
+     */
+    boolean hasAck();
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     * @return The ack.
+     */
+    org.arke.ArkeProtos.MessageConsumed getAck();
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     */
+    org.arke.ArkeProtos.MessageConsumedOrBuilder getAckOrBuilder();
+
+    public org.arke.ArkeProtos.Consume.MsgCase getMsgCase();
+  }
+  /**
+   * <pre>
+   ** 
+   * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
+   * </pre>
+   *
+   * Protobuf type {@code arke.Consume}
+   */
+  public  static final class Consume extends
+      com.google.protobuf.GeneratedMessageV3 implements
+      // @@protoc_insertion_point(message_implements:arke.Consume)
+      ConsumeOrBuilder {
+  private static final long serialVersionUID = 0L;
+    // Use Consume.newBuilder() to construct.
+    private Consume(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+    private Consume() {
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new Consume();
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+    getUnknownFields() {
+      return this.unknownFields;
+    }
+    private Consume(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              org.arke.ArkeProtos.Source.Builder subBuilder = null;
+              if (msgCase_ == 1) {
+                subBuilder = ((org.arke.ArkeProtos.Source) msg_).toBuilder();
+              }
+              msg_ =
+                  input.readMessage(org.arke.ArkeProtos.Source.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((org.arke.ArkeProtos.Source) msg_);
+                msg_ = subBuilder.buildPartial();
+              }
+              msgCase_ = 1;
+              break;
+            }
+            case 18: {
+              org.arke.ArkeProtos.MessageConsumed.Builder subBuilder = null;
+              if (msgCase_ == 2) {
+                subBuilder = ((org.arke.ArkeProtos.MessageConsumed) msg_).toBuilder();
+              }
+              msg_ =
+                  input.readMessage(org.arke.ArkeProtos.MessageConsumed.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((org.arke.ArkeProtos.MessageConsumed) msg_);
+                msg_ = subBuilder.buildPartial();
+              }
+              msgCase_ = 2;
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.arke.ArkeProtos.internal_static_arke_Consume_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.arke.ArkeProtos.internal_static_arke_Consume_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.arke.ArkeProtos.Consume.class, org.arke.ArkeProtos.Consume.Builder.class);
+    }
+
+    private int msgCase_ = 0;
+    private java.lang.Object msg_;
+    public enum MsgCase
+        implements com.google.protobuf.Internal.EnumLite,
+            com.google.protobuf.AbstractMessage.InternalOneOfEnum {
+      SRC(1),
+      ACK(2),
+      MSG_NOT_SET(0);
+      private final int value;
+      private MsgCase(int value) {
+        this.value = value;
+      }
+      /**
+       * @param value The number of the enum to look for.
+       * @return The enum associated with the given number.
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
+      public static MsgCase valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static MsgCase forNumber(int value) {
+        switch (value) {
+          case 1: return SRC;
+          case 2: return ACK;
+          case 0: return MSG_NOT_SET;
+          default: return null;
+        }
+      }
+      public int getNumber() {
+        return this.value;
+      }
+    };
+
+    public MsgCase
+    getMsgCase() {
+      return MsgCase.forNumber(
+          msgCase_);
+    }
+
+    public static final int SRC_FIELD_NUMBER = 1;
+    /**
+     * <code>.arke.Source src = 1;</code>
+     * @return Whether the src field is set.
+     */
+    public boolean hasSrc() {
+      return msgCase_ == 1;
+    }
+    /**
+     * <code>.arke.Source src = 1;</code>
+     * @return The src.
+     */
+    public org.arke.ArkeProtos.Source getSrc() {
+      if (msgCase_ == 1) {
+         return (org.arke.ArkeProtos.Source) msg_;
+      }
+      return org.arke.ArkeProtos.Source.getDefaultInstance();
+    }
+    /**
+     * <code>.arke.Source src = 1;</code>
+     */
+    public org.arke.ArkeProtos.SourceOrBuilder getSrcOrBuilder() {
+      if (msgCase_ == 1) {
+         return (org.arke.ArkeProtos.Source) msg_;
+      }
+      return org.arke.ArkeProtos.Source.getDefaultInstance();
+    }
+
+    public static final int ACK_FIELD_NUMBER = 2;
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     * @return Whether the ack field is set.
+     */
+    public boolean hasAck() {
+      return msgCase_ == 2;
+    }
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     * @return The ack.
+     */
+    public org.arke.ArkeProtos.MessageConsumed getAck() {
+      if (msgCase_ == 2) {
+         return (org.arke.ArkeProtos.MessageConsumed) msg_;
+      }
+      return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+    }
+    /**
+     * <code>.arke.MessageConsumed ack = 2;</code>
+     */
+    public org.arke.ArkeProtos.MessageConsumedOrBuilder getAckOrBuilder() {
+      if (msgCase_ == 2) {
+         return (org.arke.ArkeProtos.MessageConsumed) msg_;
+      }
+      return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (msgCase_ == 1) {
+        output.writeMessage(1, (org.arke.ArkeProtos.Source) msg_);
+      }
+      if (msgCase_ == 2) {
+        output.writeMessage(2, (org.arke.ArkeProtos.MessageConsumed) msg_);
+      }
+      unknownFields.writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (msgCase_ == 1) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(1, (org.arke.ArkeProtos.Source) msg_);
+      }
+      if (msgCase_ == 2) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, (org.arke.ArkeProtos.MessageConsumed) msg_);
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.arke.ArkeProtos.Consume)) {
+        return super.equals(obj);
+      }
+      org.arke.ArkeProtos.Consume other = (org.arke.ArkeProtos.Consume) obj;
+
+      if (!getMsgCase().equals(other.getMsgCase())) return false;
+      switch (msgCase_) {
+        case 1:
+          if (!getSrc()
+              .equals(other.getSrc())) return false;
+          break;
+        case 2:
+          if (!getAck()
+              .equals(other.getAck())) return false;
+          break;
+        case 0:
+        default:
+      }
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      switch (msgCase_) {
+        case 1:
+          hash = (37 * hash) + SRC_FIELD_NUMBER;
+          hash = (53 * hash) + getSrc().hashCode();
+          break;
+        case 2:
+          hash = (37 * hash) + ACK_FIELD_NUMBER;
+          hash = (53 * hash) + getAck().hashCode();
+          break;
+        case 0:
+        default:
+      }
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.Consume parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.Consume parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.Consume parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.arke.ArkeProtos.Consume prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * <pre>
+     ** 
+     * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
+     * </pre>
+     *
+     * Protobuf type {@code arke.Consume}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:arke.Consume)
+        org.arke.ArkeProtos.ConsumeOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.arke.ArkeProtos.internal_static_arke_Consume_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.arke.ArkeProtos.internal_static_arke_Consume_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.arke.ArkeProtos.Consume.class, org.arke.ArkeProtos.Consume.Builder.class);
+      }
+
+      // Construct using org.arke.ArkeProtos.Consume.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
+        }
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        msgCase_ = 0;
+        msg_ = null;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.arke.ArkeProtos.internal_static_arke_Consume_descriptor;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.Consume getDefaultInstanceForType() {
+        return org.arke.ArkeProtos.Consume.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.Consume build() {
+        org.arke.ArkeProtos.Consume result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.Consume buildPartial() {
+        org.arke.ArkeProtos.Consume result = new org.arke.ArkeProtos.Consume(this);
+        if (msgCase_ == 1) {
+          if (srcBuilder_ == null) {
+            result.msg_ = msg_;
+          } else {
+            result.msg_ = srcBuilder_.build();
+          }
+        }
+        if (msgCase_ == 2) {
+          if (ackBuilder_ == null) {
+            result.msg_ = msg_;
+          } else {
+            result.msg_ = ackBuilder_.build();
+          }
+        }
+        result.msgCase_ = msgCase_;
+        onBuilt();
+        return result;
+      }
+
+      @java.lang.Override
+      public Builder clone() {
+        return super.clone();
+      }
+      @java.lang.Override
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.setField(field, value);
+      }
+      @java.lang.Override
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return super.clearField(field);
+      }
+      @java.lang.Override
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return super.clearOneof(oneof);
+      }
+      @java.lang.Override
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, java.lang.Object value) {
+        return super.setRepeatedField(field, index, value);
+      }
+      @java.lang.Override
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.addRepeatedField(field, value);
+      }
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.arke.ArkeProtos.Consume) {
+          return mergeFrom((org.arke.ArkeProtos.Consume)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.arke.ArkeProtos.Consume other) {
+        if (other == org.arke.ArkeProtos.Consume.getDefaultInstance()) return this;
+        switch (other.getMsgCase()) {
+          case SRC: {
+            mergeSrc(other.getSrc());
+            break;
+          }
+          case ACK: {
+            mergeAck(other.getAck());
+            break;
+          }
+          case MSG_NOT_SET: {
+            break;
+          }
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        org.arke.ArkeProtos.Consume parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (org.arke.ArkeProtos.Consume) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int msgCase_ = 0;
+      private java.lang.Object msg_;
+      public MsgCase
+          getMsgCase() {
+        return MsgCase.forNumber(
+            msgCase_);
+      }
+
+      public Builder clearMsg() {
+        msgCase_ = 0;
+        msg_ = null;
+        onChanged();
+        return this;
+      }
+
+
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Source, org.arke.ArkeProtos.Source.Builder, org.arke.ArkeProtos.SourceOrBuilder> srcBuilder_;
+      /**
+       * <code>.arke.Source src = 1;</code>
+       * @return Whether the src field is set.
+       */
+      public boolean hasSrc() {
+        return msgCase_ == 1;
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       * @return The src.
+       */
+      public org.arke.ArkeProtos.Source getSrc() {
+        if (srcBuilder_ == null) {
+          if (msgCase_ == 1) {
+            return (org.arke.ArkeProtos.Source) msg_;
+          }
+          return org.arke.ArkeProtos.Source.getDefaultInstance();
+        } else {
+          if (msgCase_ == 1) {
+            return srcBuilder_.getMessage();
+          }
+          return org.arke.ArkeProtos.Source.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public Builder setSrc(org.arke.ArkeProtos.Source value) {
+        if (srcBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          msg_ = value;
+          onChanged();
+        } else {
+          srcBuilder_.setMessage(value);
+        }
+        msgCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public Builder setSrc(
+          org.arke.ArkeProtos.Source.Builder builderForValue) {
+        if (srcBuilder_ == null) {
+          msg_ = builderForValue.build();
+          onChanged();
+        } else {
+          srcBuilder_.setMessage(builderForValue.build());
+        }
+        msgCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public Builder mergeSrc(org.arke.ArkeProtos.Source value) {
+        if (srcBuilder_ == null) {
+          if (msgCase_ == 1 &&
+              msg_ != org.arke.ArkeProtos.Source.getDefaultInstance()) {
+            msg_ = org.arke.ArkeProtos.Source.newBuilder((org.arke.ArkeProtos.Source) msg_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            msg_ = value;
+          }
+          onChanged();
+        } else {
+          if (msgCase_ == 1) {
+            srcBuilder_.mergeFrom(value);
+          }
+          srcBuilder_.setMessage(value);
+        }
+        msgCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public Builder clearSrc() {
+        if (srcBuilder_ == null) {
+          if (msgCase_ == 1) {
+            msgCase_ = 0;
+            msg_ = null;
+            onChanged();
+          }
+        } else {
+          if (msgCase_ == 1) {
+            msgCase_ = 0;
+            msg_ = null;
+          }
+          srcBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public org.arke.ArkeProtos.Source.Builder getSrcBuilder() {
+        return getSrcFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      public org.arke.ArkeProtos.SourceOrBuilder getSrcOrBuilder() {
+        if ((msgCase_ == 1) && (srcBuilder_ != null)) {
+          return srcBuilder_.getMessageOrBuilder();
+        } else {
+          if (msgCase_ == 1) {
+            return (org.arke.ArkeProtos.Source) msg_;
+          }
+          return org.arke.ArkeProtos.Source.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.Source src = 1;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Source, org.arke.ArkeProtos.Source.Builder, org.arke.ArkeProtos.SourceOrBuilder> 
+          getSrcFieldBuilder() {
+        if (srcBuilder_ == null) {
+          if (!(msgCase_ == 1)) {
+            msg_ = org.arke.ArkeProtos.Source.getDefaultInstance();
+          }
+          srcBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.Source, org.arke.ArkeProtos.Source.Builder, org.arke.ArkeProtos.SourceOrBuilder>(
+                  (org.arke.ArkeProtos.Source) msg_,
+                  getParentForChildren(),
+                  isClean());
+          msg_ = null;
+        }
+        msgCase_ = 1;
+        onChanged();;
+        return srcBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.MessageConsumed, org.arke.ArkeProtos.MessageConsumed.Builder, org.arke.ArkeProtos.MessageConsumedOrBuilder> ackBuilder_;
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       * @return Whether the ack field is set.
+       */
+      public boolean hasAck() {
+        return msgCase_ == 2;
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       * @return The ack.
+       */
+      public org.arke.ArkeProtos.MessageConsumed getAck() {
+        if (ackBuilder_ == null) {
+          if (msgCase_ == 2) {
+            return (org.arke.ArkeProtos.MessageConsumed) msg_;
+          }
+          return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+        } else {
+          if (msgCase_ == 2) {
+            return ackBuilder_.getMessage();
+          }
+          return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public Builder setAck(org.arke.ArkeProtos.MessageConsumed value) {
+        if (ackBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          msg_ = value;
+          onChanged();
+        } else {
+          ackBuilder_.setMessage(value);
+        }
+        msgCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public Builder setAck(
+          org.arke.ArkeProtos.MessageConsumed.Builder builderForValue) {
+        if (ackBuilder_ == null) {
+          msg_ = builderForValue.build();
+          onChanged();
+        } else {
+          ackBuilder_.setMessage(builderForValue.build());
+        }
+        msgCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public Builder mergeAck(org.arke.ArkeProtos.MessageConsumed value) {
+        if (ackBuilder_ == null) {
+          if (msgCase_ == 2 &&
+              msg_ != org.arke.ArkeProtos.MessageConsumed.getDefaultInstance()) {
+            msg_ = org.arke.ArkeProtos.MessageConsumed.newBuilder((org.arke.ArkeProtos.MessageConsumed) msg_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            msg_ = value;
+          }
+          onChanged();
+        } else {
+          if (msgCase_ == 2) {
+            ackBuilder_.mergeFrom(value);
+          }
+          ackBuilder_.setMessage(value);
+        }
+        msgCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public Builder clearAck() {
+        if (ackBuilder_ == null) {
+          if (msgCase_ == 2) {
+            msgCase_ = 0;
+            msg_ = null;
+            onChanged();
+          }
+        } else {
+          if (msgCase_ == 2) {
+            msgCase_ = 0;
+            msg_ = null;
+          }
+          ackBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public org.arke.ArkeProtos.MessageConsumed.Builder getAckBuilder() {
+        return getAckFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      public org.arke.ArkeProtos.MessageConsumedOrBuilder getAckOrBuilder() {
+        if ((msgCase_ == 2) && (ackBuilder_ != null)) {
+          return ackBuilder_.getMessageOrBuilder();
+        } else {
+          if (msgCase_ == 2) {
+            return (org.arke.ArkeProtos.MessageConsumed) msg_;
+          }
+          return org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.MessageConsumed ack = 2;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.MessageConsumed, org.arke.ArkeProtos.MessageConsumed.Builder, org.arke.ArkeProtos.MessageConsumedOrBuilder> 
+          getAckFieldBuilder() {
+        if (ackBuilder_ == null) {
+          if (!(msgCase_ == 2)) {
+            msg_ = org.arke.ArkeProtos.MessageConsumed.getDefaultInstance();
+          }
+          ackBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.MessageConsumed, org.arke.ArkeProtos.MessageConsumed.Builder, org.arke.ArkeProtos.MessageConsumedOrBuilder>(
+                  (org.arke.ArkeProtos.MessageConsumed) msg_,
+                  getParentForChildren(),
+                  isClean());
+          msg_ = null;
+        }
+        msgCase_ = 2;
+        onChanged();;
+        return ackBuilder_;
+      }
+      @java.lang.Override
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      @java.lang.Override
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
+      // @@protoc_insertion_point(builder_scope:arke.Consume)
+    }
+
+    // @@protoc_insertion_point(class_scope:arke.Consume)
+    private static final org.arke.ArkeProtos.Consume DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.arke.ArkeProtos.Consume();
+    }
+
+    public static org.arke.ArkeProtos.Consume getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<Consume>
+        PARSER = new com.google.protobuf.AbstractParser<Consume>() {
+      @java.lang.Override
+      public Consume parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new Consume(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<Consume> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<Consume> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.arke.ArkeProtos.Consume getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface ConsumeResponseOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:arke.ConsumeResponse)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     * @return Whether the msg field is set.
+     */
+    boolean hasMsg();
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     * @return The msg.
+     */
+    org.arke.ArkeProtos.Message getMsg();
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     */
+    org.arke.ArkeProtos.MessageOrBuilder getMsgOrBuilder();
+
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     * @return Whether the consumedResponse field is set.
+     */
+    boolean hasConsumedResponse();
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     * @return The consumedResponse.
+     */
+    org.arke.ArkeProtos.MessageConsumedResponse getConsumedResponse();
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     */
+    org.arke.ArkeProtos.MessageConsumedResponseOrBuilder getConsumedResponseOrBuilder();
+
+    public org.arke.ArkeProtos.ConsumeResponse.RespCase getRespCase();
+  }
+  /**
+   * <pre>
+   ** 
+   * Response to a Consume message. Either a Message or a MessageConsumedResponse
+   * </pre>
+   *
+   * Protobuf type {@code arke.ConsumeResponse}
+   */
+  public  static final class ConsumeResponse extends
+      com.google.protobuf.GeneratedMessageV3 implements
+      // @@protoc_insertion_point(message_implements:arke.ConsumeResponse)
+      ConsumeResponseOrBuilder {
+  private static final long serialVersionUID = 0L;
+    // Use ConsumeResponse.newBuilder() to construct.
+    private ConsumeResponse(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+    private ConsumeResponse() {
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new ConsumeResponse();
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+    getUnknownFields() {
+      return this.unknownFields;
+    }
+    private ConsumeResponse(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              org.arke.ArkeProtos.Message.Builder subBuilder = null;
+              if (respCase_ == 1) {
+                subBuilder = ((org.arke.ArkeProtos.Message) resp_).toBuilder();
+              }
+              resp_ =
+                  input.readMessage(org.arke.ArkeProtos.Message.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((org.arke.ArkeProtos.Message) resp_);
+                resp_ = subBuilder.buildPartial();
+              }
+              respCase_ = 1;
+              break;
+            }
+            case 18: {
+              org.arke.ArkeProtos.MessageConsumedResponse.Builder subBuilder = null;
+              if (respCase_ == 2) {
+                subBuilder = ((org.arke.ArkeProtos.MessageConsumedResponse) resp_).toBuilder();
+              }
+              resp_ =
+                  input.readMessage(org.arke.ArkeProtos.MessageConsumedResponse.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((org.arke.ArkeProtos.MessageConsumedResponse) resp_);
+                resp_ = subBuilder.buildPartial();
+              }
+              respCase_ = 2;
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.arke.ArkeProtos.internal_static_arke_ConsumeResponse_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.arke.ArkeProtos.internal_static_arke_ConsumeResponse_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.arke.ArkeProtos.ConsumeResponse.class, org.arke.ArkeProtos.ConsumeResponse.Builder.class);
+    }
+
+    private int respCase_ = 0;
+    private java.lang.Object resp_;
+    public enum RespCase
+        implements com.google.protobuf.Internal.EnumLite,
+            com.google.protobuf.AbstractMessage.InternalOneOfEnum {
+      MSG(1),
+      CONSUMED_RESPONSE(2),
+      RESP_NOT_SET(0);
+      private final int value;
+      private RespCase(int value) {
+        this.value = value;
+      }
+      /**
+       * @param value The number of the enum to look for.
+       * @return The enum associated with the given number.
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
+      public static RespCase valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static RespCase forNumber(int value) {
+        switch (value) {
+          case 1: return MSG;
+          case 2: return CONSUMED_RESPONSE;
+          case 0: return RESP_NOT_SET;
+          default: return null;
+        }
+      }
+      public int getNumber() {
+        return this.value;
+      }
+    };
+
+    public RespCase
+    getRespCase() {
+      return RespCase.forNumber(
+          respCase_);
+    }
+
+    public static final int MSG_FIELD_NUMBER = 1;
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     * @return Whether the msg field is set.
+     */
+    public boolean hasMsg() {
+      return respCase_ == 1;
+    }
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     * @return The msg.
+     */
+    public org.arke.ArkeProtos.Message getMsg() {
+      if (respCase_ == 1) {
+         return (org.arke.ArkeProtos.Message) resp_;
+      }
+      return org.arke.ArkeProtos.Message.getDefaultInstance();
+    }
+    /**
+     * <code>.arke.Message msg = 1;</code>
+     */
+    public org.arke.ArkeProtos.MessageOrBuilder getMsgOrBuilder() {
+      if (respCase_ == 1) {
+         return (org.arke.ArkeProtos.Message) resp_;
+      }
+      return org.arke.ArkeProtos.Message.getDefaultInstance();
+    }
+
+    public static final int CONSUMED_RESPONSE_FIELD_NUMBER = 2;
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     * @return Whether the consumedResponse field is set.
+     */
+    public boolean hasConsumedResponse() {
+      return respCase_ == 2;
+    }
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     * @return The consumedResponse.
+     */
+    public org.arke.ArkeProtos.MessageConsumedResponse getConsumedResponse() {
+      if (respCase_ == 2) {
+         return (org.arke.ArkeProtos.MessageConsumedResponse) resp_;
+      }
+      return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+    }
+    /**
+     * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+     */
+    public org.arke.ArkeProtos.MessageConsumedResponseOrBuilder getConsumedResponseOrBuilder() {
+      if (respCase_ == 2) {
+         return (org.arke.ArkeProtos.MessageConsumedResponse) resp_;
+      }
+      return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (respCase_ == 1) {
+        output.writeMessage(1, (org.arke.ArkeProtos.Message) resp_);
+      }
+      if (respCase_ == 2) {
+        output.writeMessage(2, (org.arke.ArkeProtos.MessageConsumedResponse) resp_);
+      }
+      unknownFields.writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (respCase_ == 1) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(1, (org.arke.ArkeProtos.Message) resp_);
+      }
+      if (respCase_ == 2) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, (org.arke.ArkeProtos.MessageConsumedResponse) resp_);
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.arke.ArkeProtos.ConsumeResponse)) {
+        return super.equals(obj);
+      }
+      org.arke.ArkeProtos.ConsumeResponse other = (org.arke.ArkeProtos.ConsumeResponse) obj;
+
+      if (!getRespCase().equals(other.getRespCase())) return false;
+      switch (respCase_) {
+        case 1:
+          if (!getMsg()
+              .equals(other.getMsg())) return false;
+          break;
+        case 2:
+          if (!getConsumedResponse()
+              .equals(other.getConsumedResponse())) return false;
+          break;
+        case 0:
+        default:
+      }
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      switch (respCase_) {
+        case 1:
+          hash = (37 * hash) + MSG_FIELD_NUMBER;
+          hash = (53 * hash) + getMsg().hashCode();
+          break;
+        case 2:
+          hash = (37 * hash) + CONSUMED_RESPONSE_FIELD_NUMBER;
+          hash = (53 * hash) + getConsumedResponse().hashCode();
+          break;
+        case 0:
+        default:
+      }
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.arke.ArkeProtos.ConsumeResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.arke.ArkeProtos.ConsumeResponse prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * <pre>
+     ** 
+     * Response to a Consume message. Either a Message or a MessageConsumedResponse
+     * </pre>
+     *
+     * Protobuf type {@code arke.ConsumeResponse}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:arke.ConsumeResponse)
+        org.arke.ArkeProtos.ConsumeResponseOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.arke.ArkeProtos.internal_static_arke_ConsumeResponse_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.arke.ArkeProtos.internal_static_arke_ConsumeResponse_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.arke.ArkeProtos.ConsumeResponse.class, org.arke.ArkeProtos.ConsumeResponse.Builder.class);
+      }
+
+      // Construct using org.arke.ArkeProtos.ConsumeResponse.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
+        }
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        respCase_ = 0;
+        resp_ = null;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.arke.ArkeProtos.internal_static_arke_ConsumeResponse_descriptor;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.ConsumeResponse getDefaultInstanceForType() {
+        return org.arke.ArkeProtos.ConsumeResponse.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.ConsumeResponse build() {
+        org.arke.ArkeProtos.ConsumeResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.arke.ArkeProtos.ConsumeResponse buildPartial() {
+        org.arke.ArkeProtos.ConsumeResponse result = new org.arke.ArkeProtos.ConsumeResponse(this);
+        if (respCase_ == 1) {
+          if (msgBuilder_ == null) {
+            result.resp_ = resp_;
+          } else {
+            result.resp_ = msgBuilder_.build();
+          }
+        }
+        if (respCase_ == 2) {
+          if (consumedResponseBuilder_ == null) {
+            result.resp_ = resp_;
+          } else {
+            result.resp_ = consumedResponseBuilder_.build();
+          }
+        }
+        result.respCase_ = respCase_;
+        onBuilt();
+        return result;
+      }
+
+      @java.lang.Override
+      public Builder clone() {
+        return super.clone();
+      }
+      @java.lang.Override
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.setField(field, value);
+      }
+      @java.lang.Override
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return super.clearField(field);
+      }
+      @java.lang.Override
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return super.clearOneof(oneof);
+      }
+      @java.lang.Override
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, java.lang.Object value) {
+        return super.setRepeatedField(field, index, value);
+      }
+      @java.lang.Override
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.addRepeatedField(field, value);
+      }
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.arke.ArkeProtos.ConsumeResponse) {
+          return mergeFrom((org.arke.ArkeProtos.ConsumeResponse)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.arke.ArkeProtos.ConsumeResponse other) {
+        if (other == org.arke.ArkeProtos.ConsumeResponse.getDefaultInstance()) return this;
+        switch (other.getRespCase()) {
+          case MSG: {
+            mergeMsg(other.getMsg());
+            break;
+          }
+          case CONSUMED_RESPONSE: {
+            mergeConsumedResponse(other.getConsumedResponse());
+            break;
+          }
+          case RESP_NOT_SET: {
+            break;
+          }
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        org.arke.ArkeProtos.ConsumeResponse parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (org.arke.ArkeProtos.ConsumeResponse) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int respCase_ = 0;
+      private java.lang.Object resp_;
+      public RespCase
+          getRespCase() {
+        return RespCase.forNumber(
+            respCase_);
+      }
+
+      public Builder clearResp() {
+        respCase_ = 0;
+        resp_ = null;
+        onChanged();
+        return this;
+      }
+
+
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Message, org.arke.ArkeProtos.Message.Builder, org.arke.ArkeProtos.MessageOrBuilder> msgBuilder_;
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       * @return Whether the msg field is set.
+       */
+      public boolean hasMsg() {
+        return respCase_ == 1;
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       * @return The msg.
+       */
+      public org.arke.ArkeProtos.Message getMsg() {
+        if (msgBuilder_ == null) {
+          if (respCase_ == 1) {
+            return (org.arke.ArkeProtos.Message) resp_;
+          }
+          return org.arke.ArkeProtos.Message.getDefaultInstance();
+        } else {
+          if (respCase_ == 1) {
+            return msgBuilder_.getMessage();
+          }
+          return org.arke.ArkeProtos.Message.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public Builder setMsg(org.arke.ArkeProtos.Message value) {
+        if (msgBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          resp_ = value;
+          onChanged();
+        } else {
+          msgBuilder_.setMessage(value);
+        }
+        respCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public Builder setMsg(
+          org.arke.ArkeProtos.Message.Builder builderForValue) {
+        if (msgBuilder_ == null) {
+          resp_ = builderForValue.build();
+          onChanged();
+        } else {
+          msgBuilder_.setMessage(builderForValue.build());
+        }
+        respCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public Builder mergeMsg(org.arke.ArkeProtos.Message value) {
+        if (msgBuilder_ == null) {
+          if (respCase_ == 1 &&
+              resp_ != org.arke.ArkeProtos.Message.getDefaultInstance()) {
+            resp_ = org.arke.ArkeProtos.Message.newBuilder((org.arke.ArkeProtos.Message) resp_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            resp_ = value;
+          }
+          onChanged();
+        } else {
+          if (respCase_ == 1) {
+            msgBuilder_.mergeFrom(value);
+          }
+          msgBuilder_.setMessage(value);
+        }
+        respCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public Builder clearMsg() {
+        if (msgBuilder_ == null) {
+          if (respCase_ == 1) {
+            respCase_ = 0;
+            resp_ = null;
+            onChanged();
+          }
+        } else {
+          if (respCase_ == 1) {
+            respCase_ = 0;
+            resp_ = null;
+          }
+          msgBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public org.arke.ArkeProtos.Message.Builder getMsgBuilder() {
+        return getMsgFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      public org.arke.ArkeProtos.MessageOrBuilder getMsgOrBuilder() {
+        if ((respCase_ == 1) && (msgBuilder_ != null)) {
+          return msgBuilder_.getMessageOrBuilder();
+        } else {
+          if (respCase_ == 1) {
+            return (org.arke.ArkeProtos.Message) resp_;
+          }
+          return org.arke.ArkeProtos.Message.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.Message msg = 1;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.Message, org.arke.ArkeProtos.Message.Builder, org.arke.ArkeProtos.MessageOrBuilder> 
+          getMsgFieldBuilder() {
+        if (msgBuilder_ == null) {
+          if (!(respCase_ == 1)) {
+            resp_ = org.arke.ArkeProtos.Message.getDefaultInstance();
+          }
+          msgBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.Message, org.arke.ArkeProtos.Message.Builder, org.arke.ArkeProtos.MessageOrBuilder>(
+                  (org.arke.ArkeProtos.Message) resp_,
+                  getParentForChildren(),
+                  isClean());
+          resp_ = null;
+        }
+        respCase_ = 1;
+        onChanged();;
+        return msgBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.MessageConsumedResponse, org.arke.ArkeProtos.MessageConsumedResponse.Builder, org.arke.ArkeProtos.MessageConsumedResponseOrBuilder> consumedResponseBuilder_;
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       * @return Whether the consumedResponse field is set.
+       */
+      public boolean hasConsumedResponse() {
+        return respCase_ == 2;
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       * @return The consumedResponse.
+       */
+      public org.arke.ArkeProtos.MessageConsumedResponse getConsumedResponse() {
+        if (consumedResponseBuilder_ == null) {
+          if (respCase_ == 2) {
+            return (org.arke.ArkeProtos.MessageConsumedResponse) resp_;
+          }
+          return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+        } else {
+          if (respCase_ == 2) {
+            return consumedResponseBuilder_.getMessage();
+          }
+          return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public Builder setConsumedResponse(org.arke.ArkeProtos.MessageConsumedResponse value) {
+        if (consumedResponseBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          resp_ = value;
+          onChanged();
+        } else {
+          consumedResponseBuilder_.setMessage(value);
+        }
+        respCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public Builder setConsumedResponse(
+          org.arke.ArkeProtos.MessageConsumedResponse.Builder builderForValue) {
+        if (consumedResponseBuilder_ == null) {
+          resp_ = builderForValue.build();
+          onChanged();
+        } else {
+          consumedResponseBuilder_.setMessage(builderForValue.build());
+        }
+        respCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public Builder mergeConsumedResponse(org.arke.ArkeProtos.MessageConsumedResponse value) {
+        if (consumedResponseBuilder_ == null) {
+          if (respCase_ == 2 &&
+              resp_ != org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance()) {
+            resp_ = org.arke.ArkeProtos.MessageConsumedResponse.newBuilder((org.arke.ArkeProtos.MessageConsumedResponse) resp_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            resp_ = value;
+          }
+          onChanged();
+        } else {
+          if (respCase_ == 2) {
+            consumedResponseBuilder_.mergeFrom(value);
+          }
+          consumedResponseBuilder_.setMessage(value);
+        }
+        respCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public Builder clearConsumedResponse() {
+        if (consumedResponseBuilder_ == null) {
+          if (respCase_ == 2) {
+            respCase_ = 0;
+            resp_ = null;
+            onChanged();
+          }
+        } else {
+          if (respCase_ == 2) {
+            respCase_ = 0;
+            resp_ = null;
+          }
+          consumedResponseBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public org.arke.ArkeProtos.MessageConsumedResponse.Builder getConsumedResponseBuilder() {
+        return getConsumedResponseFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      public org.arke.ArkeProtos.MessageConsumedResponseOrBuilder getConsumedResponseOrBuilder() {
+        if ((respCase_ == 2) && (consumedResponseBuilder_ != null)) {
+          return consumedResponseBuilder_.getMessageOrBuilder();
+        } else {
+          if (respCase_ == 2) {
+            return (org.arke.ArkeProtos.MessageConsumedResponse) resp_;
+          }
+          return org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.arke.MessageConsumedResponse consumed_response = 2;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          org.arke.ArkeProtos.MessageConsumedResponse, org.arke.ArkeProtos.MessageConsumedResponse.Builder, org.arke.ArkeProtos.MessageConsumedResponseOrBuilder> 
+          getConsumedResponseFieldBuilder() {
+        if (consumedResponseBuilder_ == null) {
+          if (!(respCase_ == 2)) {
+            resp_ = org.arke.ArkeProtos.MessageConsumedResponse.getDefaultInstance();
+          }
+          consumedResponseBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              org.arke.ArkeProtos.MessageConsumedResponse, org.arke.ArkeProtos.MessageConsumedResponse.Builder, org.arke.ArkeProtos.MessageConsumedResponseOrBuilder>(
+                  (org.arke.ArkeProtos.MessageConsumedResponse) resp_,
+                  getParentForChildren(),
+                  isClean());
+          resp_ = null;
+        }
+        respCase_ = 2;
+        onChanged();;
+        return consumedResponseBuilder_;
+      }
+      @java.lang.Override
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      @java.lang.Override
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
+      // @@protoc_insertion_point(builder_scope:arke.ConsumeResponse)
+    }
+
+    // @@protoc_insertion_point(class_scope:arke.ConsumeResponse)
+    private static final org.arke.ArkeProtos.ConsumeResponse DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.arke.ArkeProtos.ConsumeResponse();
+    }
+
+    public static org.arke.ArkeProtos.ConsumeResponse getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<ConsumeResponse>
+        PARSER = new com.google.protobuf.AbstractParser<ConsumeResponse>() {
+      @java.lang.Override
+      public ConsumeResponse parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new ConsumeResponse(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<ConsumeResponse> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<ConsumeResponse> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.arke.ArkeProtos.ConsumeResponse getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_arke_ConnectionConfiguration_descriptor;
   private static final 
@@ -13864,6 +17416,26 @@ public final class ArkeProtos {
   private static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_arke_Error_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_arke_MessageConsumed_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_arke_MessageConsumed_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_arke_MessageConsumedResponse_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_arke_MessageConsumedResponse_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_arke_Consume_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_arke_Consume_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_arke_ConsumeResponse_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_arke_ConsumeResponse_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -13908,19 +17480,28 @@ public final class ArkeProtos {
       "ackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005error\030\002 " +
       "\001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error\022\017\n\007me" +
       "ssage\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fatal\030\003 " +
-      "\001(\0102\256\001\n\010Producer\022A\n\007Connect\022\035.arke.Conne" +
-      "ctionConfiguration\032\025.arke.ConnectRespons" +
-      "e\"\000\0225\n\007Publish\022\r.arke.Message\032\025.arke.Mes" +
-      "sageResponse\"\000(\0010\001\022(\n\nDisconnect\022\013.arke." +
-      "Empty\032\013.arke.Empty\"\0002\213\002\n\010Consumer\022A\n\007Con" +
-      "nect\022\035.arke.ConnectionConfiguration\032\025.ar" +
-      "ke.ConnectResponse\"\000\022,\n\tSubscribe\022\014.arke" +
-      ".Source\032\r.arke.Message\"\0000\001\0220\n\nAckMessage" +
-      "\022\r.arke.Message\032\021.arke.AckResponse\"\000\0222\n\013" +
-      "NackMessage\022\r.arke.Message\032\022.arke.NackRe" +
-      "sponse\"\000\022(\n\nDisconnect\022\013.arke.Empty\032\013.ar" +
-      "ke.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb\006prot" +
-      "o3"
+      "\001(\010\"-\n\017MessageConsumed\022\014\n\004uuid\030\001 \001(\t\022\014\n\004" +
+      "nack\030\002 \001(\010\"T\n\027MessageConsumedResponse\022\014\n" +
+      "\004uuid\030\001 \001(\t\022\017\n\007success\030\002 \001(\010\022\032\n\005error\030\003 " +
+      "\001(\0132\013.arke.Error\"S\n\007Consume\022\033\n\003src\030\001 \001(\013" +
+      "2\014.arke.SourceH\000\022$\n\003ack\030\002 \001(\0132\025.arke.Mes" +
+      "sageConsumedH\000B\005\n\003msg\"s\n\017ConsumeResponse" +
+      "\022\034\n\003msg\030\001 \001(\0132\r.arke.MessageH\000\022:\n\021consum" +
+      "ed_response\030\002 \001(\0132\035.arke.MessageConsumed" +
+      "ResponseH\000B\006\n\004resp2\256\001\n\010Producer\022A\n\007Conne" +
+      "ct\022\035.arke.ConnectionConfiguration\032\025.arke" +
+      ".ConnectResponse\"\000\0225\n\007Publish\022\r.arke.Mes" +
+      "sage\032\025.arke.MessageResponse\"\000(\0010\001\022(\n\nDis" +
+      "connect\022\013.arke.Empty\032\013.arke.Empty\"\0002\302\002\n\010" +
+      "Consumer\022A\n\007Connect\022\035.arke.ConnectionCon" +
+      "figuration\032\025.arke.ConnectResponse\"\000\022,\n\tS" +
+      "ubscribe\022\014.arke.Source\032\r.arke.Message\"\0000" +
+      "\001\0225\n\007Consume\022\r.arke.Consume\032\025.arke.Consu" +
+      "meResponse\"\000(\0010\001\0220\n\nAckMessage\022\r.arke.Me" +
+      "ssage\032\021.arke.AckResponse\"\000\0222\n\013NackMessag" +
+      "e\022\r.arke.Message\032\022.arke.NackResponse\"\000\022(" +
+      "\n\nDisconnect\022\013.arke.Empty\032\013.arke.Empty\"\000" +
+      "B\026\n\010org.arkeB\nArkeProtosb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -14016,6 +17597,30 @@ public final class ArkeProtos {
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_Error_descriptor,
         new java.lang.String[] { "Message", "Code", "IsFatal", });
+    internal_static_arke_MessageConsumed_descriptor =
+      getDescriptor().getMessageTypes().get(13);
+    internal_static_arke_MessageConsumed_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_arke_MessageConsumed_descriptor,
+        new java.lang.String[] { "Uuid", "Nack", });
+    internal_static_arke_MessageConsumedResponse_descriptor =
+      getDescriptor().getMessageTypes().get(14);
+    internal_static_arke_MessageConsumedResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_arke_MessageConsumedResponse_descriptor,
+        new java.lang.String[] { "Uuid", "Success", "Error", });
+    internal_static_arke_Consume_descriptor =
+      getDescriptor().getMessageTypes().get(15);
+    internal_static_arke_Consume_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_arke_Consume_descriptor,
+        new java.lang.String[] { "Src", "Ack", "Msg", });
+    internal_static_arke_ConsumeResponse_descriptor =
+      getDescriptor().getMessageTypes().get(16);
+    internal_static_arke_ConsumeResponse_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_arke_ConsumeResponse_descriptor,
+        new java.lang.String[] { "Msg", "ConsumedResponse", "Resp", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

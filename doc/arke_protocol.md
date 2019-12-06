@@ -8,6 +8,8 @@
     - [Address](#arke.Address)
     - [ConnectResponse](#arke.ConnectResponse)
     - [ConnectionConfiguration](#arke.ConnectionConfiguration)
+    - [Consume](#arke.Consume)
+    - [ConsumeResponse](#arke.ConsumeResponse)
     - [Credentials](#arke.Credentials)
     - [Empty](#arke.Empty)
     - [Error](#arke.Error)
@@ -15,6 +17,8 @@
     - [Match](#arke.Match)
     - [Message](#arke.Message)
     - [Message.HeadersEntry](#arke.Message.HeadersEntry)
+    - [MessageConsumed](#arke.MessageConsumed)
+    - [MessageConsumedResponse](#arke.MessageConsumedResponse)
     - [MessageResponse](#arke.MessageResponse)
     - [NackResponse](#arke.NackResponse)
     - [Source](#arke.Source)
@@ -111,6 +115,38 @@ RabbitMQ and Kafka.
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
 | tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
+
+
+
+
+
+
+<a name="arke.Consume"></a>
+
+### Consume
+Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| src | [Source](#arke.Source) |  |  |
+| ack | [MessageConsumed](#arke.MessageConsumed) |  |  |
+
+
+
+
+
+
+<a name="arke.ConsumeResponse"></a>
+
+### ConsumeResponse
+Response to a Consume message. Either a Message or a MessageConsumedResponse
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| msg | [Message](#arke.Message) |  |  |
+| consumed_response | [MessageConsumedResponse](#arke.MessageConsumedResponse) |  |  |
 
 
 
@@ -232,6 +268,39 @@ the consumer process.
 
 
 
+<a name="arke.MessageConsumed"></a>
+
+### MessageConsumed
+Message used to ack or nack a message UUID
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| uuid | [string](#string) |  | arke.Message UUID returned from Consume. |
+| nack | [bool](#bool) |  | Nack (true) or Ack (false) the message. By default all messages will be Ack&#39;d unless you set this to true. |
+
+
+
+
+
+
+<a name="arke.MessageConsumedResponse"></a>
+
+### MessageConsumedResponse
+Response to a MessageConsumed message
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| uuid | [string](#string) |  | Message UUID of the arke.Message |
+| success | [bool](#bool) |  | Was the ack or nack successful. |
+| error | [Error](#arke.Error) |  | Error if the MessageConsumed failed |
+
+
+
+
+
+
 <a name="arke.MessageResponse"></a>
 
 ### MessageResponse
@@ -279,7 +348,7 @@ Represents the source for consumer subscriptions.
 | filter | [Filter](#arke.Filter) |  | Filters for this Source. |
 | options | [Source.OptionsEntry](#arke.Source.OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
-| prefetch_count | [int32](#int32) |  | Override the prefetch count on the connection for this source subscription. |
+| prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
 
 
 
@@ -342,6 +411,7 @@ Service for consuming messages
 | ----------- | ------------ | ------------- | ------------|
 | Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
 | Subscribe | [Source](#arke.Source) | [Message](#arke.Message) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
+| Consume | [Consume](#arke.Consume) stream | [ConsumeResponse](#arke.ConsumeResponse) stream |  |
 | AckMessage | [Message](#arke.Message) | [AckResponse](#arke.AckResponse) | Ack a received message. |
 | NackMessage | [Message](#arke.Message) | [NackResponse](#arke.NackResponse) | Nack a received message. |
 | Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |

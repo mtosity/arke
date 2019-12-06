@@ -54,7 +54,7 @@ func (s *ConsumerServer) AckMessage(ctx context.Context, msg *pb.Message) (*pb.A
 		return &pb.AckResponse{Success: false, Error: findErr}, ftlError
 	}
 
-	errMsg := prov.Ack(&ctx, msg)
+	errMsg := prov.Ack(&ctx, msg.GetUuid())
 
 	var err error
 	if errMsg != nil && errMsg.GetMessage() != "" {
@@ -74,7 +74,7 @@ func (s *ConsumerServer) NackMessage(ctx context.Context, msg *pb.Message) (*pb.
 		return &pb.NackResponse{Success: false, Error: findErr}, ftlError
 	}
 
-	errMsg := prov.Nack(&ctx, msg)
+	errMsg := prov.Nack(&ctx, msg.GetUuid())
 	var err error
 
 	if errMsg != nil && errMsg.GetMessage() != "" {
@@ -82,6 +82,145 @@ func (s *ConsumerServer) NackMessage(ctx context.Context, msg *pb.Message) (*pb.
 		err = errors.New(errMsg.GetMessage())
 	}
 	return &pb.NackResponse{Success: success, Error: errMsg}, err
+}
+
+// Consume Receives a stream of messages (source, ack, nack) and returns a message (message, ackresponse, nackresponse)
+func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
+	ctx := stream.Context()
+	prov, findErr := findProvider(ctx)
+	if prov == nil {
+		ftlError := errors.New(findErr.Message)
+		util.Logger.ErrorI("error.subscribe", findErr.Message)
+		return ftlError
+	}
+
+	var returnError error
+	isSubscribing := false
+	// endloop := false
+	stop := false
+	messageChannel := make(chan *pb.Message)
+	defer close(messageChannel)
+
+	for {
+		m, err := stream.Recv()
+
+		if err != nil {
+			return err
+		}
+
+		if m == nil {
+			continue
+		}
+
+		if m.GetSrc() != nil {
+
+			if isSubscribing {
+				errMsg := fmt.Sprintf("Only one source message allowed per subscribe")
+				_ = stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
+				// return errors.New(errMsg)
+				continue
+			}
+
+			source := m.GetSrc()
+
+			if source.GetPrefetchCount() < 1 {
+				source.PrefetchCount = 1
+			}
+
+			// verify source.SourceOptions
+			validOptions := prov.SupportedSourceOptions()
+			unsupported := make([]string, 0)
+			options := source.GetOptions()
+			for option := range options {
+				if _, ok := validOptions[option]; !ok {
+					util.Logger.InfoI("info.unsupportedsourceoption", option)
+					unsupported = append(unsupported, option)
+				}
+			}
+
+			if len(unsupported) > 0 {
+				errMsg := fmt.Sprintf("provider does not support the following source options: %s", unsupported)
+				_ = stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
+				return errors.New(errMsg)
+			}
+
+			isSubscribing = true
+
+			go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stop *bool) {
+				for {
+					message := <-mc
+					if message == nil {
+						break
+					}
+
+					if message.GetAddress() == nil {
+						message.Address = source.GetAddress()
+					}
+
+					resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
+					err := stream.Send(resp)
+					if err != nil {
+						util.Logger.ErrorI("error.streamsend", err.Error())
+						returnError = err
+						*stop = true
+						break
+					}
+				}
+			}(messageChannel, prov, &ctx, &stop)
+
+			go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stop *bool) {
+				for {
+					// If subscribe ever stops because of a broker error, restart it if the client still exists
+					// unless the stream was closed
+					if *stop {
+						break
+					}
+					err := prov.Subscribe(ctx, source, mc)
+					if err != nil {
+						if clientExists(*ctx) {
+							util.Logger.Info("client exists, waiting for reconnect")
+							connected := prov.WaitForConnect(ctx)
+							if connected {
+								continue
+							}
+							util.Logger.ErrorI("error.brokerconnect", err.Message)
+						} else {
+							util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
+						}
+						returnError = fmt.Errorf(err.GetMessage())
+						break
+					}
+				}
+			}(messageChannel, prov, &ctx, &stop)
+
+		} else if m.GetAck() != nil { // Ack or Nack the message
+			go func() {
+				ackmsg := m.GetAck()
+				mcr := &pb.MessageConsumedResponse{Success: true}
+
+				var ackerr *pb.Error
+
+				if ackmsg.GetUuid() == "" {
+					ackerr = &pb.Error{Message: "Uuid not set when acking/nacking"}
+				} else if ackmsg.GetNack() { // Nack
+					ackerr = prov.Nack(&ctx, ackmsg.GetUuid())
+				} else { // Ack
+					ackerr = prov.Ack(&ctx, ackmsg.GetUuid())
+				}
+
+				if ackerr != nil {
+					mcr.Success = false
+					mcr.Error = ackerr
+				}
+
+				stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_ConsumedResponse{ConsumedResponse: mcr}})
+			}()
+		}
+		if stop {
+			break
+		}
+	}
+	return returnError
 }
 
 // Subscribe subscribe to a stream of messages for the consumer
@@ -119,8 +258,12 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, endloop bool) {
 
 			for {
-
 				message := <-mc
+
+				if message.GetAddress() == nil {
+					message.Address = source.GetAddress()
+				}
+
 				err := stream.Send(message)
 				if err != nil {
 					util.Logger.ErrorI("error.streamsend", err.Error())

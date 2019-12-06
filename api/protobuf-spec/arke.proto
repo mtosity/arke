@@ -95,7 +95,7 @@ message Source {
     Filter filter = 6; // Filters for this Source.
     map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
-    int32 prefetch_count = 9; // Set the prefetch count for this subscriber.
+    int32 prefetch_count = 9; // Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
 }
 
 /**
@@ -150,6 +150,43 @@ message Error {
     bool is_fatal = 3; // Indicator that a fatal error has occured, and a reconnect is required on this connection.
 }
 
+/**
+ * Message used to ack or nack a message UUID
+ */
+message MessageConsumed {
+    string uuid = 1; // arke.Message UUID returned from Consume.
+    bool nack = 2; // Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+}
+
+/**
+ * Response to a MessageConsumed message
+ */
+message MessageConsumedResponse {
+    string uuid = 1; // Message UUID of the arke.Message
+    bool success = 2; // Was the ack or nack successful.
+    Error error = 3; // Error if the MessageConsumed failed
+}
+
+/**
+ * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
+ */
+message Consume {
+    oneof msg {
+        arke.Source src = 1;
+        arke.MessageConsumed ack = 2;
+    }
+}
+
+/**
+ * Response to a Consume message. Either a Message or a MessageConsumedResponse
+ */
+message ConsumeResponse {
+    oneof resp {
+        arke.Message msg = 1;
+        arke.MessageConsumedResponse consumed_response = 2;
+    }
+}
+
 /*
  * Service for producing messages
  */
@@ -172,6 +209,7 @@ service Consumer {
     rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
     // Subscribe to a message broker source and receive a stream of messages when they are available.
     rpc Subscribe(arke.Source) returns (stream arke.Message) {}
+    rpc Consume(stream arke.Consume) returns (stream arke.ConsumeResponse) {}
     // Ack a received message.
     rpc AckMessage(arke.Message) returns (arke.AckResponse) {}
     // Nack a received message.

@@ -312,7 +312,7 @@ func Test_Ack_NoMsg(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 	msg := pb.Message{}
-	err = prov.Ack(&ctx, &msg)
+	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
 }
 
@@ -343,7 +343,7 @@ func Test_Nack_NoMsg(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 	msg := pb.Message{}
-	err = prov.Nack(&ctx, &msg)
+	err = prov.Nack(&ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
 }
 
@@ -411,7 +411,7 @@ func Test_Ack(t *testing.T) {
 	}()
 
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Ack(&ctx, msg)
+	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 }
@@ -480,7 +480,7 @@ func Test_Nack(t *testing.T) {
 	}()
 
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Nack(&ctx, msg)
+	err = prov.Nack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 }
@@ -489,7 +489,7 @@ func Test_Ack_NoConnect(t *testing.T) {
 	prov := NewAMQP091Provider()
 	ctx := context.Background()
 	msg := pb.Message{}
-	err := prov.Ack(&ctx, &msg)
+	err := prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
 }
@@ -498,7 +498,7 @@ func Test_Nack_NoConnect(t *testing.T) {
 	prov := NewAMQP091Provider()
 	ctx := context.Background()
 	msg := pb.Message{}
-	err := prov.Nack(&ctx, &msg)
+	err := prov.Nack(&ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
 }
@@ -589,12 +589,12 @@ func Test_Subscribe_Options(t *testing.T) {
 	matches = append(matches, &pb.Match{Name: "key", Value: "value"})
 	filter := &pb.Filter{Matches: matches, Type: pb.Filter_ANY}
 	src := &pb.Source{Name: "srcname",
-		Address: address,
-		Options: options,
-		Filter: filter,
-		Durable: true,
-		Exclusive: true,
-		AutoDelete: true,
+		Address:       address,
+		Options:       options,
+		Filter:        filter,
+		Durable:       true,
+		Exclusive:     true,
+		AutoDelete:    true,
 		PrefetchCount: 4}
 
 	expectedMatchHeaders := Amqp091Table{}
@@ -646,7 +646,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	}()
 
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Ack(&ctx, msg)
+	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 	assert.NotNil(t, msg.GetAddress())

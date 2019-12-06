@@ -16,8 +16,8 @@ import (
 type Provider interface {
 	Publish(*context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
 	Subscribe(*context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
-	Ack(*context.Context, *pb.Message) *pb.Error
-	Nack(*context.Context, *pb.Message) *pb.Error
+	Ack(*context.Context, string) *pb.Error
+	Nack(*context.Context, string) *pb.Error
 	Connect(*context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
 	Disconnect(*context.Context)
 	SupportedSourceOptions() map[string]bool

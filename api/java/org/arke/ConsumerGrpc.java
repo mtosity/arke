@@ -92,6 +92,37 @@ public final class ConsumerGrpc {
     return getSubscribeMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Consume,
+      org.arke.ArkeProtos.ConsumeResponse> getConsumeMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "Consume",
+      requestType = org.arke.ArkeProtos.Consume.class,
+      responseType = org.arke.ArkeProtos.ConsumeResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+  public static io.grpc.MethodDescriptor<org.arke.ArkeProtos.Consume,
+      org.arke.ArkeProtos.ConsumeResponse> getConsumeMethod() {
+    io.grpc.MethodDescriptor<org.arke.ArkeProtos.Consume, org.arke.ArkeProtos.ConsumeResponse> getConsumeMethod;
+    if ((getConsumeMethod = ConsumerGrpc.getConsumeMethod) == null) {
+      synchronized (ConsumerGrpc.class) {
+        if ((getConsumeMethod = ConsumerGrpc.getConsumeMethod) == null) {
+          ConsumerGrpc.getConsumeMethod = getConsumeMethod =
+              io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Consume, org.arke.ArkeProtos.ConsumeResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Consume"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.arke.ArkeProtos.Consume.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.arke.ArkeProtos.ConsumeResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ConsumerMethodDescriptorSupplier("Consume"))
+              .build();
+        }
+      }
+    }
+    return getConsumeMethod;
+  }
+
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
       org.arke.ArkeProtos.AckResponse> getAckMessageMethod;
 
@@ -237,6 +268,13 @@ public final class ConsumerGrpc {
     }
 
     /**
+     */
+    public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Consume> consume(
+        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConsumeResponse> responseObserver) {
+      return asyncUnimplementedStreamingCall(getConsumeMethod(), responseObserver);
+    }
+
+    /**
      * <pre>
      * Ack a received message.
      * </pre>
@@ -282,6 +320,13 @@ public final class ConsumerGrpc {
                 org.arke.ArkeProtos.Source,
                 org.arke.ArkeProtos.Message>(
                   this, METHODID_SUBSCRIBE)))
+          .addMethod(
+            getConsumeMethod(),
+            asyncBidiStreamingCall(
+              new MethodHandlers<
+                org.arke.ArkeProtos.Consume,
+                org.arke.ArkeProtos.ConsumeResponse>(
+                  this, METHODID_CONSUME)))
           .addMethod(
             getAckMessageMethod(),
             asyncUnaryCall(
@@ -349,6 +394,14 @@ public final class ConsumerGrpc {
         io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message> responseObserver) {
       asyncServerStreamingCall(
           getChannel().newCall(getSubscribeMethod(), getCallOptions()), request, responseObserver);
+    }
+
+    /**
+     */
+    public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Consume> consume(
+        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConsumeResponse> responseObserver) {
+      return asyncBidiStreamingCall(
+          getChannel().newCall(getConsumeMethod(), getCallOptions()), responseObserver);
     }
 
     /**
@@ -531,6 +584,7 @@ public final class ConsumerGrpc {
   private static final int METHODID_ACK_MESSAGE = 2;
   private static final int METHODID_NACK_MESSAGE = 3;
   private static final int METHODID_DISCONNECT = 4;
+  private static final int METHODID_CONSUME = 5;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -579,6 +633,9 @@ public final class ConsumerGrpc {
     public io.grpc.stub.StreamObserver<Req> invoke(
         io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
+        case METHODID_CONSUME:
+          return (io.grpc.stub.StreamObserver<Req>) serviceImpl.consume(
+              (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConsumeResponse>) responseObserver);
         default:
           throw new AssertionError();
       }
@@ -632,6 +689,7 @@ public final class ConsumerGrpc {
               .setSchemaDescriptor(new ConsumerFileDescriptorSupplier())
               .addMethod(getConnectMethod())
               .addMethod(getSubscribeMethod())
+              .addMethod(getConsumeMethod())
               .addMethod(getAckMessageMethod())
               .addMethod(getNackMessageMethod())
               .addMethod(getDisconnectMethod())

@@ -96,7 +96,7 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 }
 
 // Ack ack a message
-func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Error {
+func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
 			debug.PrintStack()
@@ -112,57 +112,57 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msg *pb.Message) *pb.Erro
 	}
 
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
-	if rmu, ok := bd.activeMessages.Get(msg.GetUuid()); ok {
+	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(Amqp091Message)
-		util.Logger.Debugf("Acking message %s with tag %d and body %s", msg.GetUuid(), rm.DeliveryTag, string(msg.GetBody()))
+		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
 		err = rm.Ack()
 	} else {
-		util.Logger.DebugI("debug.acknomessage", bd.ClientUUID, msg.GetUuid())
-		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msg.GetUuid())}
+		util.Logger.DebugI("debug.acknomessage", bd.ClientUUID, msgid)
+		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
 	if err != nil {
 		util.Logger.ErrorI("error.ack", err.Error())
 
-		bd.activeMessages.Delete(msg.GetUuid())
+		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
 		}
 		return errMsg
 	}
-	util.Logger.DebugI("debug.ackmessage", bd.ClientUUID, msg.GetUuid())
-	bd.activeMessages.Delete(msg.GetUuid())
+	util.Logger.DebugI("debug.ackmessage", bd.ClientUUID, msgid)
+	bd.activeMessages.Delete(msgid)
 	return nil
 }
 
-// Nack ack a message
-func (prov *amqp091provider) Nack(ctx *context.Context, msg *pb.Message) *pb.Error {
+// Nack nack a message
+func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
-	if rmu, ok := bd.activeMessages.Get(msg.GetUuid()); ok {
+	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(Amqp091Message)
 		err = rm.Nack()
 	} else {
-		util.Logger.DebugI("debug.nacknomessage", bd.ClientUUID, msg.GetUuid())
-		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msg.GetUuid())}
+		util.Logger.DebugI("debug.nacknomessage", bd.ClientUUID, msgid)
+		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
 	if err != nil {
 		util.Logger.ErrorI("error.nack", err.Error())
 
-		bd.activeMessages.Delete(msg.GetUuid())
+		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
 		}
 		return errMsg
 	}
-	util.Logger.DebugI("debug.nackmessage", bd.ClientUUID, msg.GetUuid())
-	bd.activeMessages.Delete(msg.GetUuid())
+	util.Logger.DebugI("debug.nackmessage", bd.ClientUUID, msgid)
+	bd.activeMessages.Delete(msgid)
 	return nil
 }
 
@@ -396,6 +396,15 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	bd.ActiveStreams++
 	defer func() { bd.ActiveStreams-- }()
 
+	defer func() *pb.Error {
+		if err := recover(); err != nil {
+			debug.PrintStack()
+			util.Logger.Debugf("recovered: %v", err)
+			return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
+		}
+		return nil
+	}()
+
 	for {
 		select {
 		case chanErr, ok := <-connErrChan:
@@ -430,7 +439,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
 			bd.activeMessages.Add(messageUUID, msg)
-			// util.Logger.Printf("Delivering %s", messageUUID)
 			messageChannel <- message
 			bd.consumed++
 		}
@@ -602,7 +610,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 func (bd *BrokerDetails) connectionWatcher() {
 	err := <-bd.ErrorChannel
 	bd.Lock()
-	if &err != nil {
+	if &err != nil && err.Code() != 0 {
 		bd.state = DISCONNECTED
 		bd.Unlock()
 		bd.connect()
