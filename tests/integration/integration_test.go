@@ -620,6 +620,7 @@ func TestHeaders(t *testing.T) {
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
 	assert.Equal(t, headers, received[0].Headers)
+	assert.NotNil(t, received[0].GetAddress())
 }
 
 func TestProduceManyConsumeManyExclusive(t *testing.T) {

@@ -626,7 +626,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	cc.PrefetchCount = 4
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	msg := &pb.Message{}
+	var msg *pb.Message
 
 	mc := make(chan *pb.Message)
 	defer close(mc)
@@ -643,6 +643,9 @@ func Test_Subscribe_Options(t *testing.T) {
 	err = prov.Ack(&ctx, msg)
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
+	assert.NotNil(t, msg.GetAddress())
+	assert.Equal(t, msg.GetAddress(), src.GetAddress())
+	assert.Equal(t, msg.GetAddress().GetSubjects(), subjects)
 
 	cmock.AssertCalled(t, "SetPrefetch", 4)
 	cmock.AssertNumberOfCalls(t, "QueueBind", 2)

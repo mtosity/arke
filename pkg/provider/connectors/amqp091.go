@@ -427,7 +427,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			if msg.ContentEncoding != "" {
 				headers["Content-Encoding"] = msg.ContentEncoding
 			}
-			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers}
+			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
 			bd.activeMessages.Add(messageUUID, msg)
 			// util.Logger.Printf("Delivering %s", messageUUID)
 			messageChannel <- message

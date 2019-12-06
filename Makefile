@@ -45,14 +45,14 @@ linux: setup generate ## Builds binary for linux_amd64 (lax)
 	$(MAKE) -C test/test_producer linux
 	$(MAKE) -C test/test_consumer linux
 	$(MAKE) -C test/simple_consumer linux
-	$(MAKE) -C test/simple_consumer linux
+	$(MAKE) -C test/simple_producer linux
 
 osx: setup generate ## Builds binary for darwin_amd64 (osx)
 	${BUILD_ENV} GOARCH=amd64 GOOS=darwin go build -o build/osx/${OUT_FILE}
 	$(MAKE) -C test/test_producer osx
 	$(MAKE) -C test/test_consumer osx
 	$(MAKE) -C test/simple_consumer osx
-	$(MAKE) -C test/simple_consumer osx
+	$(MAKE) -C test/simple_producer osx
 
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE}
