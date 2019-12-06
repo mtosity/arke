@@ -42,7 +42,6 @@ type BrokerDetails struct {
 	ClientUUID       string
 	knownExchanges   *util.ConcurrentMap
 	activeMessages   *util.ConcurrentMap
-	prefetchCount    int
 	state            uint16
 	connectionConfig *pb.ConnectionConfiguration
 	tlsSkipVerify    bool
@@ -179,7 +178,6 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 	bd := BrokerDetails{
 		connectionConfig: cf,
 		ClientUUID:       clientUUID,
-		prefetchCount:    int(cf.GetPrefetchCount()),
 		ErrorChannel:     make(chan Amqp091Error),
 		activeMessages:   activeMessages,
 		tlsSkipVerify:    tlsSkipVerify,
@@ -302,7 +300,10 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 	defer amqpChannel.Close()
-	amqpChannel.SetPrefetch(bd.prefetchCount)
+
+	if source.GetPrefetchCount() > 0 {
+		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
+	}
 
 	err = prov.declareExchange(source.GetAddress(), bd)
 	if err != nil {

@@ -588,7 +588,14 @@ func Test_Subscribe_Options(t *testing.T) {
 	matches := make([]*pb.Match, 0)
 	matches = append(matches, &pb.Match{Name: "key", Value: "value"})
 	filter := &pb.Filter{Matches: matches, Type: pb.Filter_ANY}
-	src := &pb.Source{Name: "srcname", Address: address, Options: options, Filter: filter, Durable: true, Exclusive: true, AutoDelete: true}
+	src := &pb.Source{Name: "srcname",
+		Address: address,
+		Options: options,
+		Filter: filter,
+		Durable: true,
+		Exclusive: true,
+		AutoDelete: true,
+		PrefetchCount: 4}
 
 	expectedMatchHeaders := Amqp091Table{}
 	expectedMatchHeaders["key"] = "value"
@@ -623,7 +630,6 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	cc.PrefetchCount = 4
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 	var msg *pb.Message
@@ -837,7 +843,6 @@ func Test_Publish(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	cc.PrefetchCount = 4
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
@@ -902,7 +907,6 @@ func Test_Publish_Error(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	cc.PrefetchCount = 4
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
@@ -969,7 +973,6 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	cc.PrefetchCount = 4
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
@@ -1030,7 +1033,6 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 
 // 	ctx := context.Background()
 // 	cc := &pb.ConnectionConfiguration{}
-// 	cc.PrefetchCount = 4
 // 	err := prov.Connect(&ctx, cc, false)
 // 	assert.Nil(t, err)
 

@@ -28,7 +28,6 @@ func connectConfig() *pb.ConnectionConfiguration {
 	connConfig.Port = 5672
 	connConfig.Provider = "amqp091"
 	connConfig.Tenant = "/"
-	connConfig.PrefetchCount = 5
 
 	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
 
@@ -150,7 +149,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -191,7 +190,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCM")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -304,7 +303,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll"}
+	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAll")
 	address := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
@@ -375,7 +374,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 	consumerConnection := connect()
 	defer consumerConnection.Close()
-	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny"}
+	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAny")
 	address := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
@@ -450,7 +449,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCTN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -505,7 +504,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -541,7 +540,7 @@ func TestBadSourceOptionsAmqp091(t *testing.T) {
 	opts := make(map[string]string)
 	opts["BadOption"] = "10"
 
-	source := &pb.Source{Name: "sas.test.proxy.TSOA.Consumer", Address: address, Options: opts}
+	source := &pb.Source{Name: "sas.test.proxy.TSOA.Consumer", Address: address, Options: opts, PrefetchCount: 5}
 
 	c := pb.NewConsumerClient(consumerConnection)
 
@@ -593,7 +592,7 @@ func TestHeaders(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TH")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
-	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -641,7 +640,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCME")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -702,7 +701,7 @@ func TestSubscribeMultiSubject(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TSMS.1")
 	subjects = append(subjects, "sas.test.proxy.TSMS.2")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
@@ -787,7 +786,7 @@ func TestParentExchange(t *testing.T) {
 	defer consumerConnection.Close()
 
 	// Subscribe to the child Address
-	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child}
+	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 
@@ -849,7 +848,7 @@ func TestHeadersNoSubscribeSubject(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address}
+	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 	<-clientConnected
 

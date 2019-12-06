@@ -22,9 +22,11 @@ message ConnectionConfiguration {
     string provider = 3; // Provider type, currently only ampq091.
     string tenant = 4; // Tenant name for this connection. Tenant is not required
     Credentials credentials = 5; // Authentication credentials.
-    int32 prefetch_count = 6; // Consumer prefetch count.
     bytes ca_certificate = 7; // TLS Certificate authority for broker. Implies tls.
     bool tls = 8; // Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates.
+
+    reserved 6;
+    reserved "prefetch_count";
 }
 
 /**
@@ -93,6 +95,7 @@ message Source {
     Filter filter = 6; // Filters for this Source.
     map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
+    int32 prefetch_count = 9; // Set the prefetch count for this subscriber.
 }
 
 /**

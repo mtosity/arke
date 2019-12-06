@@ -109,7 +109,6 @@ RabbitMQ and Kafka.
 | provider | [string](#string) |  | Provider type, currently only ampq091. |
 | tenant | [string](#string) |  | Tenant name for this connection. Tenant is not required |
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
-| prefetch_count | [int32](#int32) |  | Consumer prefetch count. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
 | tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
 
@@ -280,6 +279,7 @@ Represents the source for consumer subscriptions.
 | filter | [Filter](#arke.Filter) |  | Filters for this Source. |
 | options | [Source.OptionsEntry](#arke.Source.OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
+| prefetch_count | [int32](#int32) |  | Override the prefetch count on the connection for this source subscription. |
 
 
 
