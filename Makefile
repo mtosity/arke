@@ -79,16 +79,20 @@ compose_down:
 		docker-compose down
 
 integration_test:
-	echo "\033[0;36mNo TLS\033[0m"
+	echo "\033[0;36mNo providerTLS\033[0m"
 	go test -count=1 -v ./tests/integration/
 
 integration_test_tls:
-	echo "\033[0;31mTLS enabled\033[0m"
+	echo "\033[0;31mProvider TLS enabled\033[0m"
 	PROVIDER_TLS=true go test -count=1 -v ./tests/integration/
+
+integration_test_tls_send_ca:
+	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
+	PROVIDER_TLS=sendCA go test -count=1 -v ./tests/integration/
 
 integration: compose integration_test
 
-integration_all: integration integration_test_tls
+integration_all: integration integration_test_tls integration_test_tls_send_ca
 
 help: ## Lists the makefile's targets
 	@grep -E '^[-a-zA-Z0-9]+:.*?#{2} .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

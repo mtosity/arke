@@ -13,14 +13,19 @@ services:
     environment:
       - LOG_FORMAT=term
       - LOG_LEVEL=debug
+      - CERT_FILE=/certs/server/arke.pem
+      - CERT_KEY=/certs/server/arke.key
+      - CA_BUNDLE=/certs/testca/ca_certificate.pem
+    volumes:
+    - ./certs:/certs
   rabbitmq:
     image: rabbitmq:3.7-management
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
       - RABBITMQ_SSL_CACERTFILE=/certs/testca/ca_certificate.pem
-      - RABBITMQ_SSL_CERTFILE=/certs/server/server_certificate.pem
-      - RABBITMQ_SSL_KEYFILE=/certs/server/private_key.pem
+      - RABBITMQ_SSL_CERTFILE=/certs/server/rabbitmq.pem
+      - RABBITMQ_SSL_KEYFILE=/certs/server/rabbitmq.key
       - RABBITMQ_SSL_VERIFY=verify_none
     ports:
       - "5672:5672"

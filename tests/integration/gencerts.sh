@@ -28,6 +28,7 @@ database = \$dir/index.txt
 new_certs_dir = \$dir/certs
 private_key = \$dir/private/ca_private_key.pem
 serial = \$dir/serial
+copy_extensions = copy
 
 default_crl_days = 7
 default_days = 365
@@ -73,7 +74,25 @@ basicConstraints = CA:false
 keyUsage = digitalSignature,keyEncipherment
 extendedKeyUsage = 1.3.6.1.5.5.7.3.1
 
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+
 EOF
+
+function generateCert() {
+      local svc=$1
+      openssl genrsa -out ${svc}.key 2048
+      openssl req -new -key ${svc}.key -out ${svc}_req.csr -outform PEM \
+            -subj /CN=${svc}/O=server/ -nodes \
+            -addext "subjectAltName=DNS:localhost,DNS:${svc}"
+      cd ../testca
+      openssl ca -config openssl.cnf -in ../server/${svc}_req.csr -out \
+            ../server/${svc}.pem -notext -batch -extensions server_ca_extensions
+      cd ../server
+      openssl pkcs12 -export -out ${svc}.p12 -in ${svc}.pem -inkey ${svc}.key \
+            -passout pass:
+}
 
 openssl req -x509 -config openssl.cnf -newkey rsa:2048 -days 365 \
       -out ca_certificate.pem -outform PEM -subj /CN=MyTestCA/ -nodes
@@ -82,15 +101,9 @@ openssl x509 -in ca_certificate.pem -out ca_certificate.cer -outform DER
 cd ..
 mkdir server
 cd server
-openssl genrsa -out private_key.pem 2048
-openssl req -new -key private_key.pem -out req.pem -outform PEM \
-      -subj /CN=rabbitmq/O=server/ -nodes
-cd ../testca
-openssl ca -config openssl.cnf -in ../server/req.pem -out \
-      ../server/server_certificate.pem -notext -batch -extensions server_ca_extensions
-cd ../server
-openssl pkcs12 -export -out server_certificate.p12 -in server_certificate.pem -inkey private_key.pem \
-      -passout pass:
+
+generateCert "rabbitmq"
+generateCert "arke"
 
 cd ../
 

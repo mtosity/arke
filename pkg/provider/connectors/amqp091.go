@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -695,6 +697,14 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
 
 	} else if tlsEnabled { // Regular TLS with cert verification against system certs
+		if caBundlePath := os.Getenv("CA_BUNDLE"); caBundlePath != "" {
+			caBundle, err := ioutil.ReadFile(caBundlePath)
+			if err != nil {
+				return false, fmt.Errorf("Could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
+			}
+			tlsConfig.RootCAs = x509.NewCertPool()
+			tlsConfig.RootCAs.AppendCertsFromPEM(caBundle)
+		}
 		util.Logger.Debugf("%s connecting with TLS using system certs: %s:%d", bd.ClientUUID, cf.GetHost(), cf.GetPort())
 
 	} else { // no tls

@@ -2,6 +2,8 @@ package integration
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -31,13 +35,16 @@ func connectConfig() *pb.ConnectionConfiguration {
 
 	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
 
-	if providerTLS == "true" {
+	if providerTLS == "sendca" {
 		cacert, err := ioutil.ReadFile("certs/testca/ca_certificate.pem")
 		if err != nil {
 			log.Fatalf("Error reading provider CA cert: %v", err)
 		}
 		connConfig.Tls = true
 		connConfig.CaCertificate = cacert
+		connConfig.Port = 5671
+	} else if providerTLS == "true" {
+		connConfig.Tls = true
 		connConfig.Port = 5671
 	}
 
@@ -201,8 +208,36 @@ func connect() *grpc.ClientConn {
 			return
 		}
 	}()
-	conn, err := grpc.Dial(arkeAddress, grpc.WithInsecure())
-	if err != nil {
+
+	var conn *grpc.ClientConn
+	var err error
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+
+	// Attempt a non-TLS connection to arke first
+	conn, err = grpc.Dial(arkeAddress, grpc.WithInsecure())
+
+	c := healthpb.NewHealthClient(conn)
+	resp, err := c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
+
+	// If the health check failed, try with TLS
+	if err != nil && (resp == nil || resp.GetStatus() != healthpb.HealthCheckResponse_SERVING) {
+		b, err := ioutil.ReadFile("certs/testca/ca_certificate.pem")
+		if err != nil {
+			log.Fatal(err)
+		}
+		cp := x509.NewCertPool()
+		if !cp.AppendCertsFromPEM(b) {
+			log.Fatalf("client did not connect: %v", "credentials: failed to append certificates")
+		}
+		tlsConfig := &tls.Config{RootCAs: cp}
+
+		conn, err = grpc.Dial(arkeAddress, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
+
+		c := healthpb.NewHealthClient(conn)
+		resp, err = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
+	}
+
+	if err != nil && resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
 		log.Fatalf("client did not connect: %v", err)
 	}
 	return conn

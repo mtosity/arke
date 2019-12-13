@@ -8,3 +8,5 @@ coverage.out
 coverage.html
 tests/integration/certs/server
 tests/integration/certs/testca
+tests/integration/rabbit
+env-*
