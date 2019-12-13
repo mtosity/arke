@@ -310,24 +310,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
-	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
-	matchHeaders := make(Amqp091Table)
-
-	if source.GetAddress().GetType() == pb.Address_FILTER {
-		matches := source.Filter.GetMatches()
-		for _, match := range matches {
-			util.Logger.Debugf("match: %v", match)
-			matchHeaders[match.GetName()] = match.GetValue()
-		}
-
-		if len(matchHeaders) > 0 {
-			matchHeaders["x-match"] = "all"
-			if source.Filter.GetType() == pb.Filter_ANY {
-				matchHeaders["x-match"] = "any"
-			}
-		}
-	}
-
 	args := make(Amqp091Table)
 	for option, value := range source.GetOptions() {
 		switch option {
@@ -352,10 +334,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		}
 	}
 
-	if len(matchHeaders) > 0 {
-		util.Logger.Debugf("Arguments (matches): %s", matchHeaders)
-	}
-
 	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), source.GetExclusive(), args)
 	if qErr != nil {
 		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
@@ -363,17 +341,54 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	// If the address has subjects, bind to each subject.
 	// But if the address has no subjects, bind without a subject. Don't do both.
-	if len(source.GetAddress().GetSubjects()) > 0 {
-		for _, subject := range source.GetAddress().GetSubjects() {
-			bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), matchHeaders)
+	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
+
+	matchHeadersList := make([]Amqp091Table, 0)
+
+	if source.GetAddress().GetType() == pb.Address_FILTER {
+		for _, filter := range source.GetFilters() {
+			matchHeaders := make(Amqp091Table)
+			matches := filter.GetMatches()
+			for _, match := range matches {
+				util.Logger.Debugf("match: %v", match)
+				matchHeaders[match.GetName()] = match.GetValue()
+			}
+
+			if len(matchHeaders) > 0 {
+				matchHeaders["x-match"] = "all"
+				if filter.GetType() == pb.Filter_ANY {
+					matchHeaders["x-match"] = "any"
+				}
+			}
+
+			if len(matchHeaders) > 0 {
+				util.Logger.Debugf("Arguments (matches): %s", matchHeaders)
+			}
+
+			matchHeadersList = append(matchHeadersList, matchHeaders)
+		}
+	}
+
+	subjects := source.GetAddress().GetSubjects()
+	if len(subjects) == 0 {
+		// If subjects aren't included in the address, fake an empty one so
+		// we ensure we bind even if there are no filters
+		subjects = append(subjects, "")
+	}
+
+	for _, subject := range subjects {
+		if len(matchHeadersList) > 0 {
+			for _, matchHeaders := range matchHeadersList {
+				bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), matchHeaders)
+				if bErr != nil {
+					util.Logger.ErrorI("error.queuebind", bErr.Error())
+				}
+			}
+		} else {
+			bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), nil)
 			if bErr != nil {
 				util.Logger.ErrorI("error.queuebind", bErr.Error())
 			}
-		}
-	} else {
-		bErr := amqpChannel.QueueBind(source.GetName(), "", source.GetAddress().GetName(), matchHeaders)
-		if bErr != nil {
-			util.Logger.ErrorI("error.queuebind", bErr.Error())
 		}
 	}
 

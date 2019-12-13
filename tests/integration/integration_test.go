@@ -470,7 +470,8 @@ func TestProduceSubscribeFiltersMatchAll(t *testing.T) {
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAll", Value: "MyFancyValue"})
 	matches = append(matches, &pb.Match{Name: "AnotherHeaderToMatchAll", Value: "MyFancyValue"})
 	filter.Matches = matches
-	source.Filter = filter
+	source.Filters = make([]*pb.Filter, 0)
+	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	go subscribeMessages(consumerConnection, messages, done, clientConnected, source)
 
@@ -541,7 +542,8 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAll", Value: "MyFancyValue"})
 	matches = append(matches, &pb.Match{Name: "AnotherHeaderToMatchAll", Value: "MyFancyValue"})
 	filter.Matches = matches
-	source.Filter = filter
+	source.Filters = make([]*pb.Filter, 0)
+	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 
@@ -612,7 +614,8 @@ func TestProduceSubscribeFiltersMatchAny(t *testing.T) {
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAny", Value: "MyFancyValue"})
 	matches = append(matches, &pb.Match{Name: "OtherHeaderToMatchAny", Value: "AnotherFancyValue"})
 	filter.Matches = matches
-	source.Filter = filter
+	source.Filters = make([]*pb.Filter, 0)
+	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	go subscribeMessages(consumerConnection, messages, done, clientConnected, source)
 
@@ -682,7 +685,8 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	matches = append(matches, &pb.Match{Name: "HeaderToMatchAny", Value: "MyFancyValue"})
 	matches = append(matches, &pb.Match{Name: "OtherHeaderToMatchAny", Value: "AnotherFancyValue"})
 	filter.Matches = matches
-	source.Filter = filter
+	source.Filters = make([]*pb.Filter, 0)
+	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
 

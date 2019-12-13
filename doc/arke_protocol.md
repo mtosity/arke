@@ -345,10 +345,10 @@ Represents the source for consumer subscriptions.
 | address | [Address](#arke.Address) |  | The Address associated with this source. |
 | durable | [bool](#bool) |  | Should this Source be durable. |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
-| filter | [Filter](#arke.Filter) |  | Filters for this Source. |
 | options | [Source.OptionsEntry](#arke.Source.OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
+| filters | [Filter](#arke.Filter) | repeated | Filters for this Source. |
 
 
 

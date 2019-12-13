@@ -132,6 +132,8 @@ func TestConnect(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 
 	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
 }
 
 func TestConnect_Error(t *testing.T) {
@@ -160,6 +162,8 @@ func TestConnect_Error(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 
 	assert.NotNil(t, err)
+
+	amock.AssertExpectations(t)
 }
 
 func Test_Connect_NoClient(t *testing.T) {
@@ -212,6 +216,8 @@ func TestConnect_TLS_SkipVerify(t *testing.T) {
 	err := prov.Connect(&ctx, cc, true)
 
 	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
 }
 
 func TestConnect_TLS_WithCert(t *testing.T) {
@@ -244,6 +250,8 @@ func TestConnect_TLS_WithCert(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 
 	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
 	// TODO: Figure out a good way to get tlsConfig and see if the cert is set
 }
 
@@ -283,6 +291,8 @@ func TestConnect_Stats(t *testing.T) {
 	assert.Equal(t, client.Produced, 0)
 	assert.Equal(t, client.Consumed, 0)
 	assert.Equal(t, client.ID, "1234")
+
+	amock.AssertExpectations(t)
 }
 
 func Test_Ack_NoMsg(t *testing.T) {
@@ -314,6 +324,8 @@ func Test_Ack_NoMsg(t *testing.T) {
 	msg := pb.Message{}
 	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
+
+	amock.AssertExpectations(t)
 }
 
 func Test_Nack_NoMsg(t *testing.T) {
@@ -345,6 +357,8 @@ func Test_Nack_NoMsg(t *testing.T) {
 	msg := pb.Message{}
 	err = prov.Nack(&ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
+
+	amock.AssertExpectations(t)
 }
 
 func Test_Ack(t *testing.T) {
@@ -368,10 +382,8 @@ func Test_Ack(t *testing.T) {
 		msgs <- mm
 	}()
 
-	cmock.On("SetPrefetch", mock.Anything).Return(nil)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	cmock.On("ExchangeBind", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
@@ -414,6 +426,9 @@ func Test_Ack(t *testing.T) {
 	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 func Test_Nack(t *testing.T) {
@@ -437,10 +452,8 @@ func Test_Nack(t *testing.T) {
 		msgs <- mm
 	}()
 
-	cmock.On("SetPrefetch", mock.Anything).Return(nil)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	cmock.On("ExchangeBind", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
@@ -483,6 +496,9 @@ func Test_Nack(t *testing.T) {
 	err = prov.Nack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 func Test_Ack_NoConnect(t *testing.T) {
@@ -585,21 +601,34 @@ func Test_Subscribe_Options(t *testing.T) {
 	subjects = append(subjects, "subject2")
 	parent := &pb.Address{Name: "parent", Type: pb.Address_QUEUE}
 	address := &pb.Address{Name: "addressname", Subjects: subjects, ParentAddress: parent, Type: pb.Address_FILTER}
-	matches := make([]*pb.Match, 0)
-	matches = append(matches, &pb.Match{Name: "key", Value: "value"})
-	filter := &pb.Filter{Matches: matches, Type: pb.Filter_ANY}
+	matches1 := make([]*pb.Match, 0)
+	matches1 = append(matches1, &pb.Match{Name: "key1", Value: "value1"})
+	matches1 = append(matches1, &pb.Match{Name: "key2", Value: "value2"})
+	matches2 := make([]*pb.Match, 0)
+	matches2 = append(matches2, &pb.Match{Name: "key3", Value: "value3"})
+	matches2 = append(matches2, &pb.Match{Name: "key4", Value: "value4"})
+	filters := make([]*pb.Filter, 0)
+	filters = append(filters, &pb.Filter{Matches: matches1, Type: pb.Filter_ANY})
+	filters = append(filters, &pb.Filter{Matches: matches2, Type: pb.Filter_ANY})
+
 	src := &pb.Source{Name: "srcname",
 		Address:       address,
 		Options:       options,
-		Filter:        filter,
+		Filters:       filters,
 		Durable:       true,
 		Exclusive:     true,
 		AutoDelete:    true,
 		PrefetchCount: 4}
 
-	expectedMatchHeaders := Amqp091Table{}
-	expectedMatchHeaders["key"] = "value"
-	expectedMatchHeaders["x-match"] = "any"
+	expectedMatchHeaders1 := Amqp091Table{}
+	expectedMatchHeaders1["key1"] = "value1"
+	expectedMatchHeaders1["key2"] = "value2"
+	expectedMatchHeaders1["x-match"] = "any"
+
+	expectedMatchHeaders2 := Amqp091Table{}
+	expectedMatchHeaders2["key3"] = "value3"
+	expectedMatchHeaders2["key4"] = "value4"
+	expectedMatchHeaders2["x-match"] = "any"
 
 	cmock.On("SetPrefetch", 4).Return(nil)
 	cmock.On("Close").Return(nil)
@@ -608,8 +637,10 @@ func Test_Subscribe_Options(t *testing.T) {
 	cmock.On("ExchangeBind", address.GetName(), subjects[0], parent.GetName()).Return(nil)
 	cmock.On("ExchangeBind", address.GetName(), subjects[1], parent.GetName()).Return(nil)
 	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), expectedQueueArgs).Return(nil)
-	cmock.On("QueueBind", src.GetName(), "subject1", address.GetName(), expectedMatchHeaders).Return(nil).Once()
-	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders).Return(nil).Once()
+	cmock.On("QueueBind", src.GetName(), "subject1", address.GetName(), expectedMatchHeaders1).Return(nil).Once()
+	cmock.On("QueueBind", src.GetName(), "subject1", address.GetName(), expectedMatchHeaders2).Return(nil).Once()
+	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders1).Return(nil).Once()
+	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders2).Return(nil).Once()
 	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
 
 	amock := &amqpConnectionMock{}
@@ -653,15 +684,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	assert.Equal(t, msg.GetAddress(), src.GetAddress())
 	assert.Equal(t, msg.GetAddress().GetSubjects(), subjects)
 
-	cmock.AssertCalled(t, "SetPrefetch", 4)
-	cmock.AssertNumberOfCalls(t, "QueueBind", 2)
-	cmock.AssertCalled(t, "QueueBind", src.Name, address.Subjects[0], address.Name, expectedMatchHeaders)
-	cmock.AssertCalled(t, "QueueBind", src.Name, address.Subjects[1], address.Name, expectedMatchHeaders)
-	cmock.AssertCalled(t, "ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete())
-	cmock.AssertCalled(t, "ExchangeDeclare", parent.GetName(), "direct", parent.GetDurable(), parent.GetAutoDelete())
-	cmock.AssertCalled(t, "ExchangeBind", address.GetName(), subjects[0], parent.GetName())
-	cmock.AssertCalled(t, "ExchangeBind", address.GetName(), subjects[1], parent.GetName())
-	cmock.AssertCalled(t, "Consume", src.GetName(), false, src.GetExclusive())
+	cmock.AssertExpectations(t)
 }
 
 func Test_Subscribe_UnsupportedOptions(t *testing.T) {
@@ -682,10 +705,8 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	msgs := make(chan Amqp091Message)
 	defer close(msgs)
 
-	cmock.On("SetPrefetch", mock.Anything).Return(nil)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	cmock.On("ExchangeBind", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
@@ -715,6 +736,8 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	assert.NotNil(t, suberr)
 	assert.Contains(t, suberr.GetMessage(), "unsupported is an unsupported source option")
 
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 // Disconnect does not return anything so there isn't much to test
@@ -745,6 +768,8 @@ func Test_Disconnect(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 	prov.Disconnect(&ctx)
+
+	amock.AssertExpectations(t)
 }
 
 func Test_SupportedSourceOptions(t *testing.T) {
@@ -779,10 +804,12 @@ func Test_WaitForConnect(t *testing.T) {
 	cc := &pb.ConnectionConfiguration{}
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	errs <- Amqp091Error{}
-	time.Sleep(250 * time.Millisecond)
+	errs <- NewAmqp091Error("chanerr", 1) // simulate an error
+	time.Sleep(500 * time.Millisecond)
 	connected := prov.WaitForConnect(&ctx)
 	assert.True(t, connected)
+
+	amock.AssertExpectations(t)
 }
 
 func Test_Publish(t *testing.T) {
@@ -853,10 +880,8 @@ func Test_Publish(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	cmock.AssertNumberOfCalls(t, "Publish", 1)
-	cmock.AssertCalled(t, "ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete())
-	cmock.AssertCalled(t, "Publish", address.GetName(), address.GetSubjects()[0], expectedMsg)
-
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 func Test_Publish_Error(t *testing.T) {
@@ -875,7 +900,6 @@ func Test_Publish_Error(t *testing.T) {
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], mock.Anything).Return(errors.New("puberr"))
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
-	cmock.On("ExchangeBind", mock.Anything, mock.Anything).Return(nil)
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
@@ -920,9 +944,8 @@ func Test_Publish_Error(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "puberr")
 
-	cmock.AssertNumberOfCalls(t, "Publish", 1)
-	cmock.AssertCalled(t, "ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete())
-	cmock.AssertCalled(t, "Publish", address.GetName(), address.GetSubjects()[0], mock.Anything)
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 func Test_Publish_ErrorDeclareExchange(t *testing.T) {
@@ -938,10 +961,8 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
 
 	cmock := &amqpChannelMock{}
-	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], mock.Anything).Return(errors.New("puberr"))
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(errors.New("declareerr")).Once()
-	cmock.On("ExchangeBind", mock.Anything, mock.Anything).Return(nil)
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
@@ -986,7 +1007,8 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "declareerr")
 
-	cmock.AssertCalled(t, "ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete())
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
 }
 
 // func Test_Publish_ChannelCloseError(t *testing.T) {

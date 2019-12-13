@@ -241,9 +241,9 @@ func (e *Amqp091Error) Code() int {
 }
 
 // NewAmqp091Error New error
-func NewAmqp091Error(e string) Amqp091Error {
+func NewAmqp091Error(e string, code int) Amqp091Error {
 	err := Amqp091Error{}
-	err.error = amqp.Error{Reason: e}
+	err.error = amqp.Error{Reason: e, Code: code}
 	return err
 }
 

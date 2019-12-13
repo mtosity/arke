@@ -7259,33 +7259,6 @@ public final class ArkeProtos {
 
     /**
      * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     * @return Whether the filter field is set.
-     */
-    boolean hasFilter();
-    /**
-     * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     * @return The filter.
-     */
-    org.arke.ArkeProtos.Filter getFilter();
-    /**
-     * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     */
-    org.arke.ArkeProtos.FilterOrBuilder getFilterOrBuilder();
-
-    /**
-     * <pre>
      * Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
      * </pre>
      *
@@ -7357,6 +7330,50 @@ public final class ArkeProtos {
      * @return The prefetchCount.
      */
     int getPrefetchCount();
+
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    java.util.List<org.arke.ArkeProtos.Filter> 
+        getFiltersList();
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    org.arke.ArkeProtos.Filter getFilters(int index);
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    int getFiltersCount();
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    java.util.List<? extends org.arke.ArkeProtos.FilterOrBuilder> 
+        getFiltersOrBuilderList();
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    org.arke.ArkeProtos.FilterOrBuilder getFiltersOrBuilder(
+        int index);
   }
   /**
    * <pre>
@@ -7377,6 +7394,7 @@ public final class ArkeProtos {
     }
     private Source() {
       name_ = "";
+      filters_ = java.util.Collections.emptyList();
     }
 
     @java.lang.Override
@@ -7439,19 +7457,6 @@ public final class ArkeProtos {
               autoDelete_ = input.readBool();
               break;
             }
-            case 50: {
-              org.arke.ArkeProtos.Filter.Builder subBuilder = null;
-              if (filter_ != null) {
-                subBuilder = filter_.toBuilder();
-              }
-              filter_ = input.readMessage(org.arke.ArkeProtos.Filter.parser(), extensionRegistry);
-              if (subBuilder != null) {
-                subBuilder.mergeFrom(filter_);
-                filter_ = subBuilder.buildPartial();
-              }
-
-              break;
-            }
             case 58: {
               if (!((mutable_bitField0_ & 0x00000001) != 0)) {
                 options_ = com.google.protobuf.MapField.newMapField(
@@ -7475,6 +7480,15 @@ public final class ArkeProtos {
               prefetchCount_ = input.readInt32();
               break;
             }
+            case 82: {
+              if (!((mutable_bitField0_ & 0x00000002) != 0)) {
+                filters_ = new java.util.ArrayList<org.arke.ArkeProtos.Filter>();
+                mutable_bitField0_ |= 0x00000002;
+              }
+              filters_.add(
+                  input.readMessage(org.arke.ArkeProtos.Filter.parser(), extensionRegistry));
+              break;
+            }
             default: {
               if (!parseUnknownField(
                   input, unknownFields, extensionRegistry, tag)) {
@@ -7490,6 +7504,9 @@ public final class ArkeProtos {
         throw new com.google.protobuf.InvalidProtocolBufferException(
             e).setUnfinishedMessage(this);
       } finally {
+        if (((mutable_bitField0_ & 0x00000002) != 0)) {
+          filters_ = java.util.Collections.unmodifiableList(filters_);
+        }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
       }
@@ -7626,41 +7643,6 @@ public final class ArkeProtos {
       return autoDelete_;
     }
 
-    public static final int FILTER_FIELD_NUMBER = 6;
-    private org.arke.ArkeProtos.Filter filter_;
-    /**
-     * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     * @return Whether the filter field is set.
-     */
-    public boolean hasFilter() {
-      return filter_ != null;
-    }
-    /**
-     * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     * @return The filter.
-     */
-    public org.arke.ArkeProtos.Filter getFilter() {
-      return filter_ == null ? org.arke.ArkeProtos.Filter.getDefaultInstance() : filter_;
-    }
-    /**
-     * <pre>
-     * Filters for this Source.
-     * </pre>
-     *
-     * <code>.arke.Filter filter = 6;</code>
-     */
-    public org.arke.ArkeProtos.FilterOrBuilder getFilterOrBuilder() {
-      return getFilter();
-    }
-
     public static final int OPTIONS_FIELD_NUMBER = 7;
     private static final class OptionsDefaultEntryHolder {
       static final com.google.protobuf.MapEntry<
@@ -7781,6 +7763,61 @@ public final class ArkeProtos {
       return prefetchCount_;
     }
 
+    public static final int FILTERS_FIELD_NUMBER = 10;
+    private java.util.List<org.arke.ArkeProtos.Filter> filters_;
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    public java.util.List<org.arke.ArkeProtos.Filter> getFiltersList() {
+      return filters_;
+    }
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    public java.util.List<? extends org.arke.ArkeProtos.FilterOrBuilder> 
+        getFiltersOrBuilderList() {
+      return filters_;
+    }
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    public int getFiltersCount() {
+      return filters_.size();
+    }
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    public org.arke.ArkeProtos.Filter getFilters(int index) {
+      return filters_.get(index);
+    }
+    /**
+     * <pre>
+     * Filters for this Source.
+     * </pre>
+     *
+     * <code>repeated .arke.Filter filters = 10;</code>
+     */
+    public org.arke.ArkeProtos.FilterOrBuilder getFiltersOrBuilder(
+        int index) {
+      return filters_.get(index);
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -7807,9 +7844,6 @@ public final class ArkeProtos {
       if (autoDelete_ != false) {
         output.writeBool(5, autoDelete_);
       }
-      if (filter_ != null) {
-        output.writeMessage(6, getFilter());
-      }
       com.google.protobuf.GeneratedMessageV3
         .serializeStringMapTo(
           output,
@@ -7821,6 +7855,9 @@ public final class ArkeProtos {
       }
       if (prefetchCount_ != 0) {
         output.writeInt32(9, prefetchCount_);
+      }
+      for (int i = 0; i < filters_.size(); i++) {
+        output.writeMessage(10, filters_.get(i));
       }
       unknownFields.writeTo(output);
     }
@@ -7846,10 +7883,6 @@ public final class ArkeProtos {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(5, autoDelete_);
       }
-      if (filter_ != null) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(6, getFilter());
-      }
       for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
            : internalGetOptions().getMap().entrySet()) {
         com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
@@ -7867,6 +7900,10 @@ public final class ArkeProtos {
       if (prefetchCount_ != 0) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(9, prefetchCount_);
+      }
+      for (int i = 0; i < filters_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(10, filters_.get(i));
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -7894,17 +7931,14 @@ public final class ArkeProtos {
           != other.getDurable()) return false;
       if (getAutoDelete()
           != other.getAutoDelete()) return false;
-      if (hasFilter() != other.hasFilter()) return false;
-      if (hasFilter()) {
-        if (!getFilter()
-            .equals(other.getFilter())) return false;
-      }
       if (!internalGetOptions().equals(
           other.internalGetOptions())) return false;
       if (getExclusive()
           != other.getExclusive()) return false;
       if (getPrefetchCount()
           != other.getPrefetchCount()) return false;
+      if (!getFiltersList()
+          .equals(other.getFiltersList())) return false;
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -7928,10 +7962,6 @@ public final class ArkeProtos {
       hash = (37 * hash) + AUTO_DELETE_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getAutoDelete());
-      if (hasFilter()) {
-        hash = (37 * hash) + FILTER_FIELD_NUMBER;
-        hash = (53 * hash) + getFilter().hashCode();
-      }
       if (!internalGetOptions().getMap().isEmpty()) {
         hash = (37 * hash) + OPTIONS_FIELD_NUMBER;
         hash = (53 * hash) + internalGetOptions().hashCode();
@@ -7941,6 +7971,10 @@ public final class ArkeProtos {
           getExclusive());
       hash = (37 * hash) + PREFETCH_COUNT_FIELD_NUMBER;
       hash = (53 * hash) + getPrefetchCount();
+      if (getFiltersCount() > 0) {
+        hash = (37 * hash) + FILTERS_FIELD_NUMBER;
+        hash = (53 * hash) + getFiltersList().hashCode();
+      }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -8096,6 +8130,7 @@ public final class ArkeProtos {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessageV3
                 .alwaysUseFieldBuilders) {
+          getFiltersFieldBuilder();
         }
       }
       @java.lang.Override
@@ -8113,17 +8148,17 @@ public final class ArkeProtos {
 
         autoDelete_ = false;
 
-        if (filterBuilder_ == null) {
-          filter_ = null;
-        } else {
-          filter_ = null;
-          filterBuilder_ = null;
-        }
         internalGetMutableOptions().clear();
         exclusive_ = false;
 
         prefetchCount_ = 0;
 
+        if (filtersBuilder_ == null) {
+          filters_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000002);
+        } else {
+          filtersBuilder_.clear();
+        }
         return this;
       }
 
@@ -8159,15 +8194,19 @@ public final class ArkeProtos {
         }
         result.durable_ = durable_;
         result.autoDelete_ = autoDelete_;
-        if (filterBuilder_ == null) {
-          result.filter_ = filter_;
-        } else {
-          result.filter_ = filterBuilder_.build();
-        }
         result.options_ = internalGetOptions();
         result.options_.makeImmutable();
         result.exclusive_ = exclusive_;
         result.prefetchCount_ = prefetchCount_;
+        if (filtersBuilder_ == null) {
+          if (((bitField0_ & 0x00000002) != 0)) {
+            filters_ = java.util.Collections.unmodifiableList(filters_);
+            bitField0_ = (bitField0_ & ~0x00000002);
+          }
+          result.filters_ = filters_;
+        } else {
+          result.filters_ = filtersBuilder_.build();
+        }
         onBuilt();
         return result;
       }
@@ -8229,9 +8268,6 @@ public final class ArkeProtos {
         if (other.getAutoDelete() != false) {
           setAutoDelete(other.getAutoDelete());
         }
-        if (other.hasFilter()) {
-          mergeFilter(other.getFilter());
-        }
         internalGetMutableOptions().mergeFrom(
             other.internalGetOptions());
         if (other.getExclusive() != false) {
@@ -8239,6 +8275,32 @@ public final class ArkeProtos {
         }
         if (other.getPrefetchCount() != 0) {
           setPrefetchCount(other.getPrefetchCount());
+        }
+        if (filtersBuilder_ == null) {
+          if (!other.filters_.isEmpty()) {
+            if (filters_.isEmpty()) {
+              filters_ = other.filters_;
+              bitField0_ = (bitField0_ & ~0x00000002);
+            } else {
+              ensureFiltersIsMutable();
+              filters_.addAll(other.filters_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.filters_.isEmpty()) {
+            if (filtersBuilder_.isEmpty()) {
+              filtersBuilder_.dispose();
+              filtersBuilder_ = null;
+              filters_ = other.filters_;
+              bitField0_ = (bitField0_ & ~0x00000002);
+              filtersBuilder_ = 
+                com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
+                   getFiltersFieldBuilder() : null;
+            } else {
+              filtersBuilder_.addAllMessages(other.filters_);
+            }
+          }
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -8605,161 +8667,6 @@ public final class ArkeProtos {
         return this;
       }
 
-      private org.arke.ArkeProtos.Filter filter_;
-      private com.google.protobuf.SingleFieldBuilderV3<
-          org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder> filterBuilder_;
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       * @return Whether the filter field is set.
-       */
-      public boolean hasFilter() {
-        return filterBuilder_ != null || filter_ != null;
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       * @return The filter.
-       */
-      public org.arke.ArkeProtos.Filter getFilter() {
-        if (filterBuilder_ == null) {
-          return filter_ == null ? org.arke.ArkeProtos.Filter.getDefaultInstance() : filter_;
-        } else {
-          return filterBuilder_.getMessage();
-        }
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public Builder setFilter(org.arke.ArkeProtos.Filter value) {
-        if (filterBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          filter_ = value;
-          onChanged();
-        } else {
-          filterBuilder_.setMessage(value);
-        }
-
-        return this;
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public Builder setFilter(
-          org.arke.ArkeProtos.Filter.Builder builderForValue) {
-        if (filterBuilder_ == null) {
-          filter_ = builderForValue.build();
-          onChanged();
-        } else {
-          filterBuilder_.setMessage(builderForValue.build());
-        }
-
-        return this;
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public Builder mergeFilter(org.arke.ArkeProtos.Filter value) {
-        if (filterBuilder_ == null) {
-          if (filter_ != null) {
-            filter_ =
-              org.arke.ArkeProtos.Filter.newBuilder(filter_).mergeFrom(value).buildPartial();
-          } else {
-            filter_ = value;
-          }
-          onChanged();
-        } else {
-          filterBuilder_.mergeFrom(value);
-        }
-
-        return this;
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public Builder clearFilter() {
-        if (filterBuilder_ == null) {
-          filter_ = null;
-          onChanged();
-        } else {
-          filter_ = null;
-          filterBuilder_ = null;
-        }
-
-        return this;
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public org.arke.ArkeProtos.Filter.Builder getFilterBuilder() {
-        
-        onChanged();
-        return getFilterFieldBuilder().getBuilder();
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      public org.arke.ArkeProtos.FilterOrBuilder getFilterOrBuilder() {
-        if (filterBuilder_ != null) {
-          return filterBuilder_.getMessageOrBuilder();
-        } else {
-          return filter_ == null ?
-              org.arke.ArkeProtos.Filter.getDefaultInstance() : filter_;
-        }
-      }
-      /**
-       * <pre>
-       * Filters for this Source.
-       * </pre>
-       *
-       * <code>.arke.Filter filter = 6;</code>
-       */
-      private com.google.protobuf.SingleFieldBuilderV3<
-          org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder> 
-          getFilterFieldBuilder() {
-        if (filterBuilder_ == null) {
-          filterBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
-              org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder>(
-                  getFilter(),
-                  getParentForChildren(),
-                  isClean());
-          filter_ = null;
-        }
-        return filterBuilder_;
-      }
-
       private com.google.protobuf.MapField<
           java.lang.String, java.lang.String> options_;
       private com.google.protobuf.MapField<java.lang.String, java.lang.String>
@@ -8993,6 +8900,318 @@ public final class ArkeProtos {
         prefetchCount_ = 0;
         onChanged();
         return this;
+      }
+
+      private java.util.List<org.arke.ArkeProtos.Filter> filters_ =
+        java.util.Collections.emptyList();
+      private void ensureFiltersIsMutable() {
+        if (!((bitField0_ & 0x00000002) != 0)) {
+          filters_ = new java.util.ArrayList<org.arke.ArkeProtos.Filter>(filters_);
+          bitField0_ |= 0x00000002;
+         }
+      }
+
+      private com.google.protobuf.RepeatedFieldBuilderV3<
+          org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder> filtersBuilder_;
+
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public java.util.List<org.arke.ArkeProtos.Filter> getFiltersList() {
+        if (filtersBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(filters_);
+        } else {
+          return filtersBuilder_.getMessageList();
+        }
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public int getFiltersCount() {
+        if (filtersBuilder_ == null) {
+          return filters_.size();
+        } else {
+          return filtersBuilder_.getCount();
+        }
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public org.arke.ArkeProtos.Filter getFilters(int index) {
+        if (filtersBuilder_ == null) {
+          return filters_.get(index);
+        } else {
+          return filtersBuilder_.getMessage(index);
+        }
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder setFilters(
+          int index, org.arke.ArkeProtos.Filter value) {
+        if (filtersBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureFiltersIsMutable();
+          filters_.set(index, value);
+          onChanged();
+        } else {
+          filtersBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder setFilters(
+          int index, org.arke.ArkeProtos.Filter.Builder builderForValue) {
+        if (filtersBuilder_ == null) {
+          ensureFiltersIsMutable();
+          filters_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          filtersBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder addFilters(org.arke.ArkeProtos.Filter value) {
+        if (filtersBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureFiltersIsMutable();
+          filters_.add(value);
+          onChanged();
+        } else {
+          filtersBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder addFilters(
+          int index, org.arke.ArkeProtos.Filter value) {
+        if (filtersBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureFiltersIsMutable();
+          filters_.add(index, value);
+          onChanged();
+        } else {
+          filtersBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder addFilters(
+          org.arke.ArkeProtos.Filter.Builder builderForValue) {
+        if (filtersBuilder_ == null) {
+          ensureFiltersIsMutable();
+          filters_.add(builderForValue.build());
+          onChanged();
+        } else {
+          filtersBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder addFilters(
+          int index, org.arke.ArkeProtos.Filter.Builder builderForValue) {
+        if (filtersBuilder_ == null) {
+          ensureFiltersIsMutable();
+          filters_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          filtersBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder addAllFilters(
+          java.lang.Iterable<? extends org.arke.ArkeProtos.Filter> values) {
+        if (filtersBuilder_ == null) {
+          ensureFiltersIsMutable();
+          com.google.protobuf.AbstractMessageLite.Builder.addAll(
+              values, filters_);
+          onChanged();
+        } else {
+          filtersBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder clearFilters() {
+        if (filtersBuilder_ == null) {
+          filters_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000002);
+          onChanged();
+        } else {
+          filtersBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public Builder removeFilters(int index) {
+        if (filtersBuilder_ == null) {
+          ensureFiltersIsMutable();
+          filters_.remove(index);
+          onChanged();
+        } else {
+          filtersBuilder_.remove(index);
+        }
+        return this;
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public org.arke.ArkeProtos.Filter.Builder getFiltersBuilder(
+          int index) {
+        return getFiltersFieldBuilder().getBuilder(index);
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public org.arke.ArkeProtos.FilterOrBuilder getFiltersOrBuilder(
+          int index) {
+        if (filtersBuilder_ == null) {
+          return filters_.get(index);  } else {
+          return filtersBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public java.util.List<? extends org.arke.ArkeProtos.FilterOrBuilder> 
+           getFiltersOrBuilderList() {
+        if (filtersBuilder_ != null) {
+          return filtersBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(filters_);
+        }
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public org.arke.ArkeProtos.Filter.Builder addFiltersBuilder() {
+        return getFiltersFieldBuilder().addBuilder(
+            org.arke.ArkeProtos.Filter.getDefaultInstance());
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public org.arke.ArkeProtos.Filter.Builder addFiltersBuilder(
+          int index) {
+        return getFiltersFieldBuilder().addBuilder(
+            index, org.arke.ArkeProtos.Filter.getDefaultInstance());
+      }
+      /**
+       * <pre>
+       * Filters for this Source.
+       * </pre>
+       *
+       * <code>repeated .arke.Filter filters = 10;</code>
+       */
+      public java.util.List<org.arke.ArkeProtos.Filter.Builder> 
+           getFiltersBuilderList() {
+        return getFiltersFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilderV3<
+          org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder> 
+          getFiltersFieldBuilder() {
+        if (filtersBuilder_ == null) {
+          filtersBuilder_ = new com.google.protobuf.RepeatedFieldBuilderV3<
+              org.arke.ArkeProtos.Filter, org.arke.ArkeProtos.Filter.Builder, org.arke.ArkeProtos.FilterOrBuilder>(
+                  filters_,
+                  ((bitField0_ & 0x00000002) != 0),
+                  getParentForChildren(),
+                  isClean());
+          filters_ = null;
+        }
+        return filtersBuilder_;
       }
       @java.lang.Override
       public final Builder setUnknownFields(
@@ -14553,7 +14772,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Response to a MessageConsumed message
    * </pre>
    *
@@ -14935,7 +15154,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Response to a MessageConsumed message
      * </pre>
      *
@@ -15489,7 +15708,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
    * </pre>
    *
@@ -15879,7 +16098,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
      * </pre>
      *
@@ -16434,7 +16653,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Response to a Consume message. Either a Message or a MessageConsumedResponse
    * </pre>
    *
@@ -16824,7 +17043,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Response to a Consume message. Either a Message or a MessageConsumedResponse
      * </pre>
      *
@@ -17465,43 +17684,44 @@ public final class ArkeProtos {
       "ype\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(" +
       "\010\022%\n\016parent_address\030\006 \001(\0132\r.arke.Address" +
       "\".\n\nTargetType\022\t\n\005TOPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006" +
-      "FILTER\020\002\"\201\002\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007add" +
+      "FILTER\020\002\"\220\002\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007add" +
       "ress\030\003 \001(\0132\r.arke.Address\022\017\n\007durable\030\004 \001" +
-      "(\010\022\023\n\013auto_delete\030\005 \001(\010\022\034\n\006filter\030\006 \001(\0132" +
-      "\014.arke.Filter\022*\n\007options\030\007 \003(\0132\031.arke.So" +
-      "urce.OptionsEntry\022\021\n\texclusive\030\010 \001(\010\022\026\n\016" +
-      "prefetch_count\030\t \001(\005\032.\n\014OptionsEntry\022\013\n\003" +
-      "key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"k\n\006Filter\022\034" +
-      "\n\007matches\030\001 \003(\0132\013.arke.Match\022$\n\004type\030\002 \001" +
-      "(\0162\026.arke.Filter.MatchType\"\035\n\tMatchType\022" +
-      "\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name\030\001 \001(\t" +
-      "\022\r\n\005value\030\002 \001(\t\":\n\013AckResponse\022\017\n\007succes" +
-      "s\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Error\";\n\014N" +
-      "ackResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005error\030\002 " +
-      "\001(\0132\013.arke.Error\"\007\n\005Empty\"8\n\005Error\022\017\n\007me" +
-      "ssage\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fatal\030\003 " +
-      "\001(\010\"-\n\017MessageConsumed\022\014\n\004uuid\030\001 \001(\t\022\014\n\004" +
-      "nack\030\002 \001(\010\"T\n\027MessageConsumedResponse\022\014\n" +
-      "\004uuid\030\001 \001(\t\022\017\n\007success\030\002 \001(\010\022\032\n\005error\030\003 " +
-      "\001(\0132\013.arke.Error\"S\n\007Consume\022\033\n\003src\030\001 \001(\013" +
-      "2\014.arke.SourceH\000\022$\n\003ack\030\002 \001(\0132\025.arke.Mes" +
-      "sageConsumedH\000B\005\n\003msg\"s\n\017ConsumeResponse" +
-      "\022\034\n\003msg\030\001 \001(\0132\r.arke.MessageH\000\022:\n\021consum" +
-      "ed_response\030\002 \001(\0132\035.arke.MessageConsumed" +
-      "ResponseH\000B\006\n\004resp2\256\001\n\010Producer\022A\n\007Conne" +
-      "ct\022\035.arke.ConnectionConfiguration\032\025.arke" +
-      ".ConnectResponse\"\000\0225\n\007Publish\022\r.arke.Mes" +
-      "sage\032\025.arke.MessageResponse\"\000(\0010\001\022(\n\nDis" +
-      "connect\022\013.arke.Empty\032\013.arke.Empty\"\0002\302\002\n\010" +
-      "Consumer\022A\n\007Connect\022\035.arke.ConnectionCon" +
-      "figuration\032\025.arke.ConnectResponse\"\000\022,\n\tS" +
-      "ubscribe\022\014.arke.Source\032\r.arke.Message\"\0000" +
-      "\001\0225\n\007Consume\022\r.arke.Consume\032\025.arke.Consu" +
-      "meResponse\"\000(\0010\001\0220\n\nAckMessage\022\r.arke.Me" +
-      "ssage\032\021.arke.AckResponse\"\000\0222\n\013NackMessag" +
-      "e\022\r.arke.Message\032\022.arke.NackResponse\"\000\022(" +
-      "\n\nDisconnect\022\013.arke.Empty\032\013.arke.Empty\"\000" +
-      "B\026\n\010org.arkeB\nArkeProtosb\006proto3"
+      "(\010\022\023\n\013auto_delete\030\005 \001(\010\022*\n\007options\030\007 \003(\013" +
+      "2\031.arke.Source.OptionsEntry\022\021\n\texclusive" +
+      "\030\010 \001(\010\022\026\n\016prefetch_count\030\t \001(\005\022\035\n\007filter" +
+      "s\030\n \003(\0132\014.arke.Filter\032.\n\014OptionsEntry\022\013\n" +
+      "\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001J\004\010\006\020\007R\006fil" +
+      "ter\"k\n\006Filter\022\034\n\007matches\030\001 \003(\0132\013.arke.Ma" +
+      "tch\022$\n\004type\030\002 \001(\0162\026.arke.Filter.MatchTyp" +
+      "e\"\035\n\tMatchType\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Matc" +
+      "h\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\":\n\013AckRes" +
+      "ponse\022\017\n\007success\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013." +
+      "arke.Error\";\n\014NackResponse\022\017\n\007success\030\001 " +
+      "\001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"\007\n\005Empty" +
+      "\"8\n\005Error\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005" +
+      "\022\020\n\010is_fatal\030\003 \001(\010\"-\n\017MessageConsumed\022\014\n" +
+      "\004uuid\030\001 \001(\t\022\014\n\004nack\030\002 \001(\010\"T\n\027MessageCons" +
+      "umedResponse\022\014\n\004uuid\030\001 \001(\t\022\017\n\007success\030\002 " +
+      "\001(\010\022\032\n\005error\030\003 \001(\0132\013.arke.Error\"S\n\007Consu" +
+      "me\022\033\n\003src\030\001 \001(\0132\014.arke.SourceH\000\022$\n\003ack\030\002" +
+      " \001(\0132\025.arke.MessageConsumedH\000B\005\n\003msg\"s\n\017" +
+      "ConsumeResponse\022\034\n\003msg\030\001 \001(\0132\r.arke.Mess" +
+      "ageH\000\022:\n\021consumed_response\030\002 \001(\0132\035.arke." +
+      "MessageConsumedResponseH\000B\006\n\004resp2\256\001\n\010Pr" +
+      "oducer\022A\n\007Connect\022\035.arke.ConnectionConfi" +
+      "guration\032\025.arke.ConnectResponse\"\000\0225\n\007Pub" +
+      "lish\022\r.arke.Message\032\025.arke.MessageRespon" +
+      "se\"\000(\0010\001\022(\n\nDisconnect\022\013.arke.Empty\032\013.ar" +
+      "ke.Empty\"\0002\302\002\n\010Consumer\022A\n\007Connect\022\035.ark" +
+      "e.ConnectionConfiguration\032\025.arke.Connect" +
+      "Response\"\000\022,\n\tSubscribe\022\014.arke.Source\032\r." +
+      "arke.Message\"\0000\001\0225\n\007Consume\022\r.arke.Consu" +
+      "me\032\025.arke.ConsumeResponse\"\000(\0010\001\0220\n\nAckMe" +
+      "ssage\022\r.arke.Message\032\021.arke.AckResponse\"" +
+      "\000\0222\n\013NackMessage\022\r.arke.Message\032\022.arke.N" +
+      "ackResponse\"\000\022(\n\nDisconnect\022\013.arke.Empty" +
+      "\032\013.arke.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb" +
+      "\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -17554,7 +17774,7 @@ public final class ArkeProtos {
     internal_static_arke_Source_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_Source_descriptor,
-        new java.lang.String[] { "Name", "Address", "Durable", "AutoDelete", "Filter", "Options", "Exclusive", "PrefetchCount", });
+        new java.lang.String[] { "Name", "Address", "Durable", "AutoDelete", "Options", "Exclusive", "PrefetchCount", "Filters", });
     internal_static_arke_Source_OptionsEntry_descriptor =
       internal_static_arke_Source_descriptor.getNestedTypes().get(0);
     internal_static_arke_Source_OptionsEntry_fieldAccessorTable = new

@@ -92,10 +92,13 @@ message Source {
     Address address = 3; // The Address associated with this source.
     bool durable = 4; // Should this Source be durable.
     bool auto_delete = 5; // Should this Source automatically delete.
-    Filter filter = 6; // Filters for this Source.
     map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
     int32 prefetch_count = 9; // Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
+    repeated Filter filters = 10; // Filters for this Source.
+
+    reserved 6;
+    reserved "filter";
 }
 
 /**
