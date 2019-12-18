@@ -771,7 +771,7 @@ func TestProduceSingleSubscribeSingleCustomTopicName(t *testing.T) {
 
 	messageUUIDs := make([]string, 0)
 
-	for start := time.Now(); time.Since(start) < 1*time.Second; {
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case msg := <-messages:
 			messageUUIDs = append(messageUUIDs, msg.GetUuid())

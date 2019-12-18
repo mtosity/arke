@@ -14553,7 +14553,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Response to a MessageConsumed message
    * </pre>
    *
@@ -14935,7 +14935,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Response to a MessageConsumed message
      * </pre>
      *
@@ -15489,7 +15489,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
    * </pre>
    *
@@ -15879,7 +15879,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
      * </pre>
      *
@@ -16434,7 +16434,7 @@ public final class ArkeProtos {
   }
   /**
    * <pre>
-   ** 
+   **
    * Response to a Consume message. Either a Message or a MessageConsumedResponse
    * </pre>
    *
@@ -16824,7 +16824,7 @@ public final class ArkeProtos {
     }
     /**
      * <pre>
-     ** 
+     **
      * Response to a Consume message. Either a Message or a MessageConsumedResponse
      * </pre>
      *

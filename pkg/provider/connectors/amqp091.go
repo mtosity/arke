@@ -284,7 +284,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 }
 
 // Subscribe subscribe to a stream of messages from the broker
-func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
+func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
 
 	if source.GetAddress().GetName() == "" {
 		return &pb.Error{Message: "address name not defined"}
@@ -407,6 +407,11 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	for {
 		select {
+		case stop, ok := <-stopChannel:
+			if !ok || stop {
+				// channel is closed, so stop
+				return nil
+			}
 		case chanErr, ok := <-connErrChan:
 			if !ok {
 				return &pb.Error{Message: "Connection to broker closed"}
@@ -419,7 +424,11 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
 				return nil
 			}
-		case msg := <-messages:
+		case msg, ok := <-messages:
+			if !ok {
+				// Message channel closed
+				return nil
+			}
 			// Sometimes we get a message with a DeliveryTag == 0, which is bad and I'm not sure
 			// how this actually happens
 			if msg.DeliveryTag == 0 {
@@ -608,9 +617,10 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 // connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
 // if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
 func (bd *BrokerDetails) connectionWatcher() {
-	err := <-bd.ErrorChannel
+	err, ok := <-bd.ErrorChannel
+
 	bd.Lock()
-	if &err != nil && err.Code() != 0 {
+	if !ok || (&err != nil && err.Code() != 0) {
 		bd.state = DISCONNECTED
 		bd.Unlock()
 		bd.connect()
