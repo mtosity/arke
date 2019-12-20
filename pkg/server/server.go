@@ -96,12 +96,22 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 	var returnError error
 	isSubscribing := false
-	// endloop := false
-	stop := false
+
+	// the only place stopChan should be closed is in a defer
+	stopChan := make(chan bool)
+	defer close(stopChan)
+
+	stopForLoop := false
+
 	messageChannel := make(chan *pb.Message)
 	defer close(messageChannel)
 
 	for {
+
+		if stopForLoop {
+			break
+		}
+
 		m, err := stream.Recv()
 
 		if err != nil {
@@ -146,52 +156,66 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 			isSubscribing = true
 
-			go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stop *bool) {
+			go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *bool) {
 				for {
-					message := <-mc
-					if message == nil {
-						break
-					}
+					select {
+					case stop, ok := <-stopChan:
+						if !ok || stop {
+							*stopFor = true
+							return
+						}
+					case message, ok := <-mc:
+						if !ok {
+							*stopFor = true
+							return
+						}
 
-					if message.GetAddress() == nil {
-						message.Address = source.GetAddress()
-					}
+						if message.GetAddress() == nil {
+							message.Address = source.GetAddress()
+						}
 
-					resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
-					err := stream.Send(resp)
-					if err != nil {
-						util.Logger.ErrorI("error.streamsend", err.Error())
-						returnError = err
-						*stop = true
-						break
+						resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
+						err := stream.Send(resp)
+						if err != nil {
+							util.Logger.ErrorI("error.streamsend", err.Error())
+							returnError = err
+							*stopFor = true
+							return
+						}
 					}
 				}
-			}(messageChannel, prov, &ctx, &stop)
+			}(messageChannel, prov, &ctx, stopChan, &stopForLoop)
 
-			go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stop *bool) {
+			go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *bool) {
 				for {
 					// If subscribe ever stops because of a broker error, restart it if the client still exists
 					// unless the stream was closed
-					if *stop {
-						break
-					}
-					err := prov.Subscribe(ctx, source, mc)
-					if err != nil {
-						if clientExists(*ctx) {
-							util.Logger.Info("client exists, waiting for reconnect")
-							connected := prov.WaitForConnect(ctx)
-							if connected {
-								continue
-							}
-							util.Logger.ErrorI("error.brokerconnect", err.Message)
-						} else {
-							util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
+					select {
+					case stop, ok := <-stopChan:
+						if !ok || stop {
+							*stopFor = true
+							return
 						}
-						returnError = fmt.Errorf(err.GetMessage())
-						break
+					default:
+						err := prov.Subscribe(ctx, source, mc, stopChan)
+						if err != nil {
+							if clientExists(*ctx) {
+								util.Logger.Info("client exists, waiting for reconnect")
+								connected := prov.WaitForConnect(ctx)
+								if connected {
+									continue
+								}
+								util.Logger.ErrorI("error.brokerconnect", err.Message)
+							} else {
+								util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
+							}
+							returnError = fmt.Errorf(err.GetMessage())
+							*stopFor = true
+							return
+						}
 					}
 				}
-			}(messageChannel, prov, &ctx, &stop)
+			}(messageChannel, prov, &ctx, stopChan, &stopForLoop)
 
 		} else if m.GetAck() != nil { // Ack or Nack the message
 			go func() {
@@ -215,9 +239,6 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 				stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_ConsumedResponse{ConsumedResponse: mcr}})
 			}()
-		}
-		if stop {
-			break
 		}
 	}
 	return returnError
@@ -251,33 +272,51 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 	}
 
 	// forever := make(chan bool)
-	endloop := false
+
+	stopProvSubChan := make(chan bool)
+	stopSendChan := make(chan bool)
+
+	defer close(stopProvSubChan)
+	defer close(stopSendChan)
+
+	stopForLoop := false
+
 	var returnError error
 	for {
+		if stopForLoop {
+			break
+		}
+
 		messageChannel := make(chan *pb.Message)
-		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, endloop bool) {
+		go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stopSend chan bool, stopFor *bool) {
 
 			for {
-				message := <-mc
+				select {
+				case stop, ok := <-stopSend:
+					if !ok || stop {
+						return
+					}
+				case message := <-mc:
+					if message.GetAddress() == nil {
+						message.Address = source.GetAddress()
+					}
 
-				if message.GetAddress() == nil {
-					message.Address = source.GetAddress()
+					err := stream.Send(message)
+					if err != nil {
+						util.Logger.ErrorI("error.streamsend", err.Error())
+						// Could not send the message to the client, so disconnect
+						prov.Disconnect(ctx)
+						returnError = err
+						*stopFor = true
+						// close(messageChannel)
+						return
+					}
 				}
 
-				err := stream.Send(message)
-				if err != nil {
-					util.Logger.ErrorI("error.streamsend", err.Error())
-					// Could not send the message to the client, so disconnect
-					prov.Disconnect(ctx)
-					returnError = err
-					endloop = true
-					// close(messageChannel)
-					break
-				}
 			}
-		}(messageChannel, prov, &ctx, endloop)
+		}(messageChannel, prov, &ctx, stopSendChan, &stopForLoop)
 
-		err := prov.Subscribe(&ctx, source, messageChannel)
+		err := prov.Subscribe(&ctx, source, messageChannel, stopProvSubChan)
 		if err != nil {
 			if clientExists(ctx) {
 				connected := prov.WaitForConnect(&ctx)
@@ -291,10 +330,8 @@ func (s *ConsumerServer) Subscribe(source *pb.Source, stream pb.Consumer_Subscri
 			returnError = fmt.Errorf(err.GetMessage())
 			break
 		}
-		if endloop {
-			break
-		}
 	}
+
 	return returnError
 }
 

@@ -413,8 +413,10 @@ func Test_Ack(t *testing.T) {
 	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
+	stop := make(chan bool)
+	defer func(stop chan bool) { stop <- true }(stop)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc)
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
 		assert.Nil(t, suberr)
 	}()
 
@@ -469,6 +471,9 @@ func Test_Nack(t *testing.T) {
 		return amock
 	}
 
+	stop := make(chan bool)
+	defer func(stop chan bool) { stop <- true }(stop)
+
 	defer func() {
 		GetClientUUID = oldGetClientUUID
 		NewAmqpConn091 = oldNewAmqpConn091
@@ -484,7 +489,7 @@ func Test_Nack(t *testing.T) {
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc)
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
 		assert.Nil(t, suberr)
 	}()
 
@@ -534,7 +539,11 @@ func Test_Subscribe_NoConnect(t *testing.T) {
 	address := &pb.Address{Name: "addressName"}
 	src := &pb.Source{Address: address}
 	mc := make(chan *pb.Message)
-	err := prov.Subscribe(&ctx, src, mc)
+
+	stop := make(chan bool)
+	// defer func(stop chan bool) { stop <- true }(stop)
+
+	err := prov.Subscribe(&ctx, src, mc, stop)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
 }
@@ -544,7 +553,11 @@ func Test_Subscribe_NoAddressName(t *testing.T) {
 	address := &pb.Address{}
 	src := &pb.Source{Address: address}
 	mc := make(chan *pb.Message)
-	err := prov.Subscribe(&ctx, src, mc)
+
+	stop := make(chan bool)
+	// defer func(stop chan bool) { stop <- true }(stop)
+
+	err := prov.Subscribe(&ctx, src, mc, stop)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "address name not defined")
 }
@@ -554,7 +567,11 @@ func Test_Subscribe_NoAddress(t *testing.T) {
 	ctx := context.Background()
 	src := &pb.Source{}
 	mc := make(chan *pb.Message)
-	err := prov.Subscribe(&ctx, src, mc)
+
+	stop := make(chan bool)
+	// defer func(stop chan bool) { stop <- true }(stop)
+
+	err := prov.Subscribe(&ctx, src, mc, stop)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "address name not defined")
 }
@@ -667,10 +684,14 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc)
+
+	stop := make(chan bool)
+	defer func(stop chan bool) { stop <- true }(stop)
+
+	go func(stop chan bool) {
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
 		assert.Nil(t, suberr)
-	}()
+	}(stop)
 
 	go func() {
 		msg = <-mc
@@ -732,7 +753,11 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	src := &pb.Source{Address: &pb.Address{Name: "addressname"}, Options: options}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	suberr := prov.Subscribe(&ctx, src, mc)
+
+	stop := make(chan bool)
+	// defer func(stop chan bool) { stop <- true }(stop)
+
+	suberr := prov.Subscribe(&ctx, src, mc, stop)
 	assert.NotNil(t, suberr)
 	assert.Contains(t, suberr.GetMessage(), "unsupported is an unsupported source option")
 
