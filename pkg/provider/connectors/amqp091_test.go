@@ -801,6 +801,13 @@ func Test_SupportedSourceOptions(t *testing.T) {
 	prov := NewAMQP091Provider()
 	opts := prov.SupportedSourceOptions()
 	assert.NotNil(t, opts)
+	expected := make(map[string]bool, 0)
+	expected["MessageTTL"] = true
+	expected["DeadLetterAddress"] = true
+	expected["DeadLetterSubject"] = true
+	expected["Expires"] = true
+
+	assert.Equal(t, opts, expected)
 }
 
 func Test_WaitForConnect(t *testing.T) {

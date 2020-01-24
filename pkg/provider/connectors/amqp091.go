@@ -21,7 +21,7 @@ import (
 
 const providerName string = "amqp091"
 
-var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expiration"}
+var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires"}
 
 var supportedSourceOptions map[string]bool
 
