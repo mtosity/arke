@@ -19,14 +19,14 @@ func getenv(key, defaultValue string) string {
 func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 	// needed: SAS_BROKER_HOSTNAME, SAS_BROKER_PORT, SAS_BROKER_USERNAME, SAS_BROKER_PASSWORD
 	// SAS_BROKER_TYPE
-	hostname := getenv("SAS_BROKER_HOSTNAME", "localhost")
+	hostname := getenv("SAS_BROKER_HOSTNAME", "rabbitmq")
 	rawport := getenv("SAS_BROKER_PORT", "5672")
 	port, err := strconv.ParseInt(rawport, 10, 32)
 	if err != nil {
 		log.Fatalf("Could not convert '%s' to int", rawport)
 	}
-	username := getenv("SAS_BROKER_USERNAME", "")
-	password := getenv("SAS_BROKER_PASSWORD", "")
+	username := getenv("SAS_BROKER_USERNAME", "guest")
+	password := getenv("SAS_BROKER_PASSWORD", "guest")
 	brokerType := getenv("SAS_BROKER_TYPE", "amqp091")
 	tenant := getenv("SAS_BROKER_TENANT", "/")
 

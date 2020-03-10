@@ -1,0 +1,14 @@
+# Pretend to be an init container.
+# There's a chance with docker-compose that if we run
+FROM centos:latest
+
+RUN yum install -y openssl
+
+COPY gencerts.sh /
+
+# COPY copy_certs_to_host.sh /
+
+# RUN /gencerts.sh
+
+# CMD ["/copy_certs_to_host.sh"]
+CMD ["/gencerts.sh"]

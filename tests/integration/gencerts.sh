@@ -5,9 +5,9 @@
 set -x
 set -e
 
-rm -rf certs
-mkdir certs
-cd certs
+rm -rf /certs/*
+# mkdir /certs
+cd /certs
 
 mkdir testca
 cd testca

@@ -41,7 +41,7 @@ generate-doc: ## Generates protobuf docs
     endif
 
 linux: setup generate ## Builds binary for linux_amd64 (lax)
-	${BUILD_ENV} CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
+	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
 	$(MAKE) -C test/test_producer linux
 	$(MAKE) -C test/test_consumer linux
 	$(MAKE) -C test/simple_consumer linux
@@ -68,10 +68,11 @@ test: generate ## Executes unit tests
 compose: linux ## Builds and runs docker image(s) for integration tests
 	cp build/linux/arke tests/integration/
 	cd tests/integration; \
-		bash gencerts.sh; \
-		docker-compose build; \
-		docker-compose down; \
-		docker-compose up -d; \
+		docker-compose -f docker-compose-certs.yml build; \
+		docker-compose -f docker-compose-certs.yml up; \
+		docker-compose -f docker-compose.yml build; \
+		docker-compose -f docker-compose.yml down; \
+		docker-compose -f docker-compose.yml up -d; \
 		sleep 10
 
 compose_down:
@@ -84,11 +85,11 @@ integration_test:
 
 integration_test_tls:
 	echo "\033[0;31mProvider TLS enabled\033[0m"
-	PROVIDER_TLS=true go test -count=1 -v ./tests/integration/
+	PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v ./tests/integration/
 
 integration_test_tls_send_ca:
 	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
-	PROVIDER_TLS=sendCA go test -count=1 -v ./tests/integration/
+	PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671  go test -count=1 -v ./tests/integration/
 
 integration: compose integration_test
 

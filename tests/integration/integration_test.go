@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
+	cfg "sassoftware.io/convoy/arke/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -26,12 +27,8 @@ const (
 )
 
 func connectConfig() *pb.ConnectionConfiguration {
-	connConfig := &pb.ConnectionConfiguration{}
-	connConfig.Credentials = &pb.Credentials{Username: "guest", Password: "guest"}
-	connConfig.Host = "rabbitmq"
-	connConfig.Port = 5672
-	connConfig.Provider = "amqp091"
-	connConfig.Tenant = "/"
+
+	connConfig := cfg.ConnectionConfigurationFromEnv()
 
 	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
 
@@ -42,13 +39,11 @@ func connectConfig() *pb.ConnectionConfiguration {
 		}
 		connConfig.Tls = true
 		connConfig.CaCertificate = cacert
-		connConfig.Port = 5671
 	} else if providerTLS == "true" {
 		connConfig.Tls = true
-		connConfig.Port = 5671
 	}
 
-	return connConfig
+	return &connConfig
 }
 
 func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error {

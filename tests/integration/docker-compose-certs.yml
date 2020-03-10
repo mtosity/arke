@@ -1,0 +1,9 @@
+version: "3"
+services:
+  gencerts:
+    build:
+      dockerfile: Dockerfile.gencerts
+      context: .
+    image: tests_gencerts:latest
+    volumes:
+    - ./certs:/certs

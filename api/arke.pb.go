@@ -1159,7 +1159,9 @@ func init() {
 	proto.RegisterType((*ConsumeResponse)(nil), "arke.ConsumeResponse")
 }
 
-func init() { proto.RegisterFile("arke.proto", fileDescriptor_84d488ad9203e158) }
+func init() {
+	proto.RegisterFile("arke.proto", fileDescriptor_84d488ad9203e158)
+}
 
 var fileDescriptor_84d488ad9203e158 = []byte{
 	// 1098 bytes of a gzipped FileDescriptorProto
@@ -1236,11 +1238,11 @@ var fileDescriptor_84d488ad9203e158 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // ProducerClient is the client API for Producer service.
 //
@@ -1256,10 +1258,10 @@ type ProducerClient interface {
 }
 
 type producerClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewProducerClient(cc *grpc.ClientConn) ProducerClient {
+func NewProducerClient(cc grpc.ClientConnInterface) ProducerClient {
 	return &producerClient{cc}
 }
 
@@ -1446,10 +1448,10 @@ type ConsumerClient interface {
 }
 
 type consumerClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewConsumerClient(cc *grpc.ClientConn) ConsumerClient {
+func NewConsumerClient(cc grpc.ClientConnInterface) ConsumerClient {
 	return &consumerClient{cc}
 }
 

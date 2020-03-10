@@ -19,7 +19,7 @@ services:
     volumes:
     - ./certs:/certs
   rabbitmq:
-    image: rabbitmq:3.7-management
+    image: rabbitmq:3.8-management
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
