@@ -89,7 +89,7 @@ integration_test_tls:
 
 integration_test_tls_send_ca:
 	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
-	PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671  go test -count=1 -v ./tests/integration/
+	PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v ./tests/integration/
 
 integration: compose integration_test
 

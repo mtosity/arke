@@ -2,6 +2,15 @@
 
 # https://www.rabbitmq.com/ssl.html#manual-certificate-generation
 
+additional_hostnames=$@
+
+sans=""
+
+for hn in "$additional_hostnames"
+do
+sans="${sans},DNS:$hn"
+done
+
 set -x
 set -e
 
@@ -85,7 +94,7 @@ function generateCert() {
       openssl genrsa -out ${svc}.key 2048
       openssl req -new -key ${svc}.key -out ${svc}_req.csr -outform PEM \
             -subj /CN=${svc}/O=server/ -nodes \
-            -addext "subjectAltName=DNS:localhost,DNS:${svc}"
+            -addext "subjectAltName=DNS:localhost,DNS:${svc}${sans}"
       cd ../testca
       openssl ca -config openssl.cnf -in ../server/${svc}_req.csr -out \
             ../server/${svc}.pem -notext -batch -extensions server_ca_extensions

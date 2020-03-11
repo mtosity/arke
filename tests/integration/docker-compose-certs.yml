@@ -7,3 +7,6 @@ services:
     image: tests_gencerts:latest
     volumes:
     - ./certs:/certs
+    # environment:
+    # - ADDITIONAL_HOSTNAMES=${ADDITIONAL_HOSTNAMES}
+    command: ${ARKE_ADDITIONAL_HOSTNAMES}

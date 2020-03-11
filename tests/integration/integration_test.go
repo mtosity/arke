@@ -22,9 +22,24 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-const (
-	arkeAddress = "localhost:50051"
-)
+func arkeAddress() string {
+	var arkeAddress string
+	var arkeHost string
+	var arkePort string
+	if value, ok := os.LookupEnv("ARKE_INTEGRATION_HOSTNAME"); ok {
+		arkeHost = value
+	} else {
+		arkeHost = "localhost"
+	}
+	if value, ok := os.LookupEnv("ARKE_INTEGRATION_PORT"); ok {
+		arkePort = value
+	} else {
+		arkePort = "50051"
+	}
+
+	arkeAddress = fmt.Sprintf("%s:%s", arkeHost, arkePort)
+	return arkeAddress
+}
 
 func connectConfig() *pb.ConnectionConfiguration {
 
@@ -209,7 +224,7 @@ func connect() *grpc.ClientConn {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 	// Attempt a non-TLS connection to arke first
-	conn, err = grpc.Dial(arkeAddress, grpc.WithInsecure())
+	conn, err = grpc.Dial(arkeAddress(), grpc.WithInsecure())
 
 	c := healthpb.NewHealthClient(conn)
 	resp, err := c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
@@ -226,7 +241,7 @@ func connect() *grpc.ClientConn {
 		}
 		tlsConfig := &tls.Config{RootCAs: cp}
 
-		conn, err = grpc.Dial(arkeAddress, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
+		conn, err = grpc.Dial(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
 
 		c := healthpb.NewHealthClient(conn)
 		resp, err = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
