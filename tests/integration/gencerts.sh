@@ -8,7 +8,9 @@ sans=""
 
 for hn in "$additional_hostnames"
 do
-sans="${sans},DNS:$hn"
+  if [[ "x$hn" != "x" ]]; then
+    sans="${sans},DNS:$hn"
+  fi
 done
 
 set -x
