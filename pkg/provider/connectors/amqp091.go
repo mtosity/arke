@@ -222,7 +222,7 @@ func (bd *BrokerDetails) exchangeKnow(name string) bool {
 	return ok
 }
 
-func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails) error {
+func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, force bool) error {
 
 	// don't try to declare an exchange with amq. in the name
 	if strings.Contains(address.GetName(), "amq.") {
@@ -231,7 +231,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 	known := bd.exchangeKnow(address.GetName())
 
-	if !known {
+	if !known || force {
 
 		exchangeType, err := addressTypeToAmqpType(address.GetType())
 
@@ -259,14 +259,14 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	if parent := address.GetParentAddress(); parent != nil {
 
 		known = bd.exchangeKnow(parent.GetName())
-		if !known {
+		if !known || force {
 			amqpChannel, err := bd.Connection.NewChannel()
 			if err != nil {
 				return err
 			}
 			defer amqpChannel.Close()
 
-			err = prov.declareExchange(parent, bd)
+			err = prov.declareExchange(parent, bd, force)
 			if err != nil {
 				return err
 			}
@@ -307,7 +307,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
 	}
 
-	err = prov.declareExchange(source.GetAddress(), bd)
+	err = prov.declareExchange(source.GetAddress(), bd, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -537,7 +537,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				deliveryMode = 2
 			}
 
-			err = prov.declareExchange(message.GetAddress(), bd)
+			err = prov.declareExchange(message.GetAddress(), bd, false)
 			if err != nil {
 				errChan <- &pb.Error{
 					Message: err.Error(),
