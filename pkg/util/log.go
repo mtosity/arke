@@ -42,6 +42,7 @@ debug.acknomessage=Client {0} attempted to ack unknown message {1}
 debug.ackmessage=Client {0} acked message {1}
 debug.nacknomessage=Client {0} attempted to ack unknown message {1}
 debug.nackmessage=Client {0} acked message {1}
+info.subscribefailbutclientexists=Client {0} failed subscribe with: {1}
 `
 
 // Logger default logger

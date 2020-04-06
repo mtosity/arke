@@ -94,6 +94,11 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		return ftlError
 	}
 
+	clientUUID, err := GetClientUUID(ctx)
+	if err != nil {
+		return err
+	}
+
 	var returnError error
 	isSubscribing := false
 
@@ -200,7 +205,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 						err := prov.Subscribe(ctx, source, mc, stopChan)
 						if err != nil {
 							if clientExists(*ctx) {
-								util.Logger.Info("client exists, waiting for reconnect")
+								util.Logger.InfoI("info.subscribefailbutclientexists", clientUUID, err.Message)
 								connected := prov.WaitForConnect(ctx)
 								if connected {
 									continue
