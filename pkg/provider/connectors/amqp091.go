@@ -50,6 +50,7 @@ type BrokerDetails struct {
 	ActiveStreams    int
 	consumed         int
 	produced         int
+	clientDisconnect bool
 }
 
 func init() {
@@ -186,6 +187,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		produced:         0,
 		consumed:         0,
 		ActiveStreams:    0,
+		clientDisconnect: false,
 	}
 
 	_, bdErr := bd.connect()
@@ -493,6 +495,7 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
 		util.Logger.InfoI("info.clientdisconnect", bd.ClientUUID)
+		bd.clientDisconnect = true
 		bd.Connection.Close()
 	}
 	prov.connections.Delete(clientUUID)
@@ -640,6 +643,7 @@ func (bd *BrokerDetails) connectionWatcher() {
 	if !ok || (&err != nil && err.Code() != 0) {
 		bd.state = DISCONNECTED
 		bd.Unlock()
+		util.Logger.Info("Calling connect from connectionWatcher")
 		bd.connect()
 		return
 	}
@@ -647,6 +651,10 @@ func (bd *BrokerDetails) connectionWatcher() {
 }
 
 func (bd *BrokerDetails) connect() (bool, error) {
+
+	if bd.clientDisconnect {
+		return false, nil
+	}
 
 	if bd.state == CONNECTING {
 		for start := time.Now(); time.Since(start) < 30*time.Second; {
