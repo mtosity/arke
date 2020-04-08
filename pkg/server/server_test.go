@@ -682,13 +682,14 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	stream := &MockConsumerConsumeServerStream{}
 	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once() // Can't seem to do anything more fine grained than this. Would like to check nested types
+	cnsm_resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: "Only one source message allowed per subscribe"}}}}
+	stream.On("Send", cnsm_resp).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Twice()
 	stream.On("Recv").Return(nil, errors.New("just breaking the loop")).After(100 * time.Millisecond)
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 
 	mockp.AssertExpectations(t)
 	stream.AssertExpectations(t)

@@ -46,6 +46,8 @@ debug.retrynomessage=Client {0} attempted to retry unknown message {1}
 debug.retrymessage=Client {0} retried message {1} with delay {2}
 info.subscribefailbutclientexists=Client {0} failed subscribe with: {1}
 info.exchangebind=Binding exchange {0} to {1} with key {2}
+error.streamsubscribemax=Client {0} has reached {1} max subscribes on a single stream. Stopping Consume RPC.
+error.consumerecvchan=Client {0} Consume stream received an error: {1}
 `
 
 // Logger default logger

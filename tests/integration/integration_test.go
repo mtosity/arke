@@ -948,3 +948,36 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
+
+func TestSourceTwice(t *testing.T) {
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.THNSS")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer cancel()
+
+	connConfig := connectConfig()
+
+	_, _= c.Connect(ctx, connConfig)
+
+	stream, err := c.Consume(ctx)
+
+	if err != nil {
+		log.Panicf("could not subscribe: %v", err)
+	}
+
+	m := &pb.Consume{}
+	m.Msg = &pb.Consume_Src{Src: source}
+	stream.SendMsg(m)
+	stream.SendMsg(m)
+	msg, err := stream.Recv()
+	assert.Equal(t, msg.GetMsg().GetError().GetMessage(), "Only one source message allowed per subscribe")
+	assert.Nil(t, err)
+}

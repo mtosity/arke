@@ -26,6 +26,7 @@ var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "De
 
 var supportedSourceOptions map[string]bool
 
+// NewAmqpConn091 allow overriding the connection for mocking in tests
 var NewAmqpConn091 = NewAmqp091Connection
 
 // GetClientUUID Set function as a variable so we can replace the GetClientUUID method in unit tests
@@ -754,7 +755,6 @@ func (bd *BrokerDetails) connectionWatcher() {
 	if !ok || (&err != nil && err.Code() != 0) {
 		bd.state = DISCONNECTED
 		bd.Unlock()
-		util.Logger.Info("Calling connect from connectionWatcher")
 		bd.connect()
 		return
 	}
