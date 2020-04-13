@@ -11,18 +11,20 @@ import (
 	"time"
 
 	"github.com/soheilhy/cmux"
+
+	metrics "sassoftware.io/convoy/arke/pkg/metrics/prometheus"
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
+	prometheus "sassoftware.io/convoy/arke/pkg/server/prometheus"
 	"sassoftware.io/convoy/arke/pkg/util"
 
-	pb "sassoftware.io/convoy/arke/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
-	"google.golang.org/grpc/reflection"
+	pb "sassoftware.io/convoy/arke/api"
 
-	"sassoftware.io/convoy/arke/pkg/metrics"
+	"google.golang.org/grpc/reflection"
 )
 
 var port = flag.String("port", "50051", "Port to serve gRPC and metrics requests")
@@ -87,8 +89,9 @@ func main() {
 	serverOptions := make([]grpc.ServerOption, 0)
 	serverOptions = append(serverOptions, grpc.KeepaliveEnforcementPolicy(kaep))
 	serverOptions = append(serverOptions, grpc.KeepaliveParams(kp))
-	serverOptions = append(serverOptions, grpc.UnaryInterceptor(server.UnaryInterceptor))
-	serverOptions = append(serverOptions, grpc.StreamInterceptor(server.StreamInterceptor))
+	// Add two Prometeus server options
+	serverOptions = append(serverOptions, grpc.UnaryInterceptor(prometheus.UnaryInterceptor))
+	serverOptions = append(serverOptions, grpc.StreamInterceptor(prometheus.StreamInterceptor))
 
 	if certFile != "" && certKey != "" {
 		creds, err := credentials.NewServerTLSFromFile(certFile, certKey)
@@ -127,6 +130,7 @@ func main() {
 	grpcListener := mx.Match(cmux.Any())
 
 	go s.Serve(grpcListener)
+	// To emit prometeus metrics for arke
 	go metrics.Serve(&httpListener)
 
 	if err := mx.Serve(); err != nil {

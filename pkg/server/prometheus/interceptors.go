@@ -1,13 +1,15 @@
-package server
+package prometheus
 
 import (
 	"context"
 	"strings"
 	"time"
 
-	"sassoftware.io/convoy/arke/pkg/metrics"
-	"sassoftware.io/convoy/arke/pkg/util"
 	"google.golang.org/grpc"
+
+	"sassoftware.io/convoy/arke/pkg/metrics"
+	"sassoftware.io/convoy/arke/pkg/metrics/prometheus"
+	"sassoftware.io/convoy/arke/pkg/util"
 )
 
 // UnaryInterceptor unary grpc interceptor
@@ -31,8 +33,8 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 	elapsed := float32(time.Now().Sub(start).Nanoseconds()) / float32(time.Millisecond)
 
 	labelset.AddLabel("status", status)
-	metrics.Stats.Sink.AddSampleWithLabels([]string{"request_elapsed"}, elapsed, labelset.Labels)
-	metrics.Stats.Sink.IncrCounterWithLabels([]string{"request_total"}, 1, labelset.Labels)
+	prometheus.Stats.Sink.AddSampleWithLabels(metrics.RequestElapsedSummary, elapsed, labelset.Labels)
+	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.RequestTotalCounter, 1, labelset.Labels)
 	return m, err
 }
 
@@ -52,7 +54,7 @@ func (w *wrappedStream) RecvMsg(m interface{}) error {
 	}
 
 	labelset.AddLabel("status", status)
-	metrics.Stats.Sink.IncrCounterWithLabels([]string{"recvmsg_total"}, 1, labelset.Labels)
+	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.RecvMsgCounter, 1, labelset.Labels)
 
 	return err
 }
@@ -69,7 +71,7 @@ func (w *wrappedStream) SendMsg(m interface{}) error {
 	}
 
 	labelset.AddLabel("status", status)
-	metrics.Stats.Sink.IncrCounterWithLabels([]string{"sendmsg_total"}, 1, labelset.Labels)
+	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.SendMsgCounter, 1, labelset.Labels)
 
 	return err
 }
@@ -89,7 +91,7 @@ func StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamS
 	status := "ok"
 
 	// increment this before we call the long running handler
-	metrics.Stats.Sink.IncrCounterWithLabels([]string{"request_total"}, 1, labelset.Labels)
+	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.RequestTotalCounter, 1, labelset.Labels)
 
 	start := time.Now()
 
@@ -101,8 +103,8 @@ func StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamS
 
 	elapsed := float32(time.Now().Sub(start).Nanoseconds()) / float32(time.Millisecond)
 	labelset.AddLabel("status", status)
-	metrics.Stats.Sink.AddSampleWithLabels([]string{"request_elapsed"}, elapsed, labelset.Labels)
-	metrics.Stats.Sink.IncrCounterWithLabels([]string{"request_total"}, 1, labelset.Labels)
+	prometheus.Stats.Sink.AddSampleWithLabels(metrics.RequestElapsedSummary, elapsed, labelset.Labels)
+	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.RequestTotalCounter, 1, labelset.Labels)
 
 	return err
 }
