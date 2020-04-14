@@ -21,7 +21,7 @@ import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
  * </pre>
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.25.0)",
+    value = "by gRPC proto compiler (version 1.28.1)",
     comments = "Source: arke.proto")
 public final class ProducerGrpc {
 
@@ -127,7 +127,14 @@ public final class ProducerGrpc {
    * Creates a new async stub that supports all call types for the service
    */
   public static ProducerStub newStub(io.grpc.Channel channel) {
-    return new ProducerStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ProducerStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ProducerStub>() {
+        @java.lang.Override
+        public ProducerStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ProducerStub(channel, callOptions);
+        }
+      };
+    return ProducerStub.newStub(factory, channel);
   }
 
   /**
@@ -135,7 +142,14 @@ public final class ProducerGrpc {
    */
   public static ProducerBlockingStub newBlockingStub(
       io.grpc.Channel channel) {
-    return new ProducerBlockingStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ProducerBlockingStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ProducerBlockingStub>() {
+        @java.lang.Override
+        public ProducerBlockingStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ProducerBlockingStub(channel, callOptions);
+        }
+      };
+    return ProducerBlockingStub.newStub(factory, channel);
   }
 
   /**
@@ -143,7 +157,14 @@ public final class ProducerGrpc {
    */
   public static ProducerFutureStub newFutureStub(
       io.grpc.Channel channel) {
-    return new ProducerFutureStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ProducerFutureStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ProducerFutureStub>() {
+        @java.lang.Override
+        public ProducerFutureStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ProducerFutureStub(channel, callOptions);
+        }
+      };
+    return ProducerFutureStub.newStub(factory, channel);
   }
 
   /**
@@ -216,19 +237,15 @@ public final class ProducerGrpc {
    * Service for producing messages
    * </pre>
    */
-  public static final class ProducerStub extends io.grpc.stub.AbstractStub<ProducerStub> {
-    private ProducerStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ProducerStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ProducerStub extends io.grpc.stub.AbstractAsyncStub<ProducerStub> {
+    private ProducerStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ProducerStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ProducerStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ProducerStub(channel, callOptions);
     }
 
@@ -272,19 +289,15 @@ public final class ProducerGrpc {
    * Service for producing messages
    * </pre>
    */
-  public static final class ProducerBlockingStub extends io.grpc.stub.AbstractStub<ProducerBlockingStub> {
-    private ProducerBlockingStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ProducerBlockingStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ProducerBlockingStub extends io.grpc.stub.AbstractBlockingStub<ProducerBlockingStub> {
+    private ProducerBlockingStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ProducerBlockingStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ProducerBlockingStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ProducerBlockingStub(channel, callOptions);
     }
 
@@ -315,19 +328,15 @@ public final class ProducerGrpc {
    * Service for producing messages
    * </pre>
    */
-  public static final class ProducerFutureStub extends io.grpc.stub.AbstractStub<ProducerFutureStub> {
-    private ProducerFutureStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ProducerFutureStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ProducerFutureStub extends io.grpc.stub.AbstractFutureStub<ProducerFutureStub> {
+    private ProducerFutureStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ProducerFutureStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ProducerFutureStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ProducerFutureStub(channel, callOptions);
     }
 

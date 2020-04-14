@@ -21,7 +21,7 @@ import static io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;
  * </pre>
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.25.0)",
+    value = "by gRPC proto compiler (version 1.28.1)",
     comments = "Source: arke.proto")
 public final class ConsumerGrpc {
 
@@ -61,37 +61,6 @@ public final class ConsumerGrpc {
     return getConnectMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Source,
-      org.arke.ArkeProtos.Message> getSubscribeMethod;
-
-  @io.grpc.stub.annotations.RpcMethod(
-      fullMethodName = SERVICE_NAME + '/' + "Subscribe",
-      requestType = org.arke.ArkeProtos.Source.class,
-      responseType = org.arke.ArkeProtos.Message.class,
-      methodType = io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING)
-  public static io.grpc.MethodDescriptor<org.arke.ArkeProtos.Source,
-      org.arke.ArkeProtos.Message> getSubscribeMethod() {
-    io.grpc.MethodDescriptor<org.arke.ArkeProtos.Source, org.arke.ArkeProtos.Message> getSubscribeMethod;
-    if ((getSubscribeMethod = ConsumerGrpc.getSubscribeMethod) == null) {
-      synchronized (ConsumerGrpc.class) {
-        if ((getSubscribeMethod = ConsumerGrpc.getSubscribeMethod) == null) {
-          ConsumerGrpc.getSubscribeMethod = getSubscribeMethod =
-              io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Source, org.arke.ArkeProtos.Message>newBuilder()
-              .setType(io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING)
-              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "Subscribe"))
-              .setSampledToLocalTracing(true)
-              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.Source.getDefaultInstance()))
-              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.Message.getDefaultInstance()))
-              .setSchemaDescriptor(new ConsumerMethodDescriptorSupplier("Subscribe"))
-              .build();
-        }
-      }
-    }
-    return getSubscribeMethod;
-  }
-
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Consume,
       org.arke.ArkeProtos.ConsumeResponse> getConsumeMethod;
 
@@ -121,68 +90,6 @@ public final class ConsumerGrpc {
       }
     }
     return getConsumeMethod;
-  }
-
-  private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
-      org.arke.ArkeProtos.AckResponse> getAckMessageMethod;
-
-  @io.grpc.stub.annotations.RpcMethod(
-      fullMethodName = SERVICE_NAME + '/' + "AckMessage",
-      requestType = org.arke.ArkeProtos.Message.class,
-      responseType = org.arke.ArkeProtos.AckResponse.class,
-      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
-      org.arke.ArkeProtos.AckResponse> getAckMessageMethod() {
-    io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.AckResponse> getAckMessageMethod;
-    if ((getAckMessageMethod = ConsumerGrpc.getAckMessageMethod) == null) {
-      synchronized (ConsumerGrpc.class) {
-        if ((getAckMessageMethod = ConsumerGrpc.getAckMessageMethod) == null) {
-          ConsumerGrpc.getAckMessageMethod = getAckMessageMethod =
-              io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.AckResponse>newBuilder()
-              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "AckMessage"))
-              .setSampledToLocalTracing(true)
-              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.Message.getDefaultInstance()))
-              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.AckResponse.getDefaultInstance()))
-              .setSchemaDescriptor(new ConsumerMethodDescriptorSupplier("AckMessage"))
-              .build();
-        }
-      }
-    }
-    return getAckMessageMethod;
-  }
-
-  private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
-      org.arke.ArkeProtos.NackResponse> getNackMessageMethod;
-
-  @io.grpc.stub.annotations.RpcMethod(
-      fullMethodName = SERVICE_NAME + '/' + "NackMessage",
-      requestType = org.arke.ArkeProtos.Message.class,
-      responseType = org.arke.ArkeProtos.NackResponse.class,
-      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message,
-      org.arke.ArkeProtos.NackResponse> getNackMessageMethod() {
-    io.grpc.MethodDescriptor<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.NackResponse> getNackMessageMethod;
-    if ((getNackMessageMethod = ConsumerGrpc.getNackMessageMethod) == null) {
-      synchronized (ConsumerGrpc.class) {
-        if ((getNackMessageMethod = ConsumerGrpc.getNackMessageMethod) == null) {
-          ConsumerGrpc.getNackMessageMethod = getNackMessageMethod =
-              io.grpc.MethodDescriptor.<org.arke.ArkeProtos.Message, org.arke.ArkeProtos.NackResponse>newBuilder()
-              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "NackMessage"))
-              .setSampledToLocalTracing(true)
-              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.Message.getDefaultInstance()))
-              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.arke.ArkeProtos.NackResponse.getDefaultInstance()))
-              .setSchemaDescriptor(new ConsumerMethodDescriptorSupplier("NackMessage"))
-              .build();
-        }
-      }
-    }
-    return getNackMessageMethod;
   }
 
   private static volatile io.grpc.MethodDescriptor<org.arke.ArkeProtos.Empty,
@@ -220,7 +127,14 @@ public final class ConsumerGrpc {
    * Creates a new async stub that supports all call types for the service
    */
   public static ConsumerStub newStub(io.grpc.Channel channel) {
-    return new ConsumerStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ConsumerStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ConsumerStub>() {
+        @java.lang.Override
+        public ConsumerStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ConsumerStub(channel, callOptions);
+        }
+      };
+    return ConsumerStub.newStub(factory, channel);
   }
 
   /**
@@ -228,7 +142,14 @@ public final class ConsumerGrpc {
    */
   public static ConsumerBlockingStub newBlockingStub(
       io.grpc.Channel channel) {
-    return new ConsumerBlockingStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ConsumerBlockingStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ConsumerBlockingStub>() {
+        @java.lang.Override
+        public ConsumerBlockingStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ConsumerBlockingStub(channel, callOptions);
+        }
+      };
+    return ConsumerBlockingStub.newStub(factory, channel);
   }
 
   /**
@@ -236,7 +157,14 @@ public final class ConsumerGrpc {
    */
   public static ConsumerFutureStub newFutureStub(
       io.grpc.Channel channel) {
-    return new ConsumerFutureStub(channel);
+    io.grpc.stub.AbstractStub.StubFactory<ConsumerFutureStub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ConsumerFutureStub>() {
+        @java.lang.Override
+        public ConsumerFutureStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ConsumerFutureStub(channel, callOptions);
+        }
+      };
+    return ConsumerFutureStub.newStub(factory, channel);
   }
 
   /**
@@ -262,36 +190,9 @@ public final class ConsumerGrpc {
      * Subscribe to a message broker source and receive a stream of messages when they are available.
      * </pre>
      */
-    public void subscribe(org.arke.ArkeProtos.Source request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message> responseObserver) {
-      asyncUnimplementedUnaryCall(getSubscribeMethod(), responseObserver);
-    }
-
-    /**
-     */
     public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Consume> consume(
         io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConsumeResponse> responseObserver) {
       return asyncUnimplementedStreamingCall(getConsumeMethod(), responseObserver);
-    }
-
-    /**
-     * <pre>
-     * Ack a received message.
-     * </pre>
-     */
-    public void ackMessage(org.arke.ArkeProtos.Message request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.AckResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(getAckMessageMethod(), responseObserver);
-    }
-
-    /**
-     * <pre>
-     * Nack a received message.
-     * </pre>
-     */
-    public void nackMessage(org.arke.ArkeProtos.Message request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.NackResponse> responseObserver) {
-      asyncUnimplementedUnaryCall(getNackMessageMethod(), responseObserver);
     }
 
     /**
@@ -314,33 +215,12 @@ public final class ConsumerGrpc {
                 org.arke.ArkeProtos.ConnectResponse>(
                   this, METHODID_CONNECT)))
           .addMethod(
-            getSubscribeMethod(),
-            asyncServerStreamingCall(
-              new MethodHandlers<
-                org.arke.ArkeProtos.Source,
-                org.arke.ArkeProtos.Message>(
-                  this, METHODID_SUBSCRIBE)))
-          .addMethod(
             getConsumeMethod(),
             asyncBidiStreamingCall(
               new MethodHandlers<
                 org.arke.ArkeProtos.Consume,
                 org.arke.ArkeProtos.ConsumeResponse>(
                   this, METHODID_CONSUME)))
-          .addMethod(
-            getAckMessageMethod(),
-            asyncUnaryCall(
-              new MethodHandlers<
-                org.arke.ArkeProtos.Message,
-                org.arke.ArkeProtos.AckResponse>(
-                  this, METHODID_ACK_MESSAGE)))
-          .addMethod(
-            getNackMessageMethod(),
-            asyncUnaryCall(
-              new MethodHandlers<
-                org.arke.ArkeProtos.Message,
-                org.arke.ArkeProtos.NackResponse>(
-                  this, METHODID_NACK_MESSAGE)))
           .addMethod(
             getDisconnectMethod(),
             asyncUnaryCall(
@@ -357,19 +237,15 @@ public final class ConsumerGrpc {
    * Service for consuming messages
    * </pre>
    */
-  public static final class ConsumerStub extends io.grpc.stub.AbstractStub<ConsumerStub> {
-    private ConsumerStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ConsumerStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ConsumerStub extends io.grpc.stub.AbstractAsyncStub<ConsumerStub> {
+    private ConsumerStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ConsumerStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ConsumerStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ConsumerStub(channel, callOptions);
     }
 
@@ -390,40 +266,10 @@ public final class ConsumerGrpc {
      * Subscribe to a message broker source and receive a stream of messages when they are available.
      * </pre>
      */
-    public void subscribe(org.arke.ArkeProtos.Source request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message> responseObserver) {
-      asyncServerStreamingCall(
-          getChannel().newCall(getSubscribeMethod(), getCallOptions()), request, responseObserver);
-    }
-
-    /**
-     */
     public io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Consume> consume(
         io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConsumeResponse> responseObserver) {
       return asyncBidiStreamingCall(
           getChannel().newCall(getConsumeMethod(), getCallOptions()), responseObserver);
-    }
-
-    /**
-     * <pre>
-     * Ack a received message.
-     * </pre>
-     */
-    public void ackMessage(org.arke.ArkeProtos.Message request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.AckResponse> responseObserver) {
-      asyncUnaryCall(
-          getChannel().newCall(getAckMessageMethod(), getCallOptions()), request, responseObserver);
-    }
-
-    /**
-     * <pre>
-     * Nack a received message.
-     * </pre>
-     */
-    public void nackMessage(org.arke.ArkeProtos.Message request,
-        io.grpc.stub.StreamObserver<org.arke.ArkeProtos.NackResponse> responseObserver) {
-      asyncUnaryCall(
-          getChannel().newCall(getNackMessageMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
@@ -443,19 +289,15 @@ public final class ConsumerGrpc {
    * Service for consuming messages
    * </pre>
    */
-  public static final class ConsumerBlockingStub extends io.grpc.stub.AbstractStub<ConsumerBlockingStub> {
-    private ConsumerBlockingStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ConsumerBlockingStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ConsumerBlockingStub extends io.grpc.stub.AbstractBlockingStub<ConsumerBlockingStub> {
+    private ConsumerBlockingStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ConsumerBlockingStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ConsumerBlockingStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ConsumerBlockingStub(channel, callOptions);
     }
 
@@ -468,37 +310,6 @@ public final class ConsumerGrpc {
     public org.arke.ArkeProtos.ConnectResponse connect(org.arke.ArkeProtos.ConnectionConfiguration request) {
       return blockingUnaryCall(
           getChannel(), getConnectMethod(), getCallOptions(), request);
-    }
-
-    /**
-     * <pre>
-     * Subscribe to a message broker source and receive a stream of messages when they are available.
-     * </pre>
-     */
-    public java.util.Iterator<org.arke.ArkeProtos.Message> subscribe(
-        org.arke.ArkeProtos.Source request) {
-      return blockingServerStreamingCall(
-          getChannel(), getSubscribeMethod(), getCallOptions(), request);
-    }
-
-    /**
-     * <pre>
-     * Ack a received message.
-     * </pre>
-     */
-    public org.arke.ArkeProtos.AckResponse ackMessage(org.arke.ArkeProtos.Message request) {
-      return blockingUnaryCall(
-          getChannel(), getAckMessageMethod(), getCallOptions(), request);
-    }
-
-    /**
-     * <pre>
-     * Nack a received message.
-     * </pre>
-     */
-    public org.arke.ArkeProtos.NackResponse nackMessage(org.arke.ArkeProtos.Message request) {
-      return blockingUnaryCall(
-          getChannel(), getNackMessageMethod(), getCallOptions(), request);
     }
 
     /**
@@ -517,19 +328,15 @@ public final class ConsumerGrpc {
    * Service for consuming messages
    * </pre>
    */
-  public static final class ConsumerFutureStub extends io.grpc.stub.AbstractStub<ConsumerFutureStub> {
-    private ConsumerFutureStub(io.grpc.Channel channel) {
-      super(channel);
-    }
-
-    private ConsumerFutureStub(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+  public static final class ConsumerFutureStub extends io.grpc.stub.AbstractFutureStub<ConsumerFutureStub> {
+    private ConsumerFutureStub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       super(channel, callOptions);
     }
 
     @java.lang.Override
-    protected ConsumerFutureStub build(io.grpc.Channel channel,
-        io.grpc.CallOptions callOptions) {
+    protected ConsumerFutureStub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
       return new ConsumerFutureStub(channel, callOptions);
     }
 
@@ -547,28 +354,6 @@ public final class ConsumerGrpc {
 
     /**
      * <pre>
-     * Ack a received message.
-     * </pre>
-     */
-    public com.google.common.util.concurrent.ListenableFuture<org.arke.ArkeProtos.AckResponse> ackMessage(
-        org.arke.ArkeProtos.Message request) {
-      return futureUnaryCall(
-          getChannel().newCall(getAckMessageMethod(), getCallOptions()), request);
-    }
-
-    /**
-     * <pre>
-     * Nack a received message.
-     * </pre>
-     */
-    public com.google.common.util.concurrent.ListenableFuture<org.arke.ArkeProtos.NackResponse> nackMessage(
-        org.arke.ArkeProtos.Message request) {
-      return futureUnaryCall(
-          getChannel().newCall(getNackMessageMethod(), getCallOptions()), request);
-    }
-
-    /**
-     * <pre>
      * Disconnect from the proxy and the message broker.
      * </pre>
      */
@@ -580,11 +365,8 @@ public final class ConsumerGrpc {
   }
 
   private static final int METHODID_CONNECT = 0;
-  private static final int METHODID_SUBSCRIBE = 1;
-  private static final int METHODID_ACK_MESSAGE = 2;
-  private static final int METHODID_NACK_MESSAGE = 3;
-  private static final int METHODID_DISCONNECT = 4;
-  private static final int METHODID_CONSUME = 5;
+  private static final int METHODID_DISCONNECT = 1;
+  private static final int METHODID_CONSUME = 2;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -606,18 +388,6 @@ public final class ConsumerGrpc {
         case METHODID_CONNECT:
           serviceImpl.connect((org.arke.ArkeProtos.ConnectionConfiguration) request,
               (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.ConnectResponse>) responseObserver);
-          break;
-        case METHODID_SUBSCRIBE:
-          serviceImpl.subscribe((org.arke.ArkeProtos.Source) request,
-              (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.Message>) responseObserver);
-          break;
-        case METHODID_ACK_MESSAGE:
-          serviceImpl.ackMessage((org.arke.ArkeProtos.Message) request,
-              (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.AckResponse>) responseObserver);
-          break;
-        case METHODID_NACK_MESSAGE:
-          serviceImpl.nackMessage((org.arke.ArkeProtos.Message) request,
-              (io.grpc.stub.StreamObserver<org.arke.ArkeProtos.NackResponse>) responseObserver);
           break;
         case METHODID_DISCONNECT:
           serviceImpl.disconnect((org.arke.ArkeProtos.Empty) request,
@@ -688,10 +458,7 @@ public final class ConsumerGrpc {
           serviceDescriptor = result = io.grpc.ServiceDescriptor.newBuilder(SERVICE_NAME)
               .setSchemaDescriptor(new ConsumerFileDescriptorSupplier())
               .addMethod(getConnectMethod())
-              .addMethod(getSubscribeMethod())
               .addMethod(getConsumeMethod())
-              .addMethod(getAckMessageMethod())
-              .addMethod(getNackMessageMethod())
               .addMethod(getDisconnectMethod())
               .build();
         }

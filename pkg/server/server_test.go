@@ -40,11 +40,6 @@ func init() {
 	proSrv = &ProducerServer{}
 }
 
-type MockConsumerSubscribeServerStream struct {
-	mock.Mock
-	pb.Consumer_SubscribeServer
-}
-
 type MockConsumerConsumeServerStream struct {
 	mock.Mock
 	pb.Consumer_ConsumeServer
@@ -97,24 +92,6 @@ func (stream *MockConsumerConsumeServerStream) Recv() (*pb.Consume, error) {
 }
 
 func (stream *MockConsumerConsumeServerStream) Context() context.Context {
-	ctx := context.Background()
-	return ctx
-}
-
-func (stream *MockConsumerSubscribeServerStream) Send(msg *pb.Message) error {
-	args := stream.Called(msg)
-
-	errArg := args.Get(0)
-	var err error
-	if errArg == nil {
-		err = nil
-	} else {
-		err = errArg.(error)
-	}
-	return err
-}
-
-func (stream *MockConsumerSubscribeServerStream) Context() context.Context {
 	ctx := context.Background()
 	return ctx
 }
@@ -348,76 +325,10 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 	mockp.AssertExpectations(t)
 }
 
-func TestConsumerServerAckMessage_Fail(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	msg := &pb.Message{Body: []byte("message body")}
-
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("Ack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(&errMsg)
-
-	conSrv.Connect(ctx, cf)
-	resp, err := conSrv.AckMessage(ctx, msg)
-	conSrv.Disconnect(ctx, &pb.Empty{})
-
-	assert.NotNil(t, resp)
-	assert.Equal(t, expectedErrorMessage, resp.GetError().GetMessage(), fmt.Sprintf("error should be '%s'", expectedErrorMessage))
-	assert.Equal(t, expectedErrorMessage, err.Error())
-
-	mockp.AssertExpectations(t)
-}
-
-func TestConsumerServerNackMessage_Fail(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	msg := &pb.Message{Body: []byte("message body")}
-
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(&errMsg)
-
-	conSrv.Connect(ctx, cf)
-	resp, err := conSrv.NackMessage(ctx, msg)
-
-	assert.NotNil(t, resp)
-	assert.Equal(t, expectedErrorMessage, resp.GetError().GetMessage(), fmt.Sprintf("error should be '%s'", expectedErrorMessage))
-	assert.Equal(t, expectedErrorMessage, err.Error())
-
-	mockp.AssertExpectations(t)
-}
-
-func TestConsumerServerAck_Success(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	msg := &pb.Message{}
-
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("Ack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(&pb.Error{})
-
-	conSrv.Connect(ctx, cf)
-	connectResp, err := conSrv.AckMessage(ctx, msg)
-	assert.NotNil(t, connectResp)
-	assert.Nil(t, err)
-
-	mockp.AssertExpectations(t)
-}
-
-func TestConsumerServerNack_Success(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	msg := &pb.Message{}
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(&pb.Error{})
-	conSrv.Connect(ctx, cf)
-	connectResp, err := conSrv.NackMessage(ctx, msg)
-	assert.NotNil(t, connectResp)
-	assert.Nil(t, err)
-
-	mockp.AssertExpectations(t)
-}
-
 func TestProducerServerPublish_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("publish_sucess message body")}
 
@@ -487,49 +398,6 @@ func TestProducerServerPublishSend_Fail(t *testing.T) {
 	err := proSrv.Publish(stream)
 	assert.NotNil(t, err)
 	assert.Equal(t, "senderror", err.Error())
-
-	mockp.AssertExpectations(t)
-}
-
-func TestConsumerServerSubscribe(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	source := &pb.Source{}
-	stream := &MockConsumerSubscribeServerStream{}
-
-	mockp.MockMessages = make([]*pb.Message, 0)
-	mockp.MockMessages = append(mockp.MockMessages, &pb.Message{Address: &pb.Address{Name: "address"}, Body: []byte("hi")})
-	mockp.MockMessages = append(mockp.MockMessages, &pb.Message{Address: &pb.Address{Name: "address"}, Body: []byte("hi")})
-
-	stream.On("Send", mock.AnythingOfType("*arke.Message")).Return(nil).Once()
-	// Have to send an error to stop the loop
-	stream.On("Send", mock.AnythingOfType("*arke.Message")).Return(errors.New(expectedErrorMessage)).Once()
-
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(nil).Once()
-	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{}).Once().After(500 * time.Millisecond)
-	conSrv.Connect(ctx, cf)
-	err := conSrv.Subscribe(source, stream)
-	assert.NotNil(t, err)
-
-	mockp.AssertExpectations(t)
-	// stream.AssertExpectations(t)
-}
-
-func TestConsumerServerSubscribe_Error(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-
-	source := &pb.Source{}
-	stream := &MockConsumerSubscribeServerStream{}
-
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "error message"})
-	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	conSrv.Connect(ctx, cf)
-	err := conSrv.Subscribe(source, stream)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "error message")
 
 	mockp.AssertExpectations(t)
 }
@@ -614,43 +482,14 @@ func TestProducerServerDisconnect_Success(t *testing.T) {
 func TestServerNoConnect_FAIL(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	msg := &pb.Message{}
 	prodstream := &MockProducerPublishServerStream{}
 	err := proSrv.Publish(prodstream)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Failed to find connection information")
 
-	ackResp, ackErr := conSrv.AckMessage(ctx, msg)
-	assert.NotNil(t, ackErr)
-	assert.NotNil(t, ackResp)
-	assert.False(t, ackResp.Success)
-
-	nackResp, nackErr := conSrv.NackMessage(ctx, msg)
-	assert.NotNil(t, nackErr)
-	assert.NotNil(t, nackResp)
-	assert.False(t, nackResp.Success)
-
-	source := &pb.Source{}
-	stream := &MockConsumerSubscribeServerStream{}
-	subErr := conSrv.Subscribe(source, stream)
+	stream := &MockConsumerConsumeServerStream{}
+	subErr := conSrv.Consume(stream)
 	assert.NotNil(t, subErr)
-}
-
-func TestSupportedSourceOptions(t *testing.T) {
-	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
-	stream := &MockConsumerSubscribeServerStream{}
-	stream.On("Send", mock.AnythingOfType("*arke.Message")).Return(errors.New(expectedErrorMessage)).Once()
-	sourceOptions := make(map[string]string)
-	sourceOptions["option1"] = "ok"
-	sourceOptions["badoption"] = "notok"
-	source := &pb.Source{Options: sourceOptions}
-
-	conSrv.Connect(ctx, cf)
-	err := conSrv.Subscribe(source, stream)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "provider does not support")
-	assert.NotContains(t, err.Error(), "option1")
 }
 
 func TestConsumerServerConsume(t *testing.T) {
@@ -703,7 +542,6 @@ func TestConsumerServerConsume_BadOption(t *testing.T) {
 
 	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
-	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1"}}}
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
@@ -757,12 +595,10 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	stream := &MockConsumerConsumeServerStream{}
 	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
 
-	// cnsm_resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: "Only one source message allowed per subscribe"}}}}
 	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once() // Can't seem to do anything more fine grained than this. Would like to check nested types
 	stream.On("Recv").Return(cnsm, nil).Twice()
 	stream.On("Recv").Return(nil, errors.New("just breaking the loop")).After(100 * time.Millisecond)
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
-	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1"}}}
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)

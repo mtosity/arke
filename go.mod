@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/armon/go-metrics v0.3.3
 	github.com/fatih/color v1.9.0 // indirect
-	github.com/golang/protobuf v1.3.4
+	github.com/golang/protobuf v1.3.5
 	github.com/google/uuid v1.1.1
 	github.com/gotnospirit/messageformat v0.0.0-20190719172517-c1d0bdacdea2 // indirect
 	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect

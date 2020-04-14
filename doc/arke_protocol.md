@@ -4,7 +4,6 @@
 ## Table of Contents
 
 - [api/protobuf-spec/arke.proto](#api/protobuf-spec/arke.proto)
-    - [AckResponse](#arke.AckResponse)
     - [Address](#arke.Address)
     - [ConnectResponse](#arke.ConnectResponse)
     - [ConnectionConfiguration](#arke.ConnectionConfiguration)
@@ -20,7 +19,6 @@
     - [MessageConsumed](#arke.MessageConsumed)
     - [MessageConsumedResponse](#arke.MessageConsumedResponse)
     - [MessageResponse](#arke.MessageResponse)
-    - [NackResponse](#arke.NackResponse)
     - [Source](#arke.Source)
     - [Source.OptionsEntry](#arke.Source.OptionsEntry)
   
@@ -43,22 +41,6 @@
 Arke message broker proxy messages.
 
 This file outlines the gRPC interface for the Arke proxy.
-
-
-<a name="arke.AckResponse"></a>
-
-### AckResponse
-Represents the response from AckMessage.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| success | [bool](#bool) |  | Indicates whether the Ack was successful. |
-| error | [Error](#arke.Error) |  | Error if the Ack failed. |
-
-
-
-
 
 
 <a name="arke.Address"></a>
@@ -317,22 +299,6 @@ Represents the response from publishing a message.
 
 
 
-<a name="arke.NackResponse"></a>
-
-### NackResponse
-Represents the response from NackMessage.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| success | [bool](#bool) |  | Indicates whether the Nack was successful. |
-| error | [Error](#arke.Error) |  | Error if the Nack failed. |
-
-
-
-
-
-
 <a name="arke.Source"></a>
 
 ### Source
@@ -410,10 +376,7 @@ Service for consuming messages
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
-| Subscribe | [Source](#arke.Source) | [Message](#arke.Message) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
-| Consume | [Consume](#arke.Consume) stream | [ConsumeResponse](#arke.ConsumeResponse) stream |  |
-| AckMessage | [Message](#arke.Message) | [AckResponse](#arke.AckResponse) | Ack a received message. |
-| NackMessage | [Message](#arke.Message) | [NackResponse](#arke.NackResponse) | Nack a received message. |
+| Consume | [Consume](#arke.Consume) stream | [ConsumeResponse](#arke.ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
 | Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |
 
 

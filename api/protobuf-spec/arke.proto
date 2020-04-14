@@ -124,22 +124,6 @@ message Match {
 }
 
 /**
- * Represents the response from AckMessage.
- */
-message AckResponse {
-    bool success = 1; // Indicates whether the Ack was successful.
-    Error error = 2; // Error if the Ack failed.
-}
-
-/**
- * Represents the response from NackMessage.
- */
-message NackResponse {
-    bool success = 1; // Indicates whether the Nack was successful.
-    Error error = 2; // Error if the Nack failed.
-}
-
-/**
  * No parameters or return value.
  */
 message Empty {}
@@ -211,12 +195,7 @@ service Consumer {
     // specific connection information.
     rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
     // Subscribe to a message broker source and receive a stream of messages when they are available.
-    rpc Subscribe(arke.Source) returns (stream arke.Message) {}
     rpc Consume(stream arke.Consume) returns (stream arke.ConsumeResponse) {}
-    // Ack a received message.
-    rpc AckMessage(arke.Message) returns (arke.AckResponse) {}
-    // Nack a received message.
-    rpc NackMessage(arke.Message) returns (arke.NackResponse) {}
     // Disconnect from the proxy and the message broker.
     rpc Disconnect(arke.Empty) returns (arke.Empty){}
 }
