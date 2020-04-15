@@ -219,7 +219,7 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 	return exchangeType, nil
 }
 
-func (bd *BrokerDetails) exchangeKnow(name string) bool {
+func (bd *BrokerDetails) exchangeKnown(name string) bool {
 
 	_, ok := bd.knownExchanges.Get(name)
 	return ok
@@ -232,7 +232,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		return nil
 	}
 
-	known := bd.exchangeKnow(address.GetName())
+	known := bd.exchangeKnown(address.GetName())
 
 	if !known || force {
 
@@ -261,7 +261,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 	if parent := address.GetParentAddress(); parent != nil {
 
-		known = bd.exchangeKnow(parent.GetName())
+		known = bd.exchangeKnown(parent.GetName())
 		if !known || force {
 			amqpChannel, err := bd.Connection.NewChannel()
 			if err != nil {
@@ -276,7 +276,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 			// Bind each subject from the Address exchange to the ParentAddress exchange
 			for _, subject := range address.GetSubjects() {
-				util.Logger.Debugf("Binding exchange %s to %s with key %s", address.GetName(), parent.GetName(), subject)
+				util.Logger.InfoI("info.exchangebind", address.GetName(), parent.GetName(), subject)
 				err = amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName())
 				if err != nil {
 					return err
