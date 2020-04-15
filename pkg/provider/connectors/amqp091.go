@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -148,7 +149,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(Amqp091Message)
-		err = rm.Nack()
+		err = rm.Nack(true)
 	} else {
 		util.Logger.DebugI("debug.nacknomessage", bd.ClientUUID, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -287,32 +288,12 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	return nil
 }
 
-// Subscribe subscribe to a stream of messages from the broker
-func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
-
-	if source.GetAddress().GetName() == "" {
-		return &pb.Error{Message: "address name not defined"}
-	}
-
-	bd, err := prov.getBrokerDetails(*ctx)
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
-	}
-
+func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails) error {
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
-		return &pb.Error{Message: err.Error()}
+		return err
 	}
 	defer amqpChannel.Close()
-
-	if source.GetPrefetchCount() > 0 {
-		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
-	}
-
-	err = prov.declareExchange(source.GetAddress(), bd, true)
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
-	}
 
 	args := make(Amqp091Table)
 	for option, value := range source.GetOptions() {
@@ -320,13 +301,13 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		case "MessageTTL":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return &pb.Error{Message: "Value for MessageTTL option must be a quoted integer"}
+				return errors.New("Value for MessageTTL option must be a quoted integer")
 			}
 			args["x-message-ttl"] = val
 		case "Expires":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return &pb.Error{Message: "Value for Expires option must be a quoted integer"}
+				return errors.New("Value for Expires option must be a quoted integer")
 			}
 			args["x-expires"] = val
 		case "DeadLetterAddress":
@@ -334,7 +315,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		case "DeadLetterSubject":
 			args["x-dead-letter-routing-key"] = value
 		default:
-			return &pb.Error{Message: fmt.Sprintf("%s is an unsupported source option", option)}
+			return fmt.Errorf("%s is an unsupported source option", option)
 		}
 	}
 
@@ -342,6 +323,16 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	if qErr != nil {
 		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
 	}
+
+	return nil
+}
+
+func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails) error {
+	amqpChannel, err := bd.Connection.NewChannel()
+	if err != nil {
+		return err
+	}
+	defer amqpChannel.Close()
 
 	// If the address has subjects, bind to each subject.
 	// But if the address has no subjects, bind without a subject. Don't do both.
@@ -394,6 +385,45 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				util.Logger.ErrorI("error.queuebind", bErr.Error())
 			}
 		}
+	}
+	return nil
+}
+
+// Subscribe subscribe to a stream of messages from the broker
+func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
+
+	if source.GetAddress().GetName() == "" {
+		return &pb.Error{Message: "address name not defined"}
+	}
+
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	amqpChannel, err := bd.Connection.NewChannel()
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+	defer amqpChannel.Close()
+
+	if source.GetPrefetchCount() > 0 {
+		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
+	}
+
+	err = prov.declareExchange(source.GetAddress(), bd, true)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	err = prov.declareQueue(source, bd)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	err = prov.declareBinding(source, bd)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
 	}
 
 	messages, err := amqpChannel.Consume(

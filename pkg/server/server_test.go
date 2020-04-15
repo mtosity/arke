@@ -529,6 +529,43 @@ func TestConsumerServerConsume(t *testing.T) {
 	stream.AssertExpectations(t)
 }
 
+func TestConsumerServerConsume_Nack(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	sourceOptions := make(map[string]string)
+	sourceOptions["option1"] = "ok"
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions}
+	stream := &MockConsumerConsumeServerStream{}
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+
+	messages := make([]*pb.Message, 0)
+
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("one")})
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("two")})
+
+	mockp.MockMessages = messages
+
+	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Recv").Return(cnsm, nil).Once()
+	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1", Nack: true}}}
+	stream.On("Recv").Return(cnsm, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("stop")).Once().After(500 * time.Millisecond)
+
+	// We are returning an error after 500 ms as a simple way of exiting the subscribe
+	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
+	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(nil)
+	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
+	conSrv.Connect(ctx, cf)
+	err := conSrv.Consume(stream)
+	assert.NotNil(t, err)
+
+	mockp.AssertExpectations(t)
+	stream.AssertExpectations(t)
+}
+
 func TestConsumerServerConsume_BadOption(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})

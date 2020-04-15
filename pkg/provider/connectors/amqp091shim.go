@@ -221,11 +221,11 @@ func (msg *Amqp091Message) Ack() error {
 }
 
 // Nack Nack a message
-func (msg *Amqp091Message) Nack() error {
+func (msg *Amqp091Message) Nack(requeue bool) error {
 	// For unit testing
 	switch msg.delivery.(type) {
 	case amqp.Delivery:
-		return msg.delivery.(amqp.Delivery).Nack(false, true)
+		return msg.delivery.(amqp.Delivery).Nack(false, requeue)
 	}
 	return nil
 }
