@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,12 @@ import (
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
+
+type MsgHandler func(msg *pb.Message) (int, error)
+
+func defaultHandler(msg *pb.Message) (int, error) {
+	return 0, nil
+}
 
 func arkeAddress() string {
 	var arkeAddress string
@@ -92,10 +99,11 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error 
 	return nil
 }
 
-func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source) error {
+//TODO: pass in a message handler to control ack/nack
+func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler) error {
 	c := pb.NewConsumerClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	defer cancel()
 
@@ -124,7 +132,7 @@ func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done ch
 
 	stop := false
 
-	for start := time.Now(); time.Since(start) < 2*time.Second; {
+	for start := time.Now(); time.Since(start) < 15*time.Second; {
 		resp, _ := stream.Recv()
 		if resp.GetMsg() != nil {
 			go func(stop *bool) {
@@ -132,6 +140,8 @@ func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done ch
 					return
 				}
 				message := resp.GetMsg()
+				// TODO: err is not used inside this for loop except down
+				// below and it returns. I think it is safe to remove this code.
 				if err == io.EOF {
 					log.Panicf("error: %s", err.Error())
 					return
@@ -149,7 +159,12 @@ func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done ch
 					return
 				}
 
-				ret := &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: message.GetUuid()}}}
+				delay, ackErr := handler(message)
+				nack := true
+				if ackErr == nil {
+					nack = false
+				}
+				ret := &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Nack: nack, RequeueDelay: int32(delay), Uuid: message.GetUuid()}}}
 				err = stream.Send(ret)
 
 				if err != nil {
@@ -225,7 +240,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPSCS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
@@ -250,6 +265,68 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestProduceSingleConsumeRetry(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 6
+	produceMessageCount := 1
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	//retry handler
+	retryHandler := func(msg *pb.Message) (int, error) {
+		headers := msg.GetHeaders()
+		count := 0
+		delay := 0
+		var err error = nil
+
+		if xDeath, ok := headers["x-death"]; ok {
+			pieces := strings.Split(xDeath, " ")
+			aCount := strings.Split(pieces[0], ":")[1]
+			count, _ = strconv.Atoi(aCount)
+		}
+
+		if count < 5 {
+			delay = 2
+			err = errors.New("Attempt delayed retry")
+		}
+		return delay, err
+	}
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCR")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, retryHandler)
+	<-clientConnected
+
+	time.Sleep(200 * time.Millisecond)
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, produceMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 15*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
 func TestProduceManyConsumeMany(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 30
@@ -266,7 +343,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPMCM")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(1000 * time.Millisecond)
@@ -356,7 +433,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	source.Filters = make([]*pb.Filter, 0)
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
@@ -428,7 +505,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	source.Filters = make([]*pb.Filter, 0)
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 
 	<-clientConnected
 
@@ -493,7 +570,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPSCSCTN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	done2 := make(chan bool)
@@ -501,7 +578,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	consumerConnection2 := connect()
 	defer consumerConnection2.Close()
 	source.Name = "sas.test.proxy.TPSCSCTN.Consumer2"
-	go consumeMessages(consumerConnection2, messages, done2, clientConnected2, source)
+	go consumeMessages(consumerConnection2, messages, done2, clientConnected2, source, defaultHandler)
 	<-clientConnected2
 
 	time.Sleep(500 * time.Millisecond)
@@ -548,7 +625,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
@@ -595,7 +672,7 @@ func TestHeaders_Consume(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TH")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(250 * time.Millisecond)
@@ -642,7 +719,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPMCME")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	done2 := make(chan bool)
@@ -650,7 +727,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	consumerConnection2 := connect()
 	defer consumerConnection2.Close()
 	source.Name = "sas.test.proxy.TPMCME.Consumer"
-	go consumeMessages(consumerConnection2, messages2, done2, clientConnected2, source)
+	go consumeMessages(consumerConnection2, messages2, done2, clientConnected2, source, defaultHandler)
 	<-clientConnected2
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
@@ -702,7 +779,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TSMS.2")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
 
@@ -786,7 +863,7 @@ func TestParentExchange_Consume(t *testing.T) {
 
 	// Subscribe to the child Address
 	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
@@ -847,7 +924,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.THNSS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source)
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)

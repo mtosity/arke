@@ -42,6 +42,8 @@ debug.acknomessage=Client {0} attempted to ack unknown message {1}
 debug.ackmessage=Client {0} acked message {1}
 debug.nacknomessage=Client {0} attempted to ack unknown message {1}
 debug.nackmessage=Client {0} acked message {1}
+debug.retrynomessage=Client {0} attempted to retry unknown message {1}
+debug.retrymessage=Client {0} retried message {1} with delay {2}
 info.subscribefailbutclientexists=Client {0} failed subscribe with: {1}
 info.exchangebind=Binding exchange {0} to {1} with key {2}
 `

@@ -143,6 +143,7 @@ message Error {
 message MessageConsumed {
     string uuid = 1; // arke.Message UUID returned from Consume.
     bool nack = 2; // Nack (true) or Ack (false) the message. By default all messages will be Ack'd unless you set this to true.
+    int32 requeue_delay = 3; // Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
 }
 
 /**

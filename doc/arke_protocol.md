@@ -260,6 +260,7 @@ Message used to ack or nack a message UUID
 | ----- | ---- | ----- | ----------- |
 | uuid | [string](#string) |  | arke.Message UUID returned from Consume. |
 | nack | [bool](#bool) |  | Nack (true) or Ack (false) the message. By default all messages will be Ack&#39;d unless you set this to true. |
+| requeue_delay | [int32](#int32) |  | Requeue delay in seconds for Nack messages. Delay of zero will result in Nack&#39;d messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay. |
 
 
 

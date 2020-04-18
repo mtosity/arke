@@ -41,7 +41,7 @@ type BrokerDetails struct {
 	sync.Mutex
 	Connection       Amqp091ConnectionShim
 	ErrorChannel     chan Amqp091Error
-	Channel          Amqp091ChannelShim
+	RetryChannel     *Amqp091ChannelShim
 	ClientUUID       string
 	knownExchanges   *util.ConcurrentMap
 	activeMessages   *util.ConcurrentMap
@@ -170,6 +170,85 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	return nil
 }
 
+func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, msgid string, delay int32) *pb.Error {
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		rm := rmu.(Amqp091Message)
+
+		// setup exchange/queue/binding
+		subjects := make([]string, 0)
+		subjects = append(subjects, "#")
+		options := map[string]string{"MessageTTL": strconv.Itoa(int(delay) * 1000), "DeadLetterAddress": ""}
+		sourceName := fmt.Sprintf("%s.retry.%ds", origSource.GetAddress().GetName(), delay)
+
+		retrySource := &pb.Source{
+			Name:    sourceName,
+			Options: options,
+			Address: &pb.Address{
+				Subjects: subjects,
+				Type:     pb.Address_TOPIC,
+				Name:     sourceName,
+			},
+		}
+
+		if bd.RetryChannel == nil {
+			bd.Lock()
+			retryChannel, err := bd.Connection.NewChannel()
+			if err != nil {
+				bd.Unlock()
+				return &pb.Error{Message: err.Error()}
+			}
+			bd.RetryChannel = &retryChannel
+			bd.Unlock()
+		}
+		amqpChannel := *bd.RetryChannel
+
+		defer func(bd *BrokerDetails) *pb.Error {
+			if err := recover(); err != nil {
+				bd.Lock()
+				bd.RetryChannel = nil
+				bd.Unlock()
+				debug.PrintStack()
+				util.Logger.Debugf("recovered: %v", err)
+				return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
+			}
+			return nil
+		}(bd)
+
+		declareErr := prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
+		if declareErr != nil {
+			util.Logger.Debugf("Failed to declare retry exchange [%s]", retrySource.GetAddress().GetName())
+		}
+		declareErr = prov.declareQueue(retrySource, bd, amqpChannel)
+		if declareErr != nil {
+			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
+		}
+		declareErr = prov.declareBinding(retrySource, bd, amqpChannel)
+		if declareErr != nil {
+			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
+		}
+
+		retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
+		if retryErr != nil {
+			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
+			_ = rm.Nack(true)
+		} else {
+			_ = rm.Nack(false)
+		}
+		util.Logger.DebugI("debug.retrymessage", bd.ClientUUID, msgid, delay)
+		bd.activeMessages.Delete(msgid)
+	} else {
+		util.Logger.DebugI("debug.retrynomessage", bd.ClientUUID, msgid)
+		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
+	}
+
+	return nil
+}
+
 // Connect connect to rabbitmq
 func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
 	clientUUID, err := GetClientUUID(*ctx)
@@ -225,7 +304,7 @@ func (bd *BrokerDetails) exchangeKnown(name string) bool {
 	return ok
 }
 
-func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, force bool) error {
+func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
 
 	// don't try to declare an exchange with amq. in the name
 	if strings.Contains(address.GetName(), "amq.") {
@@ -241,13 +320,6 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		if err != nil {
 			return err
 		}
-
-		amqpChannel, err := bd.Connection.NewChannel()
-		if err != nil {
-			return err
-		}
-		defer amqpChannel.Close()
-
 		util.Logger.InfoI("info.exchangedeclare", address.GetName())
 
 		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete())
@@ -263,13 +335,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 		known = bd.exchangeKnown(parent.GetName())
 		if !known || force {
-			amqpChannel, err := bd.Connection.NewChannel()
-			if err != nil {
-				return err
-			}
-			defer amqpChannel.Close()
-
-			err = prov.declareExchange(parent, bd, force)
+			err := prov.declareExchange(parent, bd, amqpChannel, force)
 			if err != nil {
 				return err
 			}
@@ -288,13 +354,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	return nil
 }
 
-func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails) error {
-	amqpChannel, err := bd.Connection.NewChannel()
-	if err != nil {
-		return err
-	}
-	defer amqpChannel.Close()
-
+func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim) error {
 	args := make(Amqp091Table)
 	for option, value := range source.GetOptions() {
 		switch option {
@@ -327,13 +387,7 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails) 
 	return nil
 }
 
-func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails) error {
-	amqpChannel, err := bd.Connection.NewChannel()
-	if err != nil {
-		return err
-	}
-	defer amqpChannel.Close()
-
+func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim) error {
 	// If the address has subjects, bind to each subject.
 	// But if the address has no subjects, bind without a subject. Don't do both.
 	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
@@ -411,17 +465,17 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
 	}
 
-	err = prov.declareExchange(source.GetAddress(), bd, true)
+	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
-	err = prov.declareQueue(source, bd)
+	err = prov.declareQueue(source, bd, amqpChannel)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
-	err = prov.declareBinding(source, bd)
+	err = prov.declareBinding(source, bd, amqpChannel)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -570,7 +624,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				deliveryMode = 2
 			}
 
-			err = prov.declareExchange(message.GetAddress(), bd, false)
+			err = prov.declareExchange(message.GetAddress(), bd, amqpChannel, false)
 			if err != nil {
 				errChan <- &pb.Error{
 					Message: err.Error(),

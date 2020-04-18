@@ -70,6 +70,8 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	messageChannel := make(chan *pb.Message)
 	defer close(messageChannel)
 
+	var source *pb.Source
+
 	for {
 
 		if stopForLoop {
@@ -95,7 +97,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 				continue
 			}
 
-			source := m.GetSrc()
+			source = m.GetSrc()
 
 			if source.GetPrefetchCount() < 1 {
 				source.PrefetchCount = 1
@@ -190,6 +192,8 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 				if ackmsg.GetUuid() == "" {
 					ackerr = &pb.Error{Message: "Uuid not set when acking/nacking"}
+				} else if ackmsg.GetNack() && ackmsg.GetRequeueDelay() > 0 { // delayed retry
+					ackerr = prov.Retry(&ctx, source, ackmsg.GetUuid(), ackmsg.GetRequeueDelay())
 				} else if ackmsg.GetNack() { // Nack
 					ackerr = prov.Nack(&ctx, ackmsg.GetUuid())
 				} else { // Ack

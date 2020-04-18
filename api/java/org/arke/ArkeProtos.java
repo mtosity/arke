@@ -12487,6 +12487,16 @@ public final class ArkeProtos {
      * @return The nack.
      */
     boolean getNack();
+
+    /**
+     * <pre>
+     * Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
+     * </pre>
+     *
+     * <code>int32 requeue_delay = 3;</code>
+     * @return The requeueDelay.
+     */
+    int getRequeueDelay();
   }
   /**
    * <pre>
@@ -12548,6 +12558,11 @@ public final class ArkeProtos {
             case 16: {
 
               nack_ = input.readBool();
+              break;
+            }
+            case 24: {
+
+              requeueDelay_ = input.readInt32();
               break;
             }
             default: {
@@ -12640,6 +12655,20 @@ public final class ArkeProtos {
       return nack_;
     }
 
+    public static final int REQUEUE_DELAY_FIELD_NUMBER = 3;
+    private int requeueDelay_;
+    /**
+     * <pre>
+     * Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
+     * </pre>
+     *
+     * <code>int32 requeue_delay = 3;</code>
+     * @return The requeueDelay.
+     */
+    public int getRequeueDelay() {
+      return requeueDelay_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -12660,6 +12689,9 @@ public final class ArkeProtos {
       if (nack_ != false) {
         output.writeBool(2, nack_);
       }
+      if (requeueDelay_ != 0) {
+        output.writeInt32(3, requeueDelay_);
+      }
       unknownFields.writeTo(output);
     }
 
@@ -12675,6 +12707,10 @@ public final class ArkeProtos {
       if (nack_ != false) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(2, nack_);
+      }
+      if (requeueDelay_ != 0) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(3, requeueDelay_);
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -12695,6 +12731,8 @@ public final class ArkeProtos {
           .equals(other.getUuid())) return false;
       if (getNack()
           != other.getNack()) return false;
+      if (getRequeueDelay()
+          != other.getRequeueDelay()) return false;
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -12711,6 +12749,8 @@ public final class ArkeProtos {
       hash = (37 * hash) + NACK_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getNack());
+      hash = (37 * hash) + REQUEUE_DELAY_FIELD_NUMBER;
+      hash = (53 * hash) + getRequeueDelay();
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -12853,6 +12893,8 @@ public final class ArkeProtos {
 
         nack_ = false;
 
+        requeueDelay_ = 0;
+
         return this;
       }
 
@@ -12881,6 +12923,7 @@ public final class ArkeProtos {
         org.arke.ArkeProtos.MessageConsumed result = new org.arke.ArkeProtos.MessageConsumed(this);
         result.uuid_ = uuid_;
         result.nack_ = nack_;
+        result.requeueDelay_ = requeueDelay_;
         onBuilt();
         return result;
       }
@@ -12935,6 +12978,9 @@ public final class ArkeProtos {
         }
         if (other.getNack() != false) {
           setNack(other.getNack());
+        }
+        if (other.getRequeueDelay() != 0) {
+          setRequeueDelay(other.getRequeueDelay());
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -13099,6 +13145,48 @@ public final class ArkeProtos {
       public Builder clearNack() {
         
         nack_ = false;
+        onChanged();
+        return this;
+      }
+
+      private int requeueDelay_ ;
+      /**
+       * <pre>
+       * Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
+       * </pre>
+       *
+       * <code>int32 requeue_delay = 3;</code>
+       * @return The requeueDelay.
+       */
+      public int getRequeueDelay() {
+        return requeueDelay_;
+      }
+      /**
+       * <pre>
+       * Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
+       * </pre>
+       *
+       * <code>int32 requeue_delay = 3;</code>
+       * @param value The requeueDelay to set.
+       * @return This builder for chaining.
+       */
+      public Builder setRequeueDelay(int value) {
+        
+        requeueDelay_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * Requeue delay in seconds for Nack messages. Delay of zero will result in Nack'd messages getting dequeued. If delay is greater than zero, the message will be requeued after the delay.
+       * </pre>
+       *
+       * <code>int32 requeue_delay = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearRequeueDelay() {
+        
+        requeueDelay_ = 0;
         onChanged();
         return this;
       }
@@ -16132,25 +16220,26 @@ public final class ArkeProtos {
       "e\"\035\n\tMatchType\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Matc" +
       "h\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\007\n\005Empty\"" +
       "8\n\005Error\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022" +
-      "\020\n\010is_fatal\030\003 \001(\010\"-\n\017MessageConsumed\022\014\n\004" +
-      "uuid\030\001 \001(\t\022\014\n\004nack\030\002 \001(\010\"T\n\027MessageConsu" +
-      "medResponse\022\014\n\004uuid\030\001 \001(\t\022\017\n\007success\030\002 \001" +
-      "(\010\022\032\n\005error\030\003 \001(\0132\013.arke.Error\"S\n\007Consum" +
-      "e\022\033\n\003src\030\001 \001(\0132\014.arke.SourceH\000\022$\n\003ack\030\002 " +
-      "\001(\0132\025.arke.MessageConsumedH\000B\005\n\003msg\"s\n\017C" +
-      "onsumeResponse\022\034\n\003msg\030\001 \001(\0132\r.arke.Messa" +
-      "geH\000\022:\n\021consumed_response\030\002 \001(\0132\035.arke.M" +
-      "essageConsumedResponseH\000B\006\n\004resp2\256\001\n\010Pro" +
-      "ducer\022A\n\007Connect\022\035.arke.ConnectionConfig" +
-      "uration\032\025.arke.ConnectResponse\"\000\0225\n\007Publ" +
-      "ish\022\r.arke.Message\032\025.arke.MessageRespons" +
+      "\020\n\010is_fatal\030\003 \001(\010\"D\n\017MessageConsumed\022\014\n\004" +
+      "uuid\030\001 \001(\t\022\014\n\004nack\030\002 \001(\010\022\025\n\rrequeue_dela" +
+      "y\030\003 \001(\005\"T\n\027MessageConsumedResponse\022\014\n\004uu" +
+      "id\030\001 \001(\t\022\017\n\007success\030\002 \001(\010\022\032\n\005error\030\003 \001(\013" +
+      "2\013.arke.Error\"S\n\007Consume\022\033\n\003src\030\001 \001(\0132\014." +
+      "arke.SourceH\000\022$\n\003ack\030\002 \001(\0132\025.arke.Messag" +
+      "eConsumedH\000B\005\n\003msg\"s\n\017ConsumeResponse\022\034\n" +
+      "\003msg\030\001 \001(\0132\r.arke.MessageH\000\022:\n\021consumed_" +
+      "response\030\002 \001(\0132\035.arke.MessageConsumedRes" +
+      "ponseH\000B\006\n\004resp2\256\001\n\010Producer\022A\n\007Connect\022" +
+      "\035.arke.ConnectionConfiguration\032\025.arke.Co" +
+      "nnectResponse\"\000\0225\n\007Publish\022\r.arke.Messag" +
+      "e\032\025.arke.MessageResponse\"\000(\0010\001\022(\n\nDiscon" +
+      "nect\022\013.arke.Empty\032\013.arke.Empty\"\0002\256\001\n\010Con" +
+      "sumer\022A\n\007Connect\022\035.arke.ConnectionConfig" +
+      "uration\032\025.arke.ConnectResponse\"\000\0225\n\007Cons" +
+      "ume\022\r.arke.Consume\032\025.arke.ConsumeRespons" +
       "e\"\000(\0010\001\022(\n\nDisconnect\022\013.arke.Empty\032\013.ark" +
-      "e.Empty\"\0002\256\001\n\010Consumer\022A\n\007Connect\022\035.arke" +
-      ".ConnectionConfiguration\032\025.arke.ConnectR" +
-      "esponse\"\000\0225\n\007Consume\022\r.arke.Consume\032\025.ar" +
-      "ke.ConsumeResponse\"\000(\0010\001\022(\n\nDisconnect\022\013" +
-      ".arke.Empty\032\013.arke.Empty\"\000B\026\n\010org.arkeB\n" +
-      "ArkeProtosb\006proto3"
+      "e.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb\006proto" +
+      "3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -16239,7 +16328,7 @@ public final class ArkeProtos {
     internal_static_arke_MessageConsumed_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_MessageConsumed_descriptor,
-        new java.lang.String[] { "Uuid", "Nack", });
+        new java.lang.String[] { "Uuid", "Nack", "RequeueDelay", });
     internal_static_arke_MessageConsumedResponse_descriptor =
       getDescriptor().getMessageTypes().get(12);
     internal_static_arke_MessageConsumedResponse_fieldAccessorTable = new
