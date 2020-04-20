@@ -44,6 +44,8 @@ type BrokerDetails struct {
 	RetryChannel     *Amqp091ChannelShim
 	ClientUUID       string
 	knownExchanges   *util.ConcurrentMap
+	knownQueues      *util.ConcurrentMap
+	knownBindings    *util.ConcurrentMap
 	activeMessages   *util.ConcurrentMap
 	state            uint16
 	connectionConfig *pb.ConnectionConfiguration
@@ -223,11 +225,11 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry exchange [%s]", retrySource.GetAddress().GetName())
 		}
-		declareErr = prov.declareQueue(retrySource, bd, amqpChannel)
+		declareErr = prov.declareQueue(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
 		}
-		declareErr = prov.declareBinding(retrySource, bd, amqpChannel)
+		declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
 		}
@@ -304,6 +306,18 @@ func (bd *BrokerDetails) exchangeKnown(name string) bool {
 	return ok
 }
 
+func (bd *BrokerDetails) queueKnown(name string) bool {
+
+	_, ok := bd.knownQueues.Get(name)
+	return ok
+}
+
+func (bd *BrokerDetails) bindingKnown(name string) bool {
+
+	_, ok := bd.knownBindings.Get(name)
+	return ok
+}
+
 func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
 
 	// don't try to declare an exchange with amq. in the name
@@ -354,7 +368,12 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	return nil
 }
 
-func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim) error {
+func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
+	known := bd.queueKnown(source.GetName())
+	if known && !force {
+		return nil
+	}
+
 	args := make(Amqp091Table)
 	for option, value := range source.GetOptions() {
 		switch option {
@@ -383,11 +402,18 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 	if qErr != nil {
 		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
 	}
+	bd.knownQueues.Add(source.GetName(), true)
 
 	return nil
 }
 
-func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim) error {
+func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
+	knownBindingKey := fmt.Sprintf("%s:%s", source.GetName(), strings.Join(source.Address.GetSubjects(), ":"))
+	known := bd.bindingKnown(knownBindingKey)
+	if known && !force {
+		return nil
+	}
+
 	// If the address has subjects, bind to each subject.
 	// But if the address has no subjects, bind without a subject. Don't do both.
 	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
@@ -440,6 +466,7 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 			}
 		}
 	}
+	bd.knownBindings.Add(knownBindingKey, true)
 	return nil
 }
 
@@ -470,12 +497,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
-	err = prov.declareQueue(source, bd, amqpChannel)
+	err = prov.declareQueue(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
-	err = prov.declareBinding(source, bd, amqpChannel)
+	err = prov.declareBinding(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -831,6 +858,8 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	go bd.connectionWatcher()
 	bd.state = CONNECTED
 	bd.knownExchanges = util.NewConcurrentMap()
+	bd.knownQueues = util.NewConcurrentMap()
+	bd.knownBindings = util.NewConcurrentMap()
 
 	util.Logger.InfoI("info.clientconnected", bd.ClientUUID)
 
