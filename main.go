@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/tls"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -19,7 +22,6 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
 	pb "sassoftware.io/convoy/arke/api"
@@ -93,14 +95,6 @@ func main() {
 	serverOptions = append(serverOptions, grpc.UnaryInterceptor(prometheus.UnaryInterceptor))
 	serverOptions = append(serverOptions, grpc.StreamInterceptor(prometheus.StreamInterceptor))
 
-	if certFile != "" && certKey != "" {
-		creds, err := credentials.NewServerTLSFromFile(certFile, certKey)
-		if err != nil {
-			panic(fmt.Sprintf("Could not load TLS cert and key: %v", err))
-		}
-		serverOptions = append(serverOptions, grpc.Creds(creds))
-	}
-
 	s := grpc.NewServer(serverOptions...)
 
 	c := make(chan os.Signal, 1)
@@ -122,6 +116,21 @@ func main() {
 	reflection.Register(s)
 
 	util.Logger.InfoI("info.starting", *port)
+
+	if certFile != "" && certKey != "" {
+		certificate, err := tls.LoadX509KeyPair(certFile, certKey)
+		if err != nil {
+			log.Panic(fmt.Sprintf("Could not load TLS cert and key: %v", err))
+		}
+
+		config := &tls.Config{
+			Certificates: []tls.Certificate{certificate},
+			Rand:         rand.Reader,
+		}
+
+		// Create TLS listener.
+		lis = tls.NewListener(lis, config)
+	}
 
 	mx := cmux.New(lis)
 	httpListener := mx.Match(cmux.HTTP1Fast())
