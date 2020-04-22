@@ -29,6 +29,9 @@ var (
 func init() {
 	Stats = &stats{}
 
+	// The go-metrics library does not support setting a help on metrics with their PrometheusSink.
+	// Continue to pass our expected help text along until we can implement a proper fix for this,
+	// but the help in the metrics output will be just the key for now.
 	prometheus.MustRegister(newArkeGauge(metrics.ClientActMessageGauge, "Number of active messages to be processed."))
 	prometheus.MustRegister(newArkeGauge(metrics.ClientStreamsGauge, "Number of client active streams."))
 	prometheus.MustRegister(newArkeCounter(metrics.ClientConsumedCounter, "Total number of client requests have been consumed."))
@@ -95,25 +98,28 @@ func gatherClientStats() {
 }
 
 func newArkeGauge(parts []string, help string) prometheus.Gauge {
+	key := strings.Join(parts, "_")
 	g := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: strings.Join(parts, "_"),
-		Help: help,
+		Name: key,
+		Help: key,
 	})
 	return g
 }
 
 func newArkeSample(parts []string, help string) prometheus.Summary {
+	key := strings.Join(parts, "_")
 	g := prometheus.NewSummary(prometheus.SummaryOpts{
-		Name: strings.Join(parts, "_"),
-		Help: help,
+		Name: key,
+		Help: key,
 	})
 	return g
 }
 
 func newArkeCounter(parts []string, help string) prometheus.Counter {
+	key := strings.Join(parts, "_")
 	g := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: strings.Join(parts, "_"),
-		Help: help,
+		Name: key,
+		Help: key,
 	})
 	return g
 }
