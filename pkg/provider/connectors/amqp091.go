@@ -152,7 +152,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(Amqp091Message)
-		err = rm.Nack(true)
+		err = rm.Nack(false)
 	} else {
 		util.Logger.DebugI("debug.nacknomessage", bd.ClientUUID, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}

@@ -327,6 +327,56 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestProduceSingleConsumeNack(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 1
+	produceMessageCount := 1
+	defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	//retry handler
+	retryHandler := func(msg *pb.Message) (int, error) {
+		delay := 0
+		var err error = nil
+
+		return delay, err
+	}
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPSCN")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCN.Consumer", Address: address, PrefetchCount: 5}
+	go consumeMessages(consumerConnection, messages, done, clientConnected, source, retryHandler)
+	<-clientConnected
+
+	time.Sleep(200 * time.Millisecond)
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, produceMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			break
+		case <-time.After(1 * time.Second):
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
 func TestProduceManyConsumeMany(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 30
