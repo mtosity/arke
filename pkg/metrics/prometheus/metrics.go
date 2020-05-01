@@ -43,7 +43,9 @@ func init() {
 
 	Stats.Sink, _ = promet.NewPrometheusSink()
 
-	met.NewGlobal(met.DefaultConfig(""), Stats.Sink)
+	prom_conf := met.DefaultConfig("")
+	prom_conf.EnableHostname = false
+	met.NewGlobal(prom_conf, Stats.Sink)
 }
 
 // Serve Create a new HTTP server and Serve metrics requests
