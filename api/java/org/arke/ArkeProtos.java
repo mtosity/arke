@@ -134,6 +134,26 @@ public final class ArkeProtos {
      * @return The tls.
      */
     boolean getTls();
+
+    /**
+     * <pre>
+     * The name of the client connecting.
+     * </pre>
+     *
+     * <code>string client_name = 9;</code>
+     * @return The clientName.
+     */
+    java.lang.String getClientName();
+    /**
+     * <pre>
+     * The name of the client connecting.
+     * </pre>
+     *
+     * <code>string client_name = 9;</code>
+     * @return The bytes for clientName.
+     */
+    com.google.protobuf.ByteString
+        getClientNameBytes();
   }
   /**
    * <pre>
@@ -160,6 +180,7 @@ public final class ArkeProtos {
       provider_ = "";
       tenant_ = "";
       caCertificate_ = com.google.protobuf.ByteString.EMPTY;
+      clientName_ = "";
     }
 
     @java.lang.Override
@@ -236,6 +257,12 @@ public final class ArkeProtos {
             case 64: {
 
               tls_ = input.readBool();
+              break;
+            }
+            case 74: {
+              java.lang.String s = input.readStringRequireUtf8();
+
+              clientName_ = s;
               break;
             }
             default: {
@@ -479,6 +506,50 @@ public final class ArkeProtos {
       return tls_;
     }
 
+    public static final int CLIENT_NAME_FIELD_NUMBER = 9;
+    private volatile java.lang.Object clientName_;
+    /**
+     * <pre>
+     * The name of the client connecting.
+     * </pre>
+     *
+     * <code>string client_name = 9;</code>
+     * @return The clientName.
+     */
+    public java.lang.String getClientName() {
+      java.lang.Object ref = clientName_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        clientName_ = s;
+        return s;
+      }
+    }
+    /**
+     * <pre>
+     * The name of the client connecting.
+     * </pre>
+     *
+     * <code>string client_name = 9;</code>
+     * @return The bytes for clientName.
+     */
+    public com.google.protobuf.ByteString
+        getClientNameBytes() {
+      java.lang.Object ref = clientName_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        clientName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -514,6 +585,9 @@ public final class ArkeProtos {
       if (tls_ != false) {
         output.writeBool(8, tls_);
       }
+      if (!getClientNameBytes().isEmpty()) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 9, clientName_);
+      }
       unknownFields.writeTo(output);
     }
 
@@ -548,6 +622,9 @@ public final class ArkeProtos {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(8, tls_);
       }
+      if (!getClientNameBytes().isEmpty()) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(9, clientName_);
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -580,6 +657,8 @@ public final class ArkeProtos {
           .equals(other.getCaCertificate())) return false;
       if (getTls()
           != other.getTls()) return false;
+      if (!getClientName()
+          .equals(other.getClientName())) return false;
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -608,6 +687,8 @@ public final class ArkeProtos {
       hash = (37 * hash) + TLS_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getTls());
+      hash = (37 * hash) + CLIENT_NAME_FIELD_NUMBER;
+      hash = (53 * hash) + getClientName().hashCode();
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -767,6 +848,8 @@ public final class ArkeProtos {
 
         tls_ = false;
 
+        clientName_ = "";
+
         return this;
       }
 
@@ -804,6 +887,7 @@ public final class ArkeProtos {
         }
         result.caCertificate_ = caCertificate_;
         result.tls_ = tls_;
+        result.clientName_ = clientName_;
         onBuilt();
         return result;
       }
@@ -875,6 +959,10 @@ public final class ArkeProtos {
         }
         if (other.getTls() != false) {
           setTls(other.getTls());
+        }
+        if (!other.getClientName().isEmpty()) {
+          clientName_ = other.clientName_;
+          onChanged();
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -1473,6 +1561,102 @@ public final class ArkeProtos {
       public Builder clearTls() {
         
         tls_ = false;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object clientName_ = "";
+      /**
+       * <pre>
+       * The name of the client connecting.
+       * </pre>
+       *
+       * <code>string client_name = 9;</code>
+       * @return The clientName.
+       */
+      public java.lang.String getClientName() {
+        java.lang.Object ref = clientName_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          clientName_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <pre>
+       * The name of the client connecting.
+       * </pre>
+       *
+       * <code>string client_name = 9;</code>
+       * @return The bytes for clientName.
+       */
+      public com.google.protobuf.ByteString
+          getClientNameBytes() {
+        java.lang.Object ref = clientName_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          clientName_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <pre>
+       * The name of the client connecting.
+       * </pre>
+       *
+       * <code>string client_name = 9;</code>
+       * @param value The clientName to set.
+       * @return This builder for chaining.
+       */
+      public Builder setClientName(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  
+        clientName_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * The name of the client connecting.
+       * </pre>
+       *
+       * <code>string client_name = 9;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearClientName() {
+        
+        clientName_ = getDefaultInstance().getClientName();
+        onChanged();
+        return this;
+      }
+      /**
+       * <pre>
+       * The name of the client connecting.
+       * </pre>
+       *
+       * <code>string client_name = 9;</code>
+       * @param value The bytes for clientName to set.
+       * @return This builder for chaining.
+       */
+      public Builder setClientNameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
+        
+        clientName_ = value;
         onChanged();
         return this;
       }
@@ -16188,58 +16372,58 @@ public final class ArkeProtos {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\narke.proto\022\004arke\"\272\001\n\027ConnectionConfigu" +
+      "\n\narke.proto\022\004arke\"\317\001\n\027ConnectionConfigu" +
       "ration\022\014\n\004host\030\001 \001(\t\022\014\n\004port\030\002 \001(\005\022\020\n\010pr" +
       "ovider\030\003 \001(\t\022\016\n\006tenant\030\004 \001(\t\022&\n\013credenti" +
       "als\030\005 \001(\0132\021.arke.Credentials\022\026\n\016ca_certi" +
-      "ficate\030\007 \001(\014\022\013\n\003tls\030\010 \001(\010J\004\010\006\020\007R\016prefetc" +
-      "h_count\"1\n\013Credentials\022\020\n\010username\030\001 \001(\t" +
-      "\022\020\n\010password\030\002 \001(\t\">\n\017ConnectResponse\022\017\n" +
-      "\007success\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Err" +
-      "or\"\322\001\n\007Message\022\014\n\004uuid\030\001 \001(\t\022+\n\007headers\030" +
-      "\002 \003(\0132\032.arke.Message.HeadersEntry\022\014\n\004bod" +
-      "y\030\003 \001(\014\022\036\n\007address\030\004 \001(\0132\r.arke.Address\022" +
-      "\022\n\npersistent\030\005 \001(\010\022\032\n\005error\030\006 \001(\0132\013.ark" +
-      "e.Error\032.\n\014HeadersEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005" +
-      "value\030\002 \001(\t:\0028\001\">\n\017MessageResponse\022\017\n\007su" +
-      "ccess\030\001 \001(\010\022\032\n\005error\030\002 \001(\0132\013.arke.Error\"" +
-      "\316\001\n\007Address\022\014\n\004name\030\001 \001(\t\022\020\n\010subjects\030\002 " +
-      "\003(\t\022&\n\004type\030\003 \001(\0162\030.arke.Address.TargetT" +
-      "ype\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto_delete\030\005 \001(" +
-      "\010\022%\n\016parent_address\030\006 \001(\0132\r.arke.Address" +
-      "\".\n\nTargetType\022\t\n\005TOPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006" +
-      "FILTER\020\002\"\220\002\n\006Source\022\014\n\004name\030\001 \001(\t\022\036\n\007add" +
-      "ress\030\003 \001(\0132\r.arke.Address\022\017\n\007durable\030\004 \001" +
-      "(\010\022\023\n\013auto_delete\030\005 \001(\010\022*\n\007options\030\007 \003(\013" +
-      "2\031.arke.Source.OptionsEntry\022\021\n\texclusive" +
-      "\030\010 \001(\010\022\026\n\016prefetch_count\030\t \001(\005\022\035\n\007filter" +
-      "s\030\n \003(\0132\014.arke.Filter\032.\n\014OptionsEntry\022\013\n" +
-      "\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001J\004\010\006\020\007R\006fil" +
-      "ter\"k\n\006Filter\022\034\n\007matches\030\001 \003(\0132\013.arke.Ma" +
-      "tch\022$\n\004type\030\002 \001(\0162\026.arke.Filter.MatchTyp" +
-      "e\"\035\n\tMatchType\022\007\n\003ALL\020\000\022\007\n\003ANY\020\001\"$\n\005Matc" +
-      "h\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\007\n\005Empty\"" +
-      "8\n\005Error\022\017\n\007message\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022" +
-      "\020\n\010is_fatal\030\003 \001(\010\"D\n\017MessageConsumed\022\014\n\004" +
-      "uuid\030\001 \001(\t\022\014\n\004nack\030\002 \001(\010\022\025\n\rrequeue_dela" +
-      "y\030\003 \001(\005\"T\n\027MessageConsumedResponse\022\014\n\004uu" +
-      "id\030\001 \001(\t\022\017\n\007success\030\002 \001(\010\022\032\n\005error\030\003 \001(\013" +
-      "2\013.arke.Error\"S\n\007Consume\022\033\n\003src\030\001 \001(\0132\014." +
-      "arke.SourceH\000\022$\n\003ack\030\002 \001(\0132\025.arke.Messag" +
-      "eConsumedH\000B\005\n\003msg\"s\n\017ConsumeResponse\022\034\n" +
-      "\003msg\030\001 \001(\0132\r.arke.MessageH\000\022:\n\021consumed_" +
-      "response\030\002 \001(\0132\035.arke.MessageConsumedRes" +
-      "ponseH\000B\006\n\004resp2\256\001\n\010Producer\022A\n\007Connect\022" +
-      "\035.arke.ConnectionConfiguration\032\025.arke.Co" +
-      "nnectResponse\"\000\0225\n\007Publish\022\r.arke.Messag" +
-      "e\032\025.arke.MessageResponse\"\000(\0010\001\022(\n\nDiscon" +
-      "nect\022\013.arke.Empty\032\013.arke.Empty\"\0002\256\001\n\010Con" +
-      "sumer\022A\n\007Connect\022\035.arke.ConnectionConfig" +
-      "uration\032\025.arke.ConnectResponse\"\000\0225\n\007Cons" +
-      "ume\022\r.arke.Consume\032\025.arke.ConsumeRespons" +
-      "e\"\000(\0010\001\022(\n\nDisconnect\022\013.arke.Empty\032\013.ark" +
-      "e.Empty\"\000B\026\n\010org.arkeB\nArkeProtosb\006proto" +
-      "3"
+      "ficate\030\007 \001(\014\022\013\n\003tls\030\010 \001(\010\022\023\n\013client_name" +
+      "\030\t \001(\tJ\004\010\006\020\007R\016prefetch_count\"1\n\013Credenti" +
+      "als\022\020\n\010username\030\001 \001(\t\022\020\n\010password\030\002 \001(\t\"" +
+      ">\n\017ConnectResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005e" +
+      "rror\030\002 \001(\0132\013.arke.Error\"\322\001\n\007Message\022\014\n\004u" +
+      "uid\030\001 \001(\t\022+\n\007headers\030\002 \003(\0132\032.arke.Messag" +
+      "e.HeadersEntry\022\014\n\004body\030\003 \001(\014\022\036\n\007address\030" +
+      "\004 \001(\0132\r.arke.Address\022\022\n\npersistent\030\005 \001(\010" +
+      "\022\032\n\005error\030\006 \001(\0132\013.arke.Error\032.\n\014HeadersE" +
+      "ntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\">\n\017" +
+      "MessageResponse\022\017\n\007success\030\001 \001(\010\022\032\n\005erro" +
+      "r\030\002 \001(\0132\013.arke.Error\"\316\001\n\007Address\022\014\n\004name" +
+      "\030\001 \001(\t\022\020\n\010subjects\030\002 \003(\t\022&\n\004type\030\003 \001(\0162\030" +
+      ".arke.Address.TargetType\022\017\n\007durable\030\004 \001(" +
+      "\010\022\023\n\013auto_delete\030\005 \001(\010\022%\n\016parent_address" +
+      "\030\006 \001(\0132\r.arke.Address\".\n\nTargetType\022\t\n\005T" +
+      "OPIC\020\000\022\t\n\005QUEUE\020\001\022\n\n\006FILTER\020\002\"\220\002\n\006Source" +
+      "\022\014\n\004name\030\001 \001(\t\022\036\n\007address\030\003 \001(\0132\r.arke.A" +
+      "ddress\022\017\n\007durable\030\004 \001(\010\022\023\n\013auto_delete\030\005" +
+      " \001(\010\022*\n\007options\030\007 \003(\0132\031.arke.Source.Opti" +
+      "onsEntry\022\021\n\texclusive\030\010 \001(\010\022\026\n\016prefetch_" +
+      "count\030\t \001(\005\022\035\n\007filters\030\n \003(\0132\014.arke.Filt" +
+      "er\032.\n\014OptionsEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value" +
+      "\030\002 \001(\t:\0028\001J\004\010\006\020\007R\006filter\"k\n\006Filter\022\034\n\007ma" +
+      "tches\030\001 \003(\0132\013.arke.Match\022$\n\004type\030\002 \001(\0162\026" +
+      ".arke.Filter.MatchType\"\035\n\tMatchType\022\007\n\003A" +
+      "LL\020\000\022\007\n\003ANY\020\001\"$\n\005Match\022\014\n\004name\030\001 \001(\t\022\r\n\005" +
+      "value\030\002 \001(\t\"\007\n\005Empty\"8\n\005Error\022\017\n\007message" +
+      "\030\001 \001(\t\022\014\n\004code\030\002 \001(\005\022\020\n\010is_fatal\030\003 \001(\010\"D" +
+      "\n\017MessageConsumed\022\014\n\004uuid\030\001 \001(\t\022\014\n\004nack\030" +
+      "\002 \001(\010\022\025\n\rrequeue_delay\030\003 \001(\005\"T\n\027MessageC" +
+      "onsumedResponse\022\014\n\004uuid\030\001 \001(\t\022\017\n\007success" +
+      "\030\002 \001(\010\022\032\n\005error\030\003 \001(\0132\013.arke.Error\"S\n\007Co" +
+      "nsume\022\033\n\003src\030\001 \001(\0132\014.arke.SourceH\000\022$\n\003ac" +
+      "k\030\002 \001(\0132\025.arke.MessageConsumedH\000B\005\n\003msg\"" +
+      "s\n\017ConsumeResponse\022\034\n\003msg\030\001 \001(\0132\r.arke.M" +
+      "essageH\000\022:\n\021consumed_response\030\002 \001(\0132\035.ar" +
+      "ke.MessageConsumedResponseH\000B\006\n\004resp2\256\001\n" +
+      "\010Producer\022A\n\007Connect\022\035.arke.ConnectionCo" +
+      "nfiguration\032\025.arke.ConnectResponse\"\000\0225\n\007" +
+      "Publish\022\r.arke.Message\032\025.arke.MessageRes" +
+      "ponse\"\000(\0010\001\022(\n\nDisconnect\022\013.arke.Empty\032\013" +
+      ".arke.Empty\"\0002\256\001\n\010Consumer\022A\n\007Connect\022\035." +
+      "arke.ConnectionConfiguration\032\025.arke.Conn" +
+      "ectResponse\"\000\0225\n\007Consume\022\r.arke.Consume\032" +
+      "\025.arke.ConsumeResponse\"\000(\0010\001\022(\n\nDisconne" +
+      "ct\022\013.arke.Empty\032\013.arke.Empty\"\000B\026\n\010org.ar" +
+      "keB\nArkeProtosb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -16250,7 +16434,7 @@ public final class ArkeProtos {
     internal_static_arke_ConnectionConfiguration_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_arke_ConnectionConfiguration_descriptor,
-        new java.lang.String[] { "Host", "Port", "Provider", "Tenant", "Credentials", "CaCertificate", "Tls", });
+        new java.lang.String[] { "Host", "Port", "Provider", "Tenant", "Credentials", "CaCertificate", "Tls", "ClientName", });
     internal_static_arke_Credentials_descriptor =
       getDescriptor().getMessageTypes().get(1);
     internal_static_arke_Credentials_fieldAccessorTable = new

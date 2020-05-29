@@ -108,8 +108,8 @@ func TestConnect(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -118,12 +118,12 @@ func TestConnect(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -140,20 +140,20 @@ func TestConnect_Error(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(errors.New("error"))
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -170,13 +170,13 @@ func Test_Connect_NoClient(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "", errors.New("noclient")
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 	}()
 
 	ctx := context.Background()
@@ -191,8 +191,8 @@ func TestConnect_TLS_SkipVerify(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -201,12 +201,12 @@ func TestConnect_TLS_SkipVerify(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -224,8 +224,8 @@ func TestConnect_TLS_WithCert(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -234,12 +234,12 @@ func TestConnect_TLS_WithCert(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -258,8 +258,8 @@ func TestConnect_TLS_WithCert(t *testing.T) {
 func TestConnect_Stats(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -268,12 +268,12 @@ func TestConnect_Stats(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -298,8 +298,8 @@ func TestConnect_Stats(t *testing.T) {
 func Test_Ack_NoMsg(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -308,12 +308,12 @@ func Test_Ack_NoMsg(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -331,8 +331,8 @@ func Test_Ack_NoMsg(t *testing.T) {
 func Test_Nack_NoMsg(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -341,12 +341,12 @@ func Test_Nack_NoMsg(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -364,8 +364,8 @@ func Test_Nack_NoMsg(t *testing.T) {
 func Test_Ack(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -395,12 +395,12 @@ func Test_Ack(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -446,8 +446,8 @@ func Test_Ack(t *testing.T) {
 func Test_Nack(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -477,7 +477,7 @@ func Test_Nack(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
@@ -490,7 +490,7 @@ func Test_Nack(t *testing.T) {
 	}(stop, &stopClosed)
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -528,8 +528,8 @@ func Test_Nack(t *testing.T) {
 func Test_Retry(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -560,7 +560,7 @@ func Test_Retry(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
@@ -573,7 +573,7 @@ func Test_Retry(t *testing.T) {
 	}(stop, &stopClosed)
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -612,7 +612,7 @@ func Test_Ack_NoConnect(t *testing.T) {
 	msg := pb.Message{}
 	err := prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, err)
-	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
+	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
 
 func Test_Nack_NoConnect(t *testing.T) {
@@ -621,7 +621,7 @@ func Test_Nack_NoConnect(t *testing.T) {
 	msg := pb.Message{}
 	err := prov.Nack(&ctx, msg.GetUuid())
 	assert.NotNil(t, err)
-	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
+	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
 func Test_Publish_NoConnect(t *testing.T) {
 	prov := NewAMQP091Provider()
@@ -630,7 +630,7 @@ func Test_Publish_NoConnect(t *testing.T) {
 	ec := make(chan *pb.Error)
 	err := prov.Publish(&ctx, mc, ec)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
+	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
 
 func Test_Subscribe_NoConnect(t *testing.T) {
@@ -645,7 +645,7 @@ func Test_Subscribe_NoConnect(t *testing.T) {
 
 	err := prov.Subscribe(&ctx, src, mc, stop)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.GetMessage(), "Could not retrieve peer info")
+	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
 func Test_Subscribe_NoAddressName(t *testing.T) {
 	prov := NewAMQP091Provider()
@@ -691,8 +691,8 @@ func Test_Subscribe_Options(t *testing.T) {
 	expectedQueueArgs["x-dead-letter-exchange"] = "dla"
 	expectedQueueArgs["x-dead-letter-routing-key"] = "dls"
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -767,12 +767,12 @@ func Test_Subscribe_Options(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -826,8 +826,8 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	expectedOptions := make(map[string]interface{})
 	expectedOptions["x-message-ttl"] = 100
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -845,12 +845,12 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -878,8 +878,8 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 func Test_Disconnect(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -888,12 +888,12 @@ func Test_Disconnect(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -923,8 +923,8 @@ func Test_WaitForConnect(t *testing.T) {
 	prov := NewAMQP091Provider()
 	ctx := context.Background()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -933,12 +933,12 @@ func Test_WaitForConnect(t *testing.T) {
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -956,8 +956,8 @@ func Test_WaitForConnect(t *testing.T) {
 func Test_Publish(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -990,7 +990,7 @@ func Test_Publish(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
@@ -1002,7 +1002,7 @@ func Test_Publish(t *testing.T) {
 	}()
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 		// close(mc)
 		// close(errchan)
@@ -1027,8 +1027,8 @@ func Test_Publish(t *testing.T) {
 func Test_Publish_Error(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -1046,7 +1046,7 @@ func Test_Publish_Error(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
@@ -1064,7 +1064,7 @@ func Test_Publish_Error(t *testing.T) {
 	}()
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -1090,8 +1090,8 @@ func Test_Publish_Error(t *testing.T) {
 func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	prov := NewAMQP091Provider()
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 
@@ -1108,7 +1108,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 		return amock
 	}
 
@@ -1126,7 +1126,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	}()
 
 	defer func() {
-		GetClientUUID = oldGetClientUUID
+		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
@@ -1152,8 +1152,8 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 // func Test_Publish_ChannelCloseError(t *testing.T) {
 // 	prov := NewAMQP091Provider()
 
-// 	oldGetClientUUID := GetClientUUID
-// 	GetClientUUID = func(context.Context) (string, error) {
+// 	oldGetClientIdentifier := GetClientIdentifier
+// 	GetClientIdentifier = func(context.Context) (string, error) {
 // 		return "1234", nil
 // 	}
 
@@ -1173,7 +1173,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 // 	amock.On("NotifyClose").Return(errs)
 // 	amock.On("NewChannel").Return(cmock, nil)
 // 	oldNewAmqpConn091 := NewAmqpConn091
-// 	NewAmqpConn091 = func(string, *tls.Config) Amqp091ConnectionShim {
+// 	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
 // 		return amock
 // 	}
 
@@ -1187,7 +1187,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 // 	msg.Headers["Content-Encoding"] = "utf8"
 
 // 	defer func() {
-// 		GetClientUUID = oldGetClientUUID
+// 		GetClientIdentifier = oldGetClientIdentifier
 // 		NewAmqpConn091 = oldNewAmqpConn091
 // 	}()
 

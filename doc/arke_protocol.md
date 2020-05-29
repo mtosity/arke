@@ -97,6 +97,7 @@ RabbitMQ and Kafka.
 | credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
 | tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
+| client_name | [string](#string) |  | The name of the client connecting. |
 
 
 

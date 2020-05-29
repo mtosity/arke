@@ -1015,7 +1015,7 @@ func TestSourceTwice(t *testing.T) {
 
 	connConfig := connectConfig()
 
-	_, _= c.Connect(ctx, connConfig)
+	_, _ = c.Connect(ctx, connConfig)
 
 	stream, err := c.Consume(ctx)
 
@@ -1030,4 +1030,32 @@ func TestSourceTwice(t *testing.T) {
 	msg, err := stream.Recv()
 	assert.Equal(t, msg.GetMsg().GetError().GetMessage(), "Only one source message allowed per subscribe")
 	assert.Nil(t, err)
+}
+
+func TestNoConnectionShareSameClientName(t *testing.T) {
+	consumerConnection := connect()
+	cc2 := connect()
+	defer consumerConnection.Close()
+	defer cc2.Close()
+
+	c := pb.NewConsumerClient(consumerConnection)
+	c2 := pb.NewConsumerClient(cc2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	defer cancel()
+	defer cancel2()
+
+	connConfig := connectConfig()
+	connConfig.ClientName = "MyClientName"
+	// Two connections, each connect. Should not interfere with each other
+	_, err1 := c.Connect(ctx, connConfig)
+	assert.Nil(t, err1)
+	_, err2 := c2.Connect(ctx2, connConfig)
+	assert.Nil(t, err2)
+	// Demonstrate that calling connect twice on a single connection produces an error
+	_, err2 = c2.Connect(ctx2, connConfig)
+	assert.Contains(t, err2.Error(), "can not call Connect more than once. Call Disconnect and try again")
 }

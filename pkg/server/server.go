@@ -18,8 +18,10 @@ import (
 // streamMaxSubscribeAttempts maximum number of times to attempt subscribing before we give up
 const streamMaxSubscribeAttempts = 10
 
-// GetClientUUID Set function as a variable so we can replace the util.GetClientUUID method in unit tests
-var GetClientUUID = util.GetClientUUID
+var GetClientAddr = util.GetClientAddr
+var GetClientIdentifier = util.GetClientIdentifier
+var SetClientIdentifier = util.SetClientIdentifier
+var RemoveClientIdentifier = util.RemoveClientIdentifier
 
 // Map that tracks our connection information
 // TODO: This leaks, we need a way to prune this map
@@ -63,7 +65,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		return ftlError
 	}
 
-	clientUUID, err := GetClientUUID(ctx)
+	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return err
 	}
@@ -104,7 +106,7 @@ consumeLoop:
 		case cnsmRecv := <-recvChan:
 
 			if cnsmRecv.err != nil {
-				util.Logger.ErrorI("error.consumerecvchan", clientUUID, cnsmRecv.err.Error())
+				util.Logger.ErrorI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				returnError = err
 				break consumeLoop
 			}
@@ -196,7 +198,7 @@ consumeLoop:
 							subscribeAttempts++
 							// Prevent a subscribe to the provider from being attempted too many times
 							if subscribeAttempts == streamMaxSubscribeAttempts {
-								util.Logger.ErrorI("error.streamsubscribemax", clientUUID, streamMaxSubscribeAttempts)
+								util.Logger.ErrorI("error.streamsubscribemax", clientIdentifier, streamMaxSubscribeAttempts)
 								*stopFor <- true
 								*returnErr = fmt.Errorf("Stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
 								return
@@ -204,7 +206,7 @@ consumeLoop:
 							err := prov.Subscribe(ctx, source, mc, stopChan)
 							if err != nil {
 								if clientExists(*ctx) {
-									util.Logger.InfoI("info.subscribefailbutclientexists", clientUUID, err.Message)
+									util.Logger.InfoI("info.subscribefailbutclientexists", clientIdentifier, err.Message)
 									connected := prov.WaitForConnect(ctx)
 									if connected {
 										continue
@@ -268,7 +270,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	messageChannel := make(chan *pb.Message)
 	errChan := make(chan *pb.Error)
 
-	clientUUID, err := GetClientUUID(ctx)
+	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return err
 	}
@@ -286,7 +288,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					break
 				}
 				if err != nil {
-					util.Logger.Debugf("Error on producer stream for client %s: %v", clientUUID, err)
+					util.Logger.Debugf("Error on producer stream for client %s: %v", clientIdentifier, err)
 					returnError = err
 					endLoop = true
 					break
@@ -369,15 +371,32 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 		}
 		return &pb.ConnectResponse{Success: false, Error: errMsg}, er
 	}
-	// We don't allow a client to call Connect more than once
-	clientUUID, clientErr := GetClientUUID(ctx)
-	if clientErr != nil {
-		err := errors.New(clientErr.Error())
+
+	// Check for a client address
+	clientAddr, clientAddrErr := GetClientAddr(ctx)
+	if clientAddrErr != nil {
+		err := errors.New(clientAddrErr.Error())
 		return &pb.ConnectResponse{Success: false, Error: nil}, err
 	}
-	_, exists := connectionMap.Get(clientUUID)
+
+	clientName := cf.GetClientName()
+	// If we have a client identifier at this point then we've likely already connected
+	clientIdentifier, clientErr := GetClientIdentifier(ctx)
+	if clientErr != nil {
+		if clientName == "" {
+			clientName = clientAddr
+		}
+		clientIdentifier, clientErr = SetClientIdentifier(ctx, clientName)
+		if clientErr != nil {
+			err := errors.New(clientErr.Error())
+			return &pb.ConnectResponse{Success: false, Error: nil}, err
+		}
+	}
+	// We don't allow a client to call Connect more than once
+	_, exists := connectionMap.Get(clientIdentifier)
 	if exists {
 		err := errors.New("can not call Connect more than once. Call Disconnect and try again")
+		RemoveClientIdentifier(ctx)
 		return &pb.ConnectResponse{Success: false, Error: nil}, err
 	}
 	errMsg := prov.Connect(&ctx, cf, tlsSkipVerify)
@@ -388,40 +407,40 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 		err = errors.New(errMsg.GetMessage())
 	}
 	if success {
-		connectionMap.Add(clientUUID, cf)
+		connectionMap.Add(clientIdentifier, cf)
 	}
 
 	return &pb.ConnectResponse{Success: success, Error: errMsg}, err
 }
 
 func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
-	clientUUID, err := GetClientUUID(ctx)
+	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return &pb.Empty{}, nil
 	}
-	cf, found := connectionMap.Get(clientUUID)
+	cf, found := connectionMap.Get(clientIdentifier)
 	if found == true {
 		providerType := cf.(*pb.ConnectionConfiguration).GetProvider()
 		prov, _ := provider.GetProvider(providerType)
 		prov.Disconnect(&ctx)
-		connectionMap.Delete(clientUUID)
-		util.Logger.InfoI("info.clientdisconnect", clientUUID)
+		connectionMap.Delete(clientIdentifier)
+		util.Logger.InfoI("info.clientdisconnect", clientIdentifier)
 		return &pb.Empty{}, nil
 	}
 
-	util.Logger.Debugf("Disconnect called for client %s, but no connection information found.", clientUUID)
+	util.Logger.Debugf("Disconnect called for client %s, but no connection information found.", clientIdentifier)
 	return &pb.Empty{}, nil
 }
 
 func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
-	clientUUID, _ := GetClientUUID(ctx)
-	cf, found := connectionMap.Get(clientUUID)
+	clientIdentifier, _ := GetClientIdentifier(ctx)
+	cf, found := connectionMap.Get(clientIdentifier)
 	if !found {
 		errMsg := &pb.Error{
 			Message: "Failed to find connection information.",
 			IsFatal: true,
 		}
-		util.Logger.ErrorI("error.clientnoprovider", clientUUID)
+		util.Logger.ErrorI("error.clientnoprovider", clientIdentifier)
 		return nil, errMsg
 	}
 
@@ -432,11 +451,11 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 
 func clientExists(ctx context.Context) bool {
 	// We don't allow a client to call Connect more than once
-	clientUUID, clientErr := GetClientUUID(ctx)
+	clientIdentifier, clientErr := GetClientIdentifier(ctx)
 	if clientErr != nil {
 		return false
 	}
-	_, exists := connectionMap.Get(clientUUID)
+	_, exists := connectionMap.Get(clientIdentifier)
 	if exists {
 		return true
 	}

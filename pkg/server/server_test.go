@@ -33,7 +33,7 @@ func init() {
 
 	// Setup our tests
 	ctx = context.Background()
-	cf = &pb.ConnectionConfiguration{Provider: provName}
+	cf = &pb.ConnectionConfiguration{Provider: provName, ClientName: "ServerTest"}
 	mocky, _ := provider.GetProvider(provName)
 	mockp = mocky.(*MockProvider)
 	conSrv = &ConsumerServer{}
@@ -142,8 +142,15 @@ const provName string = "mockp"
 // NewMockProvider creates a new provider
 func NewMockProvider() provider.Provider {
 	prov := &MockProvider{}
-	GetClientUUID = func(context.Context) (string, error) {
-		return "123", nil
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "127.0.0.1:1234-1234", nil
+	}
+	SetClientIdentifier = func(cx context.Context, n string) (string, error) {
+		return fmt.Sprintf("%s-%d", n, 123), nil
+	}
+	RemoveClientIdentifier = func(context.Context) {}
+	GetClientAddr = func(context.Context) (string, error) {
+		return "127.0.0.1:1234", nil
 	}
 	return prov
 }
@@ -338,6 +345,32 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 	mockp.AssertExpectations(t)
 }
 
+// Make sure that two connections with the same client name don't fail to connect
+func TestServerNoConnectionShare(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	connectResp, err := proSrv.Connect(ctx, cf)
+	assert.NotNil(t, connectResp)
+	assert.Nil(t, err)
+	defer proSrv.Disconnect(ctx, &pb.Empty{})
+
+	oldClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "456", nil
+	}
+	defer func() { GetClientIdentifier = oldClientIdentifier }()
+
+	ctx2 := context.WithValue(context.Background(), peer.Peer{}, "")
+	cr2, err2 := proSrv.Connect(ctx2, cf)
+	assert.NotNil(t, cr2)
+	assert.Nil(t, err2)
+	defer proSrv.Disconnect(ctx2, &pb.Empty{})
+
+	mockp.AssertExpectations(t)
+}
+
 func TestProducerServerPublish_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
@@ -418,8 +451,8 @@ func TestProducerServerPublishSend_Fail(t *testing.T) {
 func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "", errors.New("Can't get Client UUID")
 	}
 
@@ -429,7 +462,7 @@ func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 	conSrv.Connect(ctx, cf)
 	connectResp, err := conSrv.Disconnect(ctx, empty)
 
-	GetClientUUID = oldGetClientUUID
+	GetClientIdentifier = oldGetClientIdentifier
 
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -447,12 +480,12 @@ func TestServerDisconnect_FailNoMap(t *testing.T) {
 
 	conSrv.Connect(ctx, cf)
 
-	oldGetClientUUID := GetClientUUID
-	GetClientUUID = func(context.Context) (string, error) {
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 	connectResp, err := conSrv.Disconnect(ctx, empty)
-	GetClientUUID = oldGetClientUUID
+	GetClientIdentifier = oldGetClientIdentifier
 
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)

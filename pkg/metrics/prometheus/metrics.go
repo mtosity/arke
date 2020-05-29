@@ -89,7 +89,7 @@ func gatherClientStats() {
 		for _, client := range pstats.Clients {
 			clientID := strings.ReplaceAll(client.ID, ".", "-")
 			labelset := metrics.NewLabelSet()
-			labelset.AddLabel("ClientUUID", clientID)
+			labelset.AddLabel("ClientIdentitifer", clientID)
 
 			Stats.Sink.SetGaugeWithLabels(metrics.ClientActMessageGauge, float32(client.ActiveMessages), labelset.Labels)
 			Stats.Sink.SetGaugeWithLabels(metrics.ClientStreamsGauge, float32(client.Streams), labelset.Labels)

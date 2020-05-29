@@ -2,6 +2,7 @@ package connectors
 
 import (
 	"crypto/tls"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -30,9 +31,10 @@ type Amqp091ChannelShim interface {
 // Amqp091Connection A connection to the broker
 type Amqp091Connection struct {
 	Amqp091ConnectionShim
-	connection *amqp.Connection
-	connStr    string
-	tlsCfg     *tls.Config
+	connection       *amqp.Connection
+	connStr          string
+	tlsCfg           *tls.Config
+	clientIdentifier string
 }
 
 // Amqp091Channel A channel
@@ -61,13 +63,21 @@ type Amqp091Message struct {
 type Amqp091Table map[string]interface{}
 
 // NewAmqp091Connection Create a new Amqp091Connection object with a connection string and tls config
-func NewAmqp091Connection(connStr string, tlsCfg *tls.Config) Amqp091ConnectionShim {
-	return &Amqp091Connection{connStr: connStr, tlsCfg: tlsCfg}
+func NewAmqp091Connection(connStr string, clientIdentifier string, tlsCfg *tls.Config) Amqp091ConnectionShim {
+	return &Amqp091Connection{connStr: connStr, tlsCfg: tlsCfg, clientIdentifier: clientIdentifier}
 }
 
 // Connect Connect to the broker
 func (ac *Amqp091Connection) Connect() error {
-	conn, err := amqp.DialTLS(ac.connStr, ac.tlsCfg)
+	properties := make(amqp.Table)
+	properties["connection_name"] = ac.clientIdentifier
+	cfg := amqp.Config{
+		TLSClientConfig: ac.tlsCfg,
+		Heartbeat:       10 * time.Second,
+		Locale:          "en_US",
+		Properties:      properties,
+	}
+	conn, err := amqp.DialConfig(ac.connStr, cfg)
 	if err != nil {
 		return err
 	}
