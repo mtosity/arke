@@ -68,9 +68,7 @@ func connectConfig() *pb.ConnectionConfiguration {
 	return &connConfig
 }
 
-func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error {
-	c := pb.NewProducerClient(conn)
-	ctx := context.Background()
+func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message) error {
 
 	connConfig := connectConfig()
 	defer c.Disconnect(ctx, &pb.Empty{})
@@ -100,12 +98,9 @@ func produceMessages(conn *grpc.ClientConn, cnt int, message *pb.Message) error 
 }
 
 //TODO: pass in a message handler to control ack/nack
-func consumeMessages(conn *grpc.ClientConn, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler) error {
-	c := pb.NewConsumerClient(conn)
+func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
-	defer cancel()
 
 	connConfig := connectConfig()
 
@@ -226,7 +221,10 @@ func connect() *grpc.ClientConn {
 func TestProduceSingleConsumeSingle(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -235,19 +233,22 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -269,7 +270,10 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 6
 	produceMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -297,19 +301,22 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	}
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCR")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, retryHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, produceMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -331,7 +338,10 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
 	produceMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -347,19 +357,22 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	}
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCN.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, retryHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, produceMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -380,7 +393,10 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 func TestProduceManyConsumeMany(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 30
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -388,19 +404,22 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCM")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(1000 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -423,7 +442,7 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	defer conn.Close()
+	//defer conn.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPFWC")
@@ -441,7 +460,7 @@ func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
 	c := pb.NewConsumerClient(conn)
 	ctx := context.Background()
-	defer conn.Close()
+	//defer conn.Close()
 
 	r, err := c.Disconnect(ctx, &pb.Empty{})
 	assert.Nil(t, err)
@@ -452,7 +471,7 @@ func TestProducerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
-	defer conn.Close()
+	//defer conn.Close()
 
 	r, err := c.Disconnect(ctx, &pb.Empty{})
 	assert.Nil(t, err)
@@ -462,7 +481,10 @@ func TestProducerDisconnectOKWithoutConnect(t *testing.T) {
 func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -470,7 +492,6 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAll")
@@ -483,7 +504,11 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	source.Filters = make([]*pb.Filter, 0)
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
@@ -500,19 +525,19 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
 
-	err := produceMessages(producerConnection, 1, message)
+	err := produceMessages(producerConnection, pc, pctx, 1, message)
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
-	err = produceMessages(producerConnection, 1, message)
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
-	err = produceMessages(producerConnection, 1, message)
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
-	err = produceMessages(producerConnection, 1, message) // this message is the one that gets consumed
+	err = produceMessages(producerConnection, pc, pctx, 1, message) // this message is the one that gets consumed
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -534,7 +559,10 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 2
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -542,7 +570,6 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAny")
@@ -555,7 +582,11 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	source.Filters = make([]*pb.Filter, 0)
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 
 	<-clientConnected
 
@@ -572,19 +603,19 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
 
-	err := produceMessages(producerConnection, 1, message) // this message gets consumed
+	err := produceMessages(producerConnection, pc, pctx, 1, message) // this message gets consumed
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
-	err = produceMessages(producerConnection, 1, message)
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
-	err = produceMessages(producerConnection, 1, message)
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
-	err = produceMessages(producerConnection, 1, message) // this message get consumed
+	err = produceMessages(producerConnection, pc, pctx, 1, message) // this message get consumed
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -605,7 +636,10 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -615,27 +649,33 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCTN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	done2 := make(chan bool)
 	clientConnected2 := make(chan bool)
 	consumerConnection2 := connect()
-	defer consumerConnection2.Close()
 	source.Name = "sas.test.proxy.TPSCSCTN.Consumer2"
-	go consumeMessages(consumerConnection2, messages, done2, clientConnected2, source, defaultHandler)
+	c2 := pb.NewConsumerClient(consumerConnection2)
+	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	//defer consumerConnection2.Close()
+	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler)
 	<-clientConnected2
 
 	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -661,7 +701,10 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -670,19 +713,22 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -703,7 +749,10 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 func TestHeaders_Consume(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 1
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -712,7 +761,6 @@ func TestHeaders_Consume(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	headers := make(map[string]string)
 	headers["header-one"] = "one"
 	headers["content-type"] = "text/json"
@@ -722,14 +770,18 @@ func TestHeaders_Consume(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TH")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(250 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Headers: headers}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -752,8 +804,11 @@ func TestHeaders_Consume(t *testing.T) {
 }
 func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	producerConnection := connect()
-	expectedMessageCount := 1
-	defer producerConnection.Close()
+	expectedMessageCount := 20
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 	messages2 := make(chan *pb.Message)
@@ -764,25 +819,31 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCME")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPMCME.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	sourceName := fmt.Sprintf("sas.test.proxy.TPMCME.Consumer.%v", time.Now().Unix())
+	source := &pb.Source{Name: sourceName, Address: address, PrefetchCount: 1, Exclusive: true}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	done2 := make(chan bool)
 	clientConnected2 := make(chan bool)
 	consumerConnection2 := connect()
-	defer consumerConnection2.Close()
-	source.Name = "sas.test.proxy.TPMCME.Consumer"
-	go consumeMessages(consumerConnection2, messages2, done2, clientConnected2, source, defaultHandler)
+	c2 := pb.NewConsumerClient(consumerConnection2)
+	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	//defer consumerConnection2.Close()
+	go consumeMessages(consumerConnection2, c2, ctx2, messages2, done2, clientConnected2, source, defaultHandler)
 	<-clientConnected2
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -791,7 +852,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	messageUUIDs := make([]string, 0)
 	messageUUIDs2 := make([]string, 0)
 
-	for start := time.Now(); time.Since(start) < 1*time.Second; {
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
 		select {
 		case msg := <-messages:
 			messageUUIDs = append(messageUUIDs, msg.GetUuid())
@@ -801,19 +862,23 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 			msgCount2++
 		case <-done:
 			break
-		case <-time.After(1 * time.Second):
+		case <-time.After(5 * time.Second):
 			break
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
-	assert.Equal(t, expectedMessageCount, len(messageUUIDs))
 	assert.Equal(t, 0, msgCount2)
+	assert.Equal(t, expectedMessageCount, len(messageUUIDs))
 	assert.Equal(t, 0, len(messageUUIDs2))
+	c2.Disconnect(ctx2, &pb.Empty{})
 }
 func TestConsumeMultiSubject(t *testing.T) {
 	producerConnection := connect()
 	produceCount := 5
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -821,7 +886,6 @@ func TestConsumeMultiSubject(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 
 	// Subscribe with 2 subject bindings
 	subjects := make([]string, 0)
@@ -829,7 +893,11 @@ func TestConsumeMultiSubject(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TSMS.2")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
 
@@ -839,7 +907,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	address.Subjects = subjects
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, produceCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.Nil(t, err)
 
 	// Produce to binding 2
@@ -848,7 +916,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	address.Subjects = subjects
 	message = &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err = produceMessages(producerConnection, produceCount, message)
+	err = produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -868,7 +936,10 @@ func TestConsumeMultiSubject(t *testing.T) {
 func TestProduceMultiSubject_FAIL(t *testing.T) {
 	producerConnection := connect()
 	produceCount := 5
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	// Publish with 2 subject bindings
 	subjects := make([]string, 0)
@@ -877,7 +948,7 @@ func TestProduceMultiSubject_FAIL(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, produceCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.NotNil(t, err)
 
 	assert.Contains(t, err.Error(), "exactly one subject allowed in an Address")
@@ -891,7 +962,10 @@ func TestParentExchange_Consume(t *testing.T) {
 
 	producerConnection := connect()
 	produceCount := 5
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
 
 	subjects := make([]string, 0)
 	parentSubjects := make([]string, 0)
@@ -909,18 +983,23 @@ func TestParentExchange_Consume(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 
 	// Subscribe to the child Address
 	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	defer func() {
+		c.Disconnect(ctx, &pb.Empty{})
+		//consumerConnection.Close()
+	}()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
 
 	// Publish to the parent address
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
-	err := produceMessages(producerConnection, produceCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -945,7 +1024,10 @@ func TestAddressType_FAIL(t *testing.T) {
 
 	producerConnection := connect()
 	produceCount := 5
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	////defer producerConnection.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TATF.1")
@@ -953,7 +1035,7 @@ func TestAddressType_FAIL(t *testing.T) {
 	parent := &pb.Address{Name: "test.parent", Type: 5, Subjects: subjects}
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
-	err := produceMessages(producerConnection, produceCount, message)
+	err := produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "5 is not a valid address type")
 }
@@ -961,7 +1043,10 @@ func TestAddressType_FAIL(t *testing.T) {
 func TestHeadersNoConsumeSubject(t *testing.T) {
 	producerConnection := connect()
 	expectedMessageCount := 30
-	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	////defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -969,19 +1054,22 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
-	go consumeMessages(consumerConnection, messages, done, clientConnected, source, defaultHandler)
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	//defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, expectedMessageCount, message)
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -997,11 +1085,12 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+	c.Disconnect(ctx, &pb.Empty{})
 }
 
 func TestSourceTwice(t *testing.T) {
 	consumerConnection := connect()
-	defer consumerConnection.Close()
+	//defer consumerConnection.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
@@ -1009,9 +1098,8 @@ func TestSourceTwice(t *testing.T) {
 	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
-	defer cancel()
 
 	connConfig := connectConfig()
 
