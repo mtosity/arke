@@ -76,8 +76,8 @@ func main() {
 		util.Logger.FatalI("error.netlisten", err.Error())
 	}
 	kp := keepalive.ServerParameters{
-		Time:    5 * time.Second,
-		Timeout: 1 * time.Second,
+		Time:    20 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 
 	kaep := keepalive.EnforcementPolicy{

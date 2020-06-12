@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strings"
+	"time"
 
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
@@ -24,9 +27,39 @@ var SetClientIdentifier = util.SetClientIdentifier
 var RemoveClientIdentifier = util.RemoveClientIdentifier
 
 // Map that tracks our connection information
-// TODO: This leaks, we need a way to prune this map
-// if a client goes away without calling Disconnect().
 var connectionMap = util.NewConcurrentMap()
+
+func init() {
+	if !strings.HasSuffix(os.Args[0], ".test") {
+		util.Logger.Debugf("Starting server connection watcher")
+		go connectionWatcher()
+	}
+}
+
+func connectionWatcher() {
+	// watch connection map
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			for _, connId := range connectionMap.GetList() {
+				if connConf, ok := connectionMap.Get(connId); ok {
+					providerType := connConf.(*pb.ConnectionConfiguration).GetProvider()
+					if prov, err := provider.GetProvider(providerType); err == nil {
+						// if the provider says the client doesn't exists, clean up this dead client
+						if !prov.ClientExists(connId) {
+							util.Logger.Debugf("Provider says client %s does not exist. Cleaning up dead client.", connId)
+							connectionMap.Delete(connId)
+						}
+					}
+				} else {
+					// We had it in the list but then couldn't retrieve it, delete it.
+					connectionMap.Delete(connId)
+				}
+			}
+		}
+	}
+}
 
 type consumeRecv struct {
 	err error
@@ -73,10 +106,13 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	var returnError error
 	isSubscribing := false
 
-	// the only place stopChan should be closed is in a defer
-	// it is used to stop the goroutines for subscribe and sending messages back to the client
 	stopChan := make(chan bool)
-	defer close(stopChan)
+	stopChanClosed := false
+	defer func() {
+		if !stopChanClosed {
+			close(stopChan)
+		}
+	}()
 
 	// stopForLoop is used for errors that require the exiting of Consume
 	stopForLoop := make(chan bool)
@@ -103,6 +139,11 @@ consumeLoop:
 		}(stream, recvChan)
 
 		select {
+		case <-ctx.Done():
+			util.Logger.Debugf("Client %v went away.", clientIdentifier)
+			stopChanClosed = true
+			close(stopChan)
+			break consumeLoop
 		case cnsmRecv := <-recvChan:
 
 			if cnsmRecv.err != nil {
@@ -327,6 +368,8 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					break
 				}
 			}
+			// close the channel so the prov.Publish knows to stop
+			close(mc)
 		}(messageChannel, errChan)
 
 		err := prov.Publish(&ctx, messageChannel, errChan)

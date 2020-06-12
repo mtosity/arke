@@ -803,6 +803,7 @@ func TestHeaders_Consume(t *testing.T) {
 	assert.NotNil(t, received[0].GetAddress())
 }
 func TestProduceManyConsumeManyExclusive(t *testing.T) {
+	t.Skip("This test is flaky. Skipping for now.")
 	producerConnection := connect()
 	expectedMessageCount := 20
 	pc := pb.NewProducerClient(producerConnection)

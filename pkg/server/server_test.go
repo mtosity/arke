@@ -239,7 +239,10 @@ func (prov *MockProvider) Publish(ctx *context.Context, messageChannel <-chan *p
 
 	for {
 		select {
-		case _ = <-messageChannel:
+		case msg := <-messageChannel:
+			if msg == nil {
+				return nil
+			}
 			errChan <- nil
 		case <-time.After(2 * time.Second):
 			return nil

@@ -55,6 +55,7 @@ type BrokerDetails struct {
 	consumed         int
 	produced         int
 	clientDisconnect bool
+	streamLastCD     time.Time
 }
 
 func init() {
@@ -64,6 +65,36 @@ func init() {
 	supportedSourceOptions = make(map[string]bool)
 	for _, option := range supportedSourceOptionsList {
 		supportedSourceOptions[option] = true
+	}
+	if !strings.HasSuffix(os.Args[0], ".test") {
+		go connectionCleaner()
+	}
+}
+
+// every 30 seconds check the list of active connections
+// if a client has 0 active streams and hasn't created or
+// deleted a stream in over 30 seconds, disconnect it.
+// Severed client connections may hang around for up to 60
+// seconds since we are checking every 30.
+func connectionCleaner() {
+	provy, _ := provider.GetProvider("amqp091")
+	prov := provy.(*amqp091provider)
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			for _, connId := range prov.connections.GetList() {
+				if conn, ok := prov.connections.Get(connId); ok {
+					bd := conn.(*BrokerDetails)
+					util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
+					lastKnown := time.Since(bd.streamLastCD)
+					if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
+						util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
+						prov.disconnectClientByIdentifier(connId)
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -95,11 +126,25 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 		return &BrokerDetails{}, err
 	}
 
-	if bd, ok := prov.connections.Get(clientIdentifier); ok {
-		return bd.(*BrokerDetails), nil
+	if bd := prov.getBrokerDetailsByIdentifier(clientIdentifier); bd != nil {
+		return bd, nil
 	}
 
 	return &BrokerDetails{}, fmt.Errorf("could not retrieve broker details for this connection: %s", clientIdentifier)
+}
+
+func (prov *amqp091provider) getBrokerDetailsByIdentifier(clientIdentifier string) *BrokerDetails {
+	if bd, ok := prov.connections.Get(clientIdentifier); ok {
+		return bd.(*BrokerDetails)
+	}
+	return nil
+}
+
+func (prov *amqp091provider) ClientExists(clientIdentifier string) bool {
+	if bd := prov.getBrokerDetailsByIdentifier(clientIdentifier); bd != nil {
+		return true
+	}
+	return false
 }
 
 // Ack ack a message
@@ -319,6 +364,16 @@ func (bd *BrokerDetails) bindingKnown(name string) bool {
 	return ok
 }
 
+func (bd *BrokerDetails) incrementStreamCount() {
+	bd.ActiveStreams++
+	bd.streamLastCD = time.Now()
+}
+
+func (bd *BrokerDetails) decrementStreamCount() {
+	bd.ActiveStreams--
+	bd.streamLastCD = time.Now()
+}
+
 func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
 
 	// don't try to declare an exchange with amq. in the name
@@ -524,8 +579,8 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	connErrChan := make(chan Amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
 
-	bd.ActiveStreams++
-	defer func() { bd.ActiveStreams-- }()
+	bd.incrementStreamCount()
+	defer bd.decrementStreamCount()
 
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
@@ -592,6 +647,11 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 		return
 	}
 
+	prov.disconnectClientByIdentifier(clientIdentifier)
+}
+
+func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier string) {
+
 	var bd *BrokerDetails
 	if bdu, ok := prov.connections.Get(clientIdentifier); ok {
 		bd = bdu.(*BrokerDetails)
@@ -611,6 +671,7 @@ func (prov *amqp091provider) Disconnect(ctx *context.Context) {
 		bd.Connection.Close()
 	}
 	prov.connections.Delete(clientIdentifier)
+	bd = nil
 }
 
 // Publish publish a message to the broker
@@ -628,8 +689,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 	connErrChan := make(chan Amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
 
-	bd.ActiveStreams++
-	defer func() { bd.ActiveStreams-- }()
+	bd.incrementStreamCount()
+	defer bd.decrementStreamCount()
 
 	for {
 		select {
@@ -646,6 +707,10 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				return nil
 			}
 		case message := <-messageChannel:
+			if message == nil {
+				// nil message means shut it down
+				return nil
+			}
 			address := message.GetAddress()
 			deliveryMode := 1
 			if message.GetPersistent() {

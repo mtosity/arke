@@ -24,6 +24,7 @@ type Provider interface {
 	SupportedSourceOptions() map[string]bool
 	WaitForConnect(*context.Context) bool
 	Stats() *Stats
+	ClientExists(string) bool
 }
 
 // Factory method for creating a specific provider
