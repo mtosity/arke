@@ -16,7 +16,7 @@ setup: ## Makes build directories and installs vendor dependencies
 	mkdir -p build/osx
 	mkdir -p build/windows
 
-generate: generate-proto generate-doc generate-proto-java
+generate: generate-proto generate-doc
 
 generate-proto: ## Generates protobufs
     ifneq ("$(HAVE_PROTOC)","")

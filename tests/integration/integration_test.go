@@ -17,7 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
-	cfg "sassoftware.io/convoy/arke/config"
+	cfg "sassoftware.io/convoy/arke/test/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
