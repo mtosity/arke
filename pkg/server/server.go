@@ -267,7 +267,7 @@ consumeLoop:
 			} else if cnsmRecv.msg.GetAck() != nil { // Ack or Nack the message
 				go func() {
 					ackmsg := cnsmRecv.msg.GetAck()
-					mcr := &pb.MessageConsumedResponse{Success: true}
+					mcr := &pb.MessageConsumedResponse{Success: true, Uuid: ackmsg.GetUuid()}
 
 					var ackerr *pb.Error
 

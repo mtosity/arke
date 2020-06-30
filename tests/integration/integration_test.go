@@ -98,7 +98,7 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 }
 
 //TODO: pass in a message handler to control ack/nack
-func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler) error {
+func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler, t *testing.T) error {
 
 	defer c.Disconnect(ctx, &pb.Empty{})
 
@@ -171,6 +171,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 			}(&stop)
 
 		} else if resp.GetConsumedResponse() != nil {
+			assert.NotEmpty(t, resp.GetConsumedResponse().GetUuid())
 		}
 	}
 	done <- true
@@ -241,7 +242,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
@@ -309,7 +310,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
@@ -365,7 +366,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
 	time.Sleep(200 * time.Millisecond)
@@ -412,7 +413,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(1000 * time.Millisecond)
@@ -508,7 +509,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
@@ -586,7 +587,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
 
@@ -657,7 +658,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	done2 := make(chan bool)
@@ -668,7 +669,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c2.Disconnect(ctx2, &pb.Empty{})
 	//defer consumerConnection2.Close()
-	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler)
+	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
 
 	time.Sleep(500 * time.Millisecond)
@@ -721,7 +722,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
@@ -774,7 +775,7 @@ func TestHeaders_Consume(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(250 * time.Millisecond)
@@ -829,7 +830,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	done2 := make(chan bool)
@@ -839,7 +840,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c2.Disconnect(ctx2, &pb.Empty{})
 	//defer consumerConnection2.Close()
-	go consumeMessages(consumerConnection2, c2, ctx2, messages2, done2, clientConnected2, source, defaultHandler)
+	go consumeMessages(consumerConnection2, c2, ctx2, messages2, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
@@ -898,7 +899,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 	time.Sleep(500 * time.Millisecond)
 
@@ -993,7 +994,7 @@ func TestParentExchange_Consume(t *testing.T) {
 		c.Disconnect(ctx, &pb.Empty{})
 		//consumerConnection.Close()
 	}()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
@@ -1063,7 +1064,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	//defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
 	time.Sleep(500 * time.Millisecond)
