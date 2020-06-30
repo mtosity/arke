@@ -407,7 +407,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		if !known || force {
 			err := prov.declareExchange(parent, bd, amqpChannel, force)
 			if err != nil {
-				return err
+				util.Logger.ErrorI("error.exchangedeclare", err.Error())
 			}
 
 			// Bind each subject from the Address exchange to the ParentAddress exchange
