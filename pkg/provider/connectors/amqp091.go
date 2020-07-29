@@ -55,7 +55,7 @@ type BrokerDetails struct {
 	consumed         int
 	produced         int
 	clientDisconnect bool
-	streamLastCD     time.Time
+	lastPubSubEvent  time.Time
 }
 
 func init() {
@@ -87,7 +87,7 @@ func connectionCleaner() {
 				if conn, ok := prov.connections.Get(connId); ok {
 					bd := conn.(*BrokerDetails)
 					util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
-					lastKnown := time.Since(bd.streamLastCD)
+					lastKnown := time.Since(bd.lastPubSubEvent)
 					if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
 						util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
 						prov.disconnectClientByIdentifier(connId)
@@ -364,14 +364,18 @@ func (bd *BrokerDetails) bindingKnown(name string) bool {
 	return ok
 }
 
+func (bd *BrokerDetails) updateLastPubSubEvent() {
+	bd.lastPubSubEvent = time.Now()
+}
+
 func (bd *BrokerDetails) incrementStreamCount() {
 	bd.ActiveStreams++
-	bd.streamLastCD = time.Now()
+	bd.updateLastPubSubEvent()
 }
 
 func (bd *BrokerDetails) decrementStreamCount() {
 	bd.ActiveStreams--
-	bd.streamLastCD = time.Now()
+	bd.updateLastPubSubEvent()
 }
 
 func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
@@ -538,6 +542,8 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	bd.updateLastPubSubEvent()
+
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -680,6 +686,9 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
+
+	bd.updateLastPubSubEvent()
+
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -798,17 +807,21 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 			bd.connect()
 		}
 
-		// Wait between 100ms and ReconnectDelay before attempting a reconnect
 		if reconnect {
-			rand.Seed(time.Now().UnixNano())
-			splay := time.Duration(rand.Intn(ReconnectDelay-100+1) + 100)
-			time.Sleep(splay * time.Millisecond)
+			sleepRandomReconnect()
 		}
 
 		reconnect = true
 
 	}
 	return false
+}
+
+func sleepRandomReconnect() {
+
+	rand.Seed(time.Now().UnixNano())
+	splay := time.Duration(rand.Intn(ReconnectDelay-100)+100) * time.Millisecond
+	time.Sleep(splay)
 }
 
 // connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
@@ -820,6 +833,7 @@ func (bd *BrokerDetails) connectionWatcher() {
 	if !ok || (&err != nil && err.Code() != 0) {
 		bd.state = DISCONNECTED
 		bd.Unlock()
+		sleepRandomReconnect()
 		bd.connect()
 		return
 	}

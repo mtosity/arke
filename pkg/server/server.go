@@ -308,8 +308,6 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 
 	var err error
 	var msg *pb.Message
-	messageChannel := make(chan *pb.Message)
-	errChan := make(chan *pb.Error)
 
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
@@ -320,6 +318,8 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	endLoop := false
 
 	for {
+		messageChannel := make(chan *pb.Message)
+		errChan := make(chan *pb.Error)
 		go func(mc chan<- *pb.Message, ec chan<- *pb.Error) {
 			for {
 				msg, err = stream.Recv()
