@@ -453,6 +453,9 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	err = stream.Send(&pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.Nil(t, err)
 	r, err := stream.Recv()
+	assert.Nil(t, err)
+	assert.NotNil(t, r)
+	r, err = stream.Recv()
 	assert.Nil(t, r)
 	assert.Contains(t, err.Error(), "Failed to find connection information")
 }

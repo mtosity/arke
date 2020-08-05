@@ -537,6 +537,7 @@ func TestServerNoConnect_FAIL(t *testing.T) {
 	assert.Contains(t, err.Error(), "Failed to find connection information")
 
 	stream := &MockConsumerConsumeServerStream{}
+	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
 	subErr := conSrv.Consume(stream)
 	assert.NotNil(t, subErr)
 }

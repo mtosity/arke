@@ -173,6 +173,7 @@ message ConsumeResponse {
     oneof resp {
         arke.Message msg = 1;
         arke.MessageConsumedResponse consumed_response = 2;
+        arke.Error error = 3;
     }
 }
 

@@ -94,12 +94,18 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
+		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: findErr}}
+		stream.Send(cnsmResp)
 		util.Logger.ErrorI("error.subscribe", findErr.Message)
 		return ftlError
 	}
 
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
+		ciErr := &pb.Error{Message: err.Error(), IsFatal: true}
+		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: ciErr}}
+		stream.Send(cnsmResp)
+		util.Logger.ErrorI("error.subscribe", ciErr.Message)
 		return err
 	}
 
@@ -303,6 +309,8 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
+		msgResp := &pb.MessageResponse{Success: false, Error: findErr}
+		stream.Send(msgResp)
 		return ftlError
 	}
 
@@ -311,6 +319,9 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
+		ciError := &pb.Error{Message: err.Error(), IsFatal: true}
+		msgResp := &pb.MessageResponse{Success: false, Error: ciError}
+		stream.Send(msgResp)
 		return err
 	}
 

@@ -130,6 +130,7 @@ Response to a Consume message. Either a Message or a MessageConsumedResponse
 | ----- | ---- | ----- | ----------- |
 | msg | [Message](#arke.Message) |  |  |
 | consumed_response | [MessageConsumedResponse](#arke.MessageConsumedResponse) |  |  |
+| error | [Error](#arke.Error) |  |  |
 
 
 
