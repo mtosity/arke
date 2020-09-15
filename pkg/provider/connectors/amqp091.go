@@ -584,6 +584,18 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	connErrChan := make(chan Amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
+	defer func() {
+		// try to send on the channel and if we can't it's
+		// probably not receiving on the other end for some
+		// reason
+		select {
+		case connErrChan <- NewAmqp091Error("Subscribe done", 2001):
+			return
+		default:
+			return
+
+		}
+	}()
 
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
@@ -697,6 +709,19 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 	connErrChan := make(chan Amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
+
+	defer func() {
+		// try to send on the channel and if we can't it's
+		// probably not receiving on the other end for some
+		// reason
+		select {
+		case connErrChan <- NewAmqp091Error("Publish done", 2002):
+			return
+		default:
+			return
+
+		}
+	}()
 
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
@@ -827,13 +852,14 @@ func sleepRandomReconnect() {
 // connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
 // if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
 func (bd *BrokerDetails) connectionWatcher() {
+
 	err, ok := <-bd.ErrorChannel
 
 	bd.Lock()
 	if !ok || (&err != nil && err.Code() != 0) {
 		bd.state = DISCONNECTED
-		bd.Unlock()
 		sleepRandomReconnect()
+		bd.Unlock()
 		bd.connect()
 		return
 	}
@@ -933,7 +959,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	bd.Connection = conn
 	bd.ErrorChannel = make(chan Amqp091Error)
-	bd.ErrorChannel = conn.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
+	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
 	go bd.connectionWatcher()
 	bd.state = CONNECTED
 	bd.knownExchanges = util.NewConcurrentMap()

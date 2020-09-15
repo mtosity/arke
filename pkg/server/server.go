@@ -141,7 +141,12 @@ consumeLoop:
 		go func(strm pb.Consumer_ConsumeServer, rchan chan consumeRecv) {
 			msg, errer := strm.Recv()
 			cnsmRecv := consumeRecv{err: errer, msg: msg}
-			rchan <- cnsmRecv
+			select {
+			case rchan <- cnsmRecv:
+				return
+			case <-time.After(10 * time.Second):
+				return
+			}
 		}(stream, recvChan)
 
 		select {
@@ -153,12 +158,12 @@ consumeLoop:
 		case cnsmRecv := <-recvChan:
 
 			if cnsmRecv.err != nil {
-				if err == io.EOF {
+				if cnsmRecv.err == io.EOF {
 					util.Logger.DebugI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				} else {
 					util.Logger.ErrorI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				}
-				returnError = err
+				returnError = cnsmRecv.err
 				break consumeLoop
 			}
 
@@ -363,12 +368,18 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 
 				} else {
 
-					mc <- msg
-					pubErr := <-errChan
-					if pubErr != nil {
-						resp = &pb.MessageResponse{Success: false, Error: pubErr}
-					} else {
-						resp = &pb.MessageResponse{Success: true}
+					select {
+					case mc <- msg:
+						pubErr := <-errChan
+						if pubErr != nil {
+							resp = &pb.MessageResponse{Success: false, Error: pubErr}
+						} else {
+							resp = &pb.MessageResponse{Success: true}
+						}
+					case <-time.After(60 * time.Second):
+						returnError = errors.New("failed to send message to provider for publishing")
+						endLoop = true
+						break
 					}
 				}
 				err = stream.Send(resp)
