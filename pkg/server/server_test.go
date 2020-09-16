@@ -722,11 +722,11 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	cnsm_resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: "Only one source message allowed per subscribe"}}}}
 	stream.On("Send", cnsm_resp).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Twice()
-	stream.On("Recv").Return(nil, errors.New("just breaking the loop")).After(100 * time.Millisecond)
+	stream.On("Recv").Return(nil, io.EOF).After(100 * time.Millisecond)
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
-	assert.Nil(t, err)
+	assert.Equal(t, err, io.EOF)
 
 	mockp.AssertExpectations(t)
 	stream.AssertExpectations(t)

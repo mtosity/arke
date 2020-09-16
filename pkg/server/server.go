@@ -153,12 +153,12 @@ consumeLoop:
 		case cnsmRecv := <-recvChan:
 
 			if cnsmRecv.err != nil {
-				if err == io.EOF {
+				if cnsmRecv.err == io.EOF {
 					util.Logger.DebugI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				} else {
 					util.Logger.ErrorI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				}
-				returnError = err
+				returnError = cnsmRecv.err
 				break consumeLoop
 			}
 
