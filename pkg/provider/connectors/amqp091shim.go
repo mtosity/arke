@@ -100,14 +100,32 @@ func (ac *Amqp091Connection) NotifyClose(rec chan Amqp091Error) chan Amqp091Erro
 	amqpErrors := ac.connection.NotifyClose(make(chan *amqp.Error, cap(rec)))
 
 	go func() {
-		for amqpErr := range amqpErrors {
-			var err Amqp091Error
-			if amqpErr != nil {
-				err = Amqp091Error{*amqpErr}
-			} else {
+		defer func() {
+			if err := recover(); err != nil {
+				return
 			}
-			rec <- err
+		}()
+		for {
+			select {
+			case amqpErr := <-amqpErrors:
+				var err Amqp091Error
+				if amqpErr != nil {
+					err = Amqp091Error{*amqpErr}
+				}
+				select {
+				case rec <- err:
+					continue
+				default:
+					return
+				}
+			case <-rec:
+				// this should theoretically happen only if the subscribe function
+				// sends a message on the rec channel while we are waiting
+				// for actual errors from amqpErrors
+				return
+			}
 		}
+
 		close(rec)
 	}()
 	return rec

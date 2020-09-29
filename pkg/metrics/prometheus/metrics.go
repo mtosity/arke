@@ -3,6 +3,7 @@ package prometheus
 import (
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	met "github.com/armon/go-metrics"
@@ -52,6 +53,15 @@ func init() {
 func Serve(lis *net.Listener) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", gatherClientStatsHandler())
+
+	if util.Logger.Level.String() == "debug" {
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
+
 	metricsServer := &http.Server{
 		Handler: mux,
 	}

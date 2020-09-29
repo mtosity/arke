@@ -929,7 +929,8 @@ func Test_WaitForConnect(t *testing.T) {
 	}
 
 	amock := &amqpConnectionMock{blockConnect: 1}
-	amock.On("Connect").Return(nil).Times(2)
+	amock.On("Connect").Return(nil)
+	amock.On("Connect").Return(nil)
 	errs := make(chan Amqp091Error, 0)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
@@ -951,6 +952,7 @@ func Test_WaitForConnect(t *testing.T) {
 	assert.True(t, connected)
 
 	amock.AssertExpectations(t)
+
 }
 
 func Test_Publish(t *testing.T) {
