@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -224,7 +223,7 @@ consumeLoop:
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := stream.Send(resp)
 							if err != nil {
-								util.Logger.ErrorI("error.streamsend", err.Error())
+								util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
 								*returnErr = err
 								*stopFor <- true
 								return
@@ -379,16 +378,18 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					case <-time.After(60 * time.Second):
 						returnError = errors.New("failed to send message to provider for publishing")
 						endLoop = true
+					}
+
+					if endLoop {
 						break
 					}
 				}
 				err = stream.Send(resp)
 				if err == io.EOF {
-					log.Print(err)
 					break
 				}
 				if err != nil {
-					util.Logger.ErrorI("error.streamsend", err.Error())
+					util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
 					returnError = err
 					endLoop = true
 					break
