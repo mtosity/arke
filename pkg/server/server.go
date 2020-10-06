@@ -340,6 +340,9 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 		messageChannel := make(chan *pb.Message)
 		errChan := make(chan *pb.Error)
 		go func(mc chan<- *pb.Message, ec chan<- *pb.Error) {
+			// close the channel so the prov.Publish knows to stop
+			defer close(mc)
+
 			for {
 				msg, err = stream.Recv()
 				if err == io.EOF {
@@ -377,26 +380,29 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 						}
 					case <-time.After(60 * time.Second):
 						returnError = errors.New("failed to send message to provider for publishing")
+						errMsg := &pb.Error{Message: returnError.Error(), IsFatal: false}
+						resp = &pb.MessageResponse{Success: false, Error: errMsg}
 						endLoop = true
 					}
 
-					if endLoop {
-						break
-					}
 				}
+
 				err = stream.Send(resp)
 				if err == io.EOF {
 					break
 				}
+
 				if err != nil {
 					util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
 					returnError = err
 					endLoop = true
 					break
 				}
+
+				if endLoop {
+					break
+				}
 			}
-			// close the channel so the prov.Publish knows to stop
-			close(mc)
 		}(messageChannel, errChan)
 
 		err := prov.Publish(&ctx, messageChannel, errChan)
