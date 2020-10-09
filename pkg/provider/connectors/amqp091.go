@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -151,7 +150,6 @@ func (prov *amqp091provider) ClientExists(clientIdentifier string) bool {
 func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
-			debug.PrintStack()
 			util.Logger.Debugf("recovered: %v", err)
 			return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
 		}
@@ -260,7 +258,6 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 				bd.Lock()
 				bd.RetryChannel = nil
 				bd.Unlock()
-				debug.PrintStack()
 				util.Logger.Debugf("recovered: %v", err)
 				return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
 			}
@@ -324,6 +321,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		return &pb.Error{Message: bdErr.Error()}
 	}
 	prov.connections.Add(bd.ClientIdentifier, &bd)
+	go bd.connectionWatcher()
 
 	return nil
 
@@ -602,7 +600,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
-			debug.PrintStack()
 			util.Logger.Debugf("recovered: %v", err)
 			return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
 		}
@@ -700,6 +697,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 	}
 
 	bd.updateLastPubSubEvent()
+	bd.incrementStreamCount()
+	defer bd.decrementStreamCount()
 
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
@@ -723,9 +722,6 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 		}
 	}()
 
-	bd.incrementStreamCount()
-	defer bd.decrementStreamCount()
-
 	for {
 		select {
 		case chanErr, ok := <-connErrChan:
@@ -734,7 +730,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 			}
 
 			if &chanErr != nil {
-				return &pb.Error{Message: chanErr.Error()}
+				retError := &pb.Error{Message: chanErr.Error()}
+				return retError
 			} else if bd.state != CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
@@ -811,11 +808,13 @@ func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
-		util.Logger.Debugf("Could not retrieve broker details in WaitForConnect")
 		return false
 	}
 
-	reconnect := false
+	// to prevent unwanted disconnects for a client with a single stream
+	// we need to increment the stream count if we are waiting for provider connect
+	bd.incrementStreamCount()
+	defer bd.decrementStreamCount()
 
 	for start := time.Now(); time.Since(start) < CONNECT_TIMEOUT*time.Second; {
 		if bd.state == CONNECTED {
@@ -828,15 +827,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 			return false
 		}
 
-		if bd.state == CLOSED {
-			bd.connect()
-		}
-
-		if reconnect {
-			sleepRandomReconnect()
-		}
-
-		reconnect = true
+		sleepRandomReconnect()
 
 	}
 	return false
@@ -845,7 +836,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 func sleepRandomReconnect() {
 
 	rand.Seed(time.Now().UnixNano())
-	splay := time.Duration(rand.Intn(ReconnectDelay-100)+100) * time.Millisecond
+	splay := time.Duration(rand.Intn(ReconnectDelay-500)+500) * time.Millisecond
 	time.Sleep(splay)
 }
 
@@ -853,17 +844,29 @@ func sleepRandomReconnect() {
 // if we get an error on the channel. Receiving nil on the channel means we've closed because of the client
 func (bd *BrokerDetails) connectionWatcher() {
 
-	err, ok := <-bd.ErrorChannel
+	for !bd.clientDisconnect {
+		select {
+		case err, ok := <-bd.ErrorChannel:
 
-	bd.Lock()
-	if !ok || (&err != nil && err.Code() != 0) {
-		bd.state = DISCONNECTED
-		sleepRandomReconnect()
-		bd.Unlock()
-		bd.connect()
-		return
+			bd.Lock()
+			if !ok || (&err != nil && err.Code() != 0) {
+				bd.state = DISCONNECTED
+				sleepRandomReconnect()
+				bd.Unlock()
+				bd.connect()
+				continue
+			}
+			bd.Unlock()
+		case <-time.After(30 * time.Second):
+			// if we never get an error on the bd.ErrorChannel, try again after 30 seconds
+			// this is to help deal with race condition where we're not listening on the bd.ErrorChannel
+			// when there is an error on the connection
+			if bd.Connection.IsClosed() {
+				bd.connect()
+			}
+			continue
+		}
 	}
-	bd.Unlock()
 }
 
 func (bd *BrokerDetails) connect() (bool, error) {
@@ -960,7 +963,6 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	bd.Connection = conn
 	bd.ErrorChannel = make(chan Amqp091Error)
 	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
-	go bd.connectionWatcher()
 	bd.state = CONNECTED
 	bd.knownExchanges = util.NewConcurrentMap()
 	bd.knownQueues = util.NewConcurrentMap()

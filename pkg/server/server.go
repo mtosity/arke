@@ -334,27 +334,40 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	}
 
 	var returnError error
-	endLoop := false
+	// stopPublish should only be set to true if:
+	// - the client disconnects
+	// - we determine the client to be dead
+	// - the client stops the stream
+	stopPublish := false
 
+	// loop until either the client no longer exists or the stream is dead
 	for {
+		if !clientExists(ctx) {
+			util.Logger.Debugf("client %v no longer exists, stopping publish", clientIdentifier)
+			break
+		}
 		messageChannel := make(chan *pb.Message)
 		errChan := make(chan *pb.Error)
 		go func(mc chan<- *pb.Message, ec chan<- *pb.Error) {
 			// close the channel so the prov.Publish knows to stop
 			defer close(mc)
+			stopPubFunc := false
 
 			for {
+				if stopPubFunc {
+					return
+				}
 				msg, err = stream.Recv()
 				if err == io.EOF {
 					returnError = nil
-					endLoop = true
-					break
+					stopPublish = true
+					return
 				}
 				if err != nil {
 					util.Logger.Debugf("Error on producer stream for client %s: %v", clientIdentifier, err)
 					returnError = err
-					endLoop = true
-					break
+					stopPublish = true
+					return
 				}
 
 				var resp *pb.MessageResponse
@@ -369,8 +382,10 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					resp = &pb.MessageResponse{Success: false, Error: errMsg}
 
 				} else {
-
 					select {
+					case errChanErr := <-errChan:
+						resp = &pb.MessageResponse{Success: false, Error: errChanErr}
+						stopPubFunc = true
 					case mc <- msg:
 						pubErr := <-errChan
 						if pubErr != nil {
@@ -379,34 +394,35 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 							resp = &pb.MessageResponse{Success: true}
 						}
 					case <-time.After(60 * time.Second):
-						returnError = errors.New("failed to send message to provider for publishing")
-						errMsg := &pb.Error{Message: returnError.Error(), IsFatal: false}
+						errMsg := &pb.Error{Message: "failed to send message to provider for publishing", IsFatal: false}
 						resp = &pb.MessageResponse{Success: false, Error: errMsg}
-						endLoop = true
+						stopPubFunc = true
 					}
 
 				}
 
 				err = stream.Send(resp)
 				if err == io.EOF {
-					break
+					stopPublish = true
+					return
 				}
 
 				if err != nil {
 					util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
 					returnError = err
-					endLoop = true
-					break
+					stopPublish = true
+					return
 				}
 
-				if endLoop {
-					break
+				if stopPubFunc {
+					return
 				}
 			}
 		}(messageChannel, errChan)
 
 		err := prov.Publish(&ctx, messageChannel, errChan)
 		if err != nil {
+			errChan <- err
 			if clientExists(ctx) {
 				connected := prov.WaitForConnect(&ctx)
 				if connected {
@@ -416,13 +432,23 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 			} else {
 				util.Logger.Debugf("Client no longer exists. Stopping publish.")
 			}
-			returnError = fmt.Errorf(err.GetMessage())
-			break
 		}
-		if endLoop {
+		if stopPublish {
 			break
 		}
 	}
+
+	// We must try to send a response to the client or the stream will stay open
+	// with no messages being consumed
+	if returnError != nil {
+		errMsg := &pb.Error{Message: returnError.Error()}
+
+		resp := &pb.MessageResponse{Success: false, Error: errMsg}
+
+		// we don't care if the send fails here
+		stream.Send(resp)
+	}
+
 	return returnError
 }
 
