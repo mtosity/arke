@@ -121,7 +121,10 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 	// stopForLoop is used for errors that require the exiting of Consume
 	stopForLoop := make(chan bool)
-	defer close(stopForLoop)
+	defer func() {
+		close(stopForLoop)
+		stopForLoop = nil
+	}()
 
 	// messageChannel is used for sending messages from the provider back to Consume
 	// for sending back to the client
@@ -225,7 +228,9 @@ consumeLoop:
 							if err != nil {
 								util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
 								*returnErr = err
-								*stopFor <- true
+								if *stopFor != nil {
+									*stopFor <- true
+								}
 								return
 							}
 						}
@@ -254,7 +259,9 @@ consumeLoop:
 							// Prevent a subscribe to the provider from being attempted too many times
 							if subscribeAttempts == streamMaxSubscribeAttempts {
 								util.Logger.ErrorI("error.streamsubscribemax", clientIdentifier, streamMaxSubscribeAttempts)
-								*stopFor <- true
+								if *stopFor != nil {
+									*stopFor <- true
+								}
 								*returnErr = fmt.Errorf("Stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
 								return
 							}
@@ -271,7 +278,9 @@ consumeLoop:
 									util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
 								}
 								*returnErr = fmt.Errorf(err.GetMessage())
-								*stopFor <- true
+								if *stopFor != nil {
+									*stopFor <- true
+								}
 								return
 							}
 						}
