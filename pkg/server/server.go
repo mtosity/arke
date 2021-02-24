@@ -544,7 +544,16 @@ func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 }
 
 func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
-	clientIdentifier, _ := GetClientIdentifier(ctx)
+	clientIdentifier, err := GetClientIdentifier(ctx)
+	if err != nil {
+		errMsg := &pb.Error{
+			Message: err.Error(),
+			IsFatal: true,
+		}
+		util.Logger.ErrorI("error.clientfailedidentifier", clientIdentifier, err.Error())
+		return nil, errMsg
+	}
+
 	cf, found := connectionMap.Get(clientIdentifier)
 	if !found {
 		errMsg := &pb.Error{

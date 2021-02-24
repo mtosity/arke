@@ -48,6 +48,7 @@ info.subscribefailbutclientexists=Client {0} failed subscribe with: {1}
 info.exchangebind=Binding exchange {0} to {1} with key {2}
 error.streamsubscribemax=Client {0} has reached {1} max subscribes on a single stream. Stopping Consume RPC.
 error.consumerecvchan=Client {0} Consume stream received an error: {1}
+error.clientfailedidentifier=Error determining client identifier from context for {0}: {1}
 `
 
 // Logger default logger

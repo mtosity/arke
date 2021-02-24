@@ -46,6 +46,9 @@ func GetClientIdentifier(ctx context.Context) (string, error) {
 // GetClientAddr gets the client-id from the context metadata
 func GetClientAddr(ctx context.Context) (string, error) {
 	if client, ok := peer.FromContext(ctx); ok {
+		if client.Addr.String() == "" {
+			return "", errors.New("Could not retrieve address info from peer")
+		}
 		return client.Addr.String(), nil
 	}
 	return "", errors.New("Could not retrieve peer info")

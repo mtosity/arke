@@ -457,7 +457,7 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	assert.NotNil(t, r)
 	r, err = stream.Recv()
 	assert.Nil(t, r)
-	assert.Contains(t, err.Error(), "Failed to find connection information")
+	assert.Contains(t, err.Error(), "Could not find client identifier")
 }
 
 func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
