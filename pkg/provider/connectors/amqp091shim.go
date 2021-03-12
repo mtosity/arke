@@ -26,6 +26,7 @@ type Amqp091ChannelShim interface {
 	QueueDeclare(string, bool, bool, bool, Amqp091Table) error
 	QueueBind(string, string, string, Amqp091Table) error
 	Consume(string, bool, bool) (<-chan Amqp091Message, error)
+	NotifyCancel(chan string) chan string
 }
 
 // Amqp091Connection A connection to the broker
@@ -198,6 +199,37 @@ func (ch *Amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-ch
 // Publish Publish a message to an exchange
 func (ch *Amqp091Channel) Publish(addressName, subject string, msg Amqp091Message) error {
 	return ch.channel.Publish(addressName, subject, false, false, toAmqpMessage(&msg))
+}
+
+// NotifyCancel be notified of deleted queues
+func (ch *Amqp091Channel) NotifyCancel(rec chan string) chan string {
+	amqpErrors := ch.channel.NotifyCancel(make(chan string, cap(rec)))
+
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				return
+			}
+		}()
+		for {
+			select {
+			case amqpErr := <-amqpErrors:
+				select {
+				case rec <- amqpErr:
+					continue
+				default:
+					return
+				}
+			case <-rec:
+				// this should theoretically happen only if the subscribe function
+				// sends a message on the rec channel while we are waiting
+				return
+			}
+		}
+
+		close(rec)
+	}()
+	return rec
 }
 
 func toAmqpTable(at Amqp091Table) amqp.Table {

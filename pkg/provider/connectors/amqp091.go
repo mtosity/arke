@@ -573,6 +573,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		source.GetExclusive(), // exclusive
 	)
 
+	cancelChan := make(chan string)
+	cancelChan = amqpChannel.NotifyCancel(cancelChan)
+
 	if err != nil {
 		util.Logger.ErrorI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
 		return &pb.Error{Message: err.Error()}
@@ -611,6 +614,18 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		case stop, ok := <-stopChannel:
 			if !ok || stop {
 				// channel is closed, so stop
+				return nil
+			}
+		case cancelErr, ok := <-cancelChan:
+			if !ok {
+				return &pb.Error{Message: "Channel to broker closed"}
+			}
+
+			if cancelErr != "" {
+				return &pb.Error{Message: fmt.Sprintf("Queue %s deleted", source.Name)}
+			} else if bd.state != CONNECTED {
+				// The connection was closed without an error on the channel, so this was expected.
+				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
 				return nil
 			}
 		case chanErr, ok := <-connErrChan:

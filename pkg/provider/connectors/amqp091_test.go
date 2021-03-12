@@ -99,6 +99,11 @@ func (m *amqpChannelMock) Consume(arg1 string, arg2 bool, arg3 bool) (<-chan Amq
 	return mc, args.Error(1)
 }
 
+func (m *amqpChannelMock) NotifyCancel(chan string) chan string {
+	args := m.Called()
+	return args.Get(0).(chan string)
+}
+
 func TestNewAMQP091Provider(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
@@ -382,6 +387,8 @@ func Test_Ack(t *testing.T) {
 		msgs <- mm
 	}()
 
+	cancels := make(chan string, 0)
+	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -464,6 +471,8 @@ func Test_Nack(t *testing.T) {
 		msgs <- mm
 	}()
 
+	cancels := make(chan string, 0)
+	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -546,6 +555,8 @@ func Test_Retry(t *testing.T) {
 		msgs <- mm
 	}()
 
+	cancels := make(chan string, 0)
+	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -759,6 +770,8 @@ func Test_Subscribe_Options(t *testing.T) {
 	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders1).Return(nil).Once()
 	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders2).Return(nil).Once()
 	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
+	cancels := make(chan string, 0)
+	cmock.On("NotifyCancel").Return(cancels)
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
