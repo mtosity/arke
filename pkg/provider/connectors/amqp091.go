@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -950,7 +951,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	} else if tlsEnabled { // Regular TLS with cert verification against system certs
 		if caBundlePath := os.Getenv("CA_BUNDLE"); caBundlePath != "" {
-			caBundle, err := ioutil.ReadFile(caBundlePath)
+			caBundle, err := ioutil.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
 				return false, fmt.Errorf("Could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
 			}
