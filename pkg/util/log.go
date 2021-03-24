@@ -49,6 +49,9 @@ info.exchangebind=Binding exchange {0} to {1} with key {2}
 error.streamsubscribemax=Client {0} has reached {1} max subscribes on a single stream. Stopping Consume RPC.
 error.consumerecvchan=Client {0} Consume stream received an error: {1}
 error.clientfailedidentifier=Error determining client identifier from context for {0}: {1}
+info.rfrule=Routing key and filter rule exists. Not adding to subscription {0} for {1}
+info.rulelist=Error listing rules on subscription {0} for {1}
+error.ruleadd=Error adding rule on subscription {0} for {1}: {2} with error {3}
 `
 
 // Logger default logger

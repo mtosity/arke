@@ -3,6 +3,8 @@ module sassoftware.io/convoy/arke
 go 1.15
 
 require (
+	github.com/Azure/azure-amqp-common-go/v3 v3.1.0
+	github.com/Azure/azure-service-bus-go v0.10.11
 	github.com/armon/go-metrics v0.3.6
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/golang/protobuf v1.4.3

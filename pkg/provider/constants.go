@@ -1,4 +1,4 @@
-package connectors
+package provider
 
 const (
 	// DISCONNECTED Closed by the broker, retry connecting

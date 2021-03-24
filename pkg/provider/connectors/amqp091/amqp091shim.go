@@ -1,4 +1,4 @@
-package connectors
+package amqp091
 
 import (
 	"crypto/tls"

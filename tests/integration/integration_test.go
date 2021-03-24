@@ -112,7 +112,6 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	if !authResp.GetSuccess() {
 		log.Panicf("could not authenticate: %v", authResp.GetError().GetMessage())
 	}
-	clientConnected <- true
 
 	stream, err := c.Consume(ctx)
 
@@ -124,6 +123,19 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	m.Msg = &pb.Consume_Src{Src: source}
 	stream.SendMsg(m)
 	defer stream.CloseSend()
+
+	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+		var sleepMs time.Duration
+		switch providerType {
+		case "azure":
+			sleepMs = 3000
+		default:
+			sleepMs = 500
+		}
+		time.Sleep(sleepMs * time.Millisecond)
+	}
+
+	clientConnected <- true
 
 	stop := false
 
@@ -237,15 +249,13 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 1}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	time.Sleep(200 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
@@ -313,8 +323,6 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
-	time.Sleep(200 * time.Millisecond)
-
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	err := produceMessages(producerConnection, pc, pctx, produceMessageCount, message)
@@ -369,8 +377,6 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
-	time.Sleep(200 * time.Millisecond)
-
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	err := produceMessages(producerConnection, pc, pctx, produceMessageCount, message)
@@ -415,8 +421,6 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	time.Sleep(1000 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
@@ -515,7 +519,6 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
-	time.Sleep(500 * time.Millisecond)
 
 	headers1 := make(map[string]string)
 	headers2 := make(map[string]string)
@@ -593,8 +596,6 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
-
-	time.Sleep(500 * time.Millisecond)
 
 	headers1 := make(map[string]string)
 	headers2 := make(map[string]string)
@@ -675,8 +676,6 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
 
-	time.Sleep(500 * time.Millisecond)
-
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
 	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
@@ -686,19 +685,20 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 	messageUUIDs := make([]string, 0)
 
-	for start := time.Now(); time.Since(start) < 1*time.Second; {
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case msg := <-messages:
 			messageUUIDs = append(messageUUIDs, msg.GetUuid())
 			msgCount++
 		case <-done:
 			break
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			break
 		}
 	}
 	assert.Equal(t, expectedMessageCount*2, msgCount)
 	assert.Equal(t, expectedMessageCount*2, len(messageUUIDs))
+	assert.NotEmpty(t, messageUUIDs)
 	assert.NotEqual(t, messageUUIDs[0], messageUUIDs[1])
 }
 
@@ -722,13 +722,11 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
@@ -770,8 +768,17 @@ func TestHeaders_Consume(t *testing.T) {
 	headers["content-type"] = "text/json"
 	headers["Content-Type"] = "text/yaml"
 	headers["CONTENT-ENCODING"] = "base64"
+
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TH")
+
+	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+		if providerType == "azure" {
+			headers["content-type"] = "text/yaml"
+			headers["RoutingKey"] = subjects[0]
+		}
+	}
+
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
@@ -780,8 +787,6 @@ func TestHeaders_Consume(t *testing.T) {
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	time.Sleep(250 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Headers: headers}
 
@@ -803,6 +808,7 @@ func TestHeaders_Consume(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+	assert.NotNil(t, received)
 	assert.Equal(t, headers, received[0].Headers)
 	assert.NotNil(t, received[0].GetAddress())
 }
@@ -904,7 +910,6 @@ func TestConsumeMultiSubject(t *testing.T) {
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-	time.Sleep(500 * time.Millisecond)
 
 	// Produce to binding one
 	subjects = make([]string, 0)
@@ -1000,7 +1005,8 @@ func TestParentExchange_Consume(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
-	time.Sleep(500 * time.Millisecond)
+	// adding some extra sleep in because of all the resources that need to be created in azure
+	time.Sleep(6000 * time.Millisecond)
 
 	// Publish to the parent address
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
@@ -1042,7 +1048,9 @@ func TestAddressType_FAIL(t *testing.T) {
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
 	err := produceMessages(producerConnection, pc, pctx, produceCount, message)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "5 is not a valid address type")
+	if err != nil {
+		assert.Contains(t, err.Error(), "5 is not a valid address type")
+	}
 }
 
 func TestHeadersNoConsumeSubject(t *testing.T) {
@@ -1069,8 +1077,6 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	time.Sleep(500 * time.Millisecond)
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 

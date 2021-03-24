@@ -1,4 +1,4 @@
-package connectors
+package amqp091
 
 import (
 	"context"
@@ -624,7 +624,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 			if cancelErr != "" {
 				return &pb.Error{Message: fmt.Sprintf("Queue %s deleted", source.Name)}
-			} else if bd.state != CONNECTED {
+			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
 				return nil
@@ -636,7 +636,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 			if &chanErr != nil {
 				return &pb.Error{Message: chanErr.Error()}
-			} else if bd.state != CONNECTED {
+			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
 				return nil
@@ -748,7 +748,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 			if &chanErr != nil {
 				retError := &pb.Error{Message: chanErr.Error()}
 				return retError
-			} else if bd.state != CONNECTED {
+			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
 				return nil
@@ -832,8 +832,8 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
 
-	for start := time.Now(); time.Since(start) < CONNECT_TIMEOUT*time.Second; {
-		if bd.state == CONNECTED {
+	for start := time.Now(); time.Since(start) < provider.CONNECT_TIMEOUT*time.Second; {
+		if bd.state == provider.CONNECTED {
 			util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
 			return true
 		}
@@ -852,7 +852,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 func sleepRandomReconnect() {
 
 	rand.Seed(time.Now().UnixNano())
-	splay := time.Duration(rand.Intn(ReconnectDelay-500)+500) * time.Millisecond
+	splay := time.Duration(rand.Intn(provider.ReconnectDelay-500)+500) * time.Millisecond
 	time.Sleep(splay)
 }
 
@@ -866,7 +866,7 @@ func (bd *BrokerDetails) connectionWatcher() {
 
 			bd.Lock()
 			if !ok || (&err != nil && err.Code() != 0) {
-				bd.state = DISCONNECTED
+				bd.state = provider.DISCONNECTED
 				sleepRandomReconnect()
 				bd.Unlock()
 				bd.connect()
@@ -891,17 +891,17 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		return false, nil
 	}
 
-	if bd.state == CONNECTING {
+	if bd.state == provider.CONNECTING {
 		for start := time.Now(); time.Since(start) < 30*time.Second; {
 			switch bd.state {
-			case CONNECTED:
+			case provider.CONNECTED:
 				return true, nil
-			case CONNECTING:
+			case provider.CONNECTING:
 				time.Sleep(100 * time.Millisecond)
 				continue
-			case CLOSED:
+			case provider.CLOSED:
 				return false, nil
-			case DISCONNECTED:
+			case provider.DISCONNECTED:
 				break
 			}
 		}
@@ -909,11 +909,11 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	bd.Lock()
 	defer bd.Unlock()
-	if bd.state == CONNECTED {
+	if bd.state == provider.CONNECTED {
 		return true, nil
 	}
 
-	bd.state = CONNECTING
+	bd.state = provider.CONNECTING
 	var conn Amqp091ConnectionShim
 	var err error
 
@@ -972,14 +972,14 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	if err != nil {
 		util.Logger.ErrorI("error.brokerconnect", err.Error())
-		bd.state = CLOSED
+		bd.state = provider.CLOSED
 		return false, err
 	}
 
 	bd.Connection = conn
 	bd.ErrorChannel = make(chan Amqp091Error)
 	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
-	bd.state = CONNECTED
+	bd.state = provider.CONNECTED
 	bd.knownExchanges = util.NewConcurrentMap()
 	bd.knownQueues = util.NewConcurrentMap()
 	bd.knownBindings = util.NewConcurrentMap()

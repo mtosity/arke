@@ -59,7 +59,7 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	$(MAKE) -C test/test_producer windows
 	$(MAKE) -C test/test_consumer windows
 	$(MAKE) -C test/simple_consumer windows
-	$(MAKE) -C test/simple_consumer windows
+	$(MAKE) -C test/simple_producer windows
 
 test: generate ## Executes unit tests
 	LOG_FORMAT=term go test -timeout 30s --coverprofile coverage.out ./pkg/... -cover -v
