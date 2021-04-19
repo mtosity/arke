@@ -126,6 +126,9 @@ func main() {
 		config := &tls.Config{
 			Certificates: []tls.Certificate{certificate},
 			Rand:         rand.Reader,
+			NextProtos: []string{
+				"h2", "http/1.1",
+			},
 		}
 
 		// Create TLS listener.
