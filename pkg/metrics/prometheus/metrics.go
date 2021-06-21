@@ -35,8 +35,8 @@ func init() {
 	// but the help in the metrics output will be just the key for now.
 	prometheus.MustRegister(newArkeGauge(metrics.ClientActMessageGauge, "Number of active messages to be processed."))
 	prometheus.MustRegister(newArkeGauge(metrics.ClientStreamsGauge, "Number of client active streams."))
-	prometheus.MustRegister(newArkeCounter(metrics.ClientConsumedCounter, "Total number of client requests have been consumed."))
-	prometheus.MustRegister(newArkeCounter(metrics.ClientProducedCounter, "Total number of client requests have been produced."))
+	prometheus.MustRegister(newArkeGauge(metrics.ClientConsumedGauge, "Total number of client requests have been consumed."))
+	prometheus.MustRegister(newArkeGauge(metrics.ClientProducedGauge, "Total number of client requests have been produced."))
 	prometheus.MustRegister(newArkeSample(metrics.RequestElapsedSummary, "The request elapsed time."))
 	prometheus.MustRegister(newArkeCounter(metrics.RequestTotalCounter, "Total number of requests processed."))
 	prometheus.MustRegister(newArkeCounter(metrics.RecvMsgCounter, "Total number of stream messages have been received."))
@@ -103,8 +103,8 @@ func gatherClientStats() {
 
 			Stats.Sink.SetGaugeWithLabels(metrics.ClientActMessageGauge, float32(client.ActiveMessages), labelset.Labels)
 			Stats.Sink.SetGaugeWithLabels(metrics.ClientStreamsGauge, float32(client.Streams), labelset.Labels)
-			Stats.Sink.IncrCounterWithLabels(metrics.ClientConsumedCounter, float32(client.Consumed), labelset.Labels)
-			Stats.Sink.IncrCounterWithLabels(metrics.ClientProducedCounter, float32(client.Produced), labelset.Labels)
+			Stats.Sink.SetGaugeWithLabels(metrics.ClientConsumedGauge, float32(client.Consumed), labelset.Labels)
+			Stats.Sink.SetGaugeWithLabels(metrics.ClientProducedGauge, float32(client.Produced), labelset.Labels)
 		}
 	}
 }

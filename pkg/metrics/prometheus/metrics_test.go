@@ -72,8 +72,8 @@ func Test_Metrics(t *testing.T) {
 
 	assert.Equal(t, metrics.ClientActMessageGauge, []string{"arke", "client", "active", "messages"})
 	assert.Equal(t, metrics.ClientStreamsGauge, []string{"arke", "client", "streams"})
-	assert.Equal(t, metrics.ClientConsumedCounter, []string{"arke", "client", "consumed", "total"})
-	assert.Equal(t, metrics.ClientProducedCounter, []string{"arke", "client", "produced", "total"})
+	assert.Equal(t, metrics.ClientConsumedGauge, []string{"arke", "client", "consumed"})
+	assert.Equal(t, metrics.ClientProducedGauge, []string{"arke", "client", "produced"})
 	assert.Equal(t, metrics.RequestElapsedSummary, []string{"arke", "request", "elapsed"})
 	assert.Equal(t, metrics.RequestTotalCounter, []string{"arke", "request", "total"})
 	assert.Equal(t, metrics.RecvMsgCounter, []string{"arke", "recvmsg", "total"})

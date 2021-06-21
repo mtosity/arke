@@ -343,7 +343,7 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 
 	connTwiceError := "can not call Connect more than once. Call Disconnect and try again"
 	assert.NotNil(t, connectResp)
-	assert.Equal(t, connTwiceError, err.Error())
+	assert.Contains(t, err.Error(), connTwiceError)
 
 	mockp.AssertExpectations(t)
 }

@@ -506,7 +506,7 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 	// We don't allow a client to call Connect more than once
 	_, exists := connectionMap.Get(clientIdentifier)
 	if exists {
-		err := errors.New("can not call Connect more than once. Call Disconnect and try again")
+		err := fmt.Errorf("can not call Connect more than once. Call Disconnect and try again (%s)", clientIdentifier)
 		RemoveClientIdentifier(ctx)
 		return &pb.ConnectResponse{Success: false, Error: nil}, err
 	}
