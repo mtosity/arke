@@ -82,7 +82,7 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 		return errors.New(authResp.GetError().GetMessage())
 	}
 
-	stream, err := c.Publish(ctx)
+	stream, _ := c.Publish(ctx)
 	for i := 0; i < cnt; i++ {
 		err = stream.Send(message)
 		if err != nil {
@@ -125,14 +125,14 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	defer stream.CloseSend()
 
 	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
-		var sleepMs time.Duration
+		var sleep time.Duration
 		switch providerType {
 		case "azure":
-			sleepMs = 3000
+			sleep = 3000
 		default:
-			sleepMs = 500
+			sleep = 500
 		}
-		time.Sleep(sleepMs * time.Millisecond)
+		time.Sleep(sleep * time.Millisecond)
 	}
 
 	clientConnected <- true
@@ -199,10 +199,11 @@ func connect() *grpc.ClientConn {
 
 	var conn *grpc.ClientConn
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	// Attempt a non-TLS connection to arke first
-	conn, err = grpc.Dial(arkeAddress(), grpc.WithInsecure())
+	conn, _ = grpc.Dial(arkeAddress(), grpc.WithInsecure())
 
 	c := healthpb.NewHealthClient(conn)
 	resp, err := c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
@@ -219,10 +220,10 @@ func connect() *grpc.ClientConn {
 		}
 		tlsConfig := &tls.Config{RootCAs: cp}
 
-		conn, err = grpc.Dial(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
+		conn, _ = grpc.Dial(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
 
 		c := healthpb.NewHealthClient(conn)
-		resp, err = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
+		resp, _ = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
 	}
 
 	if err != nil && resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
@@ -251,7 +252,8 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: address, PrefetchCount: 1}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -264,13 +266,17 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -317,7 +323,8 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
@@ -330,13 +337,17 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 15*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
-		case <-time.After(1 * time.Second):
+			breakLoop = true
+		case <-time.After(5 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -371,7 +382,8 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCN.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
@@ -384,13 +396,17 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := true
 	for start := time.Now(); time.Since(start) < 5*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -416,7 +432,8 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPMCM.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -429,13 +446,17 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -453,8 +474,8 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TPFWC")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 
-	stream, err := c.Publish(ctx)
-	err = stream.Send(&pb.Message{Body: []byte("message"), Address: address, Persistent: true})
+	stream, _ := c.Publish(ctx)
+	err := stream.Send(&pb.Message{Body: []byte("message"), Address: address, Persistent: true})
 	assert.Nil(t, err)
 	r, err := stream.Recv()
 	assert.Nil(t, err)
@@ -513,7 +534,8 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -549,14 +571,18 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case msg := <-messages:
 			assert.Equal(t, msg.GetBody(), []byte("mybody4"))
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -590,7 +616,8 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	source.Filters = append(source.Filters, filter)
 	source.Address = address
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -625,13 +652,17 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -659,7 +690,8 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTN.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -670,7 +702,8 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	consumerConnection2 := connect()
 	source.Name = "sas.test.proxy.TPSCSCTN.Consumer2"
 	c2 := pb.NewConsumerClient(consumerConnection2)
-	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel2()
 	defer c2.Disconnect(ctx2, &pb.Empty{})
 	//defer consumerConnection2.Close()
 	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler, t)
@@ -685,14 +718,18 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 	messageUUIDs := make([]string, 0)
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case msg := <-messages:
 			messageUUIDs = append(messageUUIDs, msg.GetUuid())
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -722,7 +759,8 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -735,13 +773,17 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -782,7 +824,8 @@ func TestHeaders_Consume(t *testing.T) {
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -796,19 +839,24 @@ func TestHeaders_Consume(t *testing.T) {
 	msgCount := 0
 
 	received := make([]*pb.Message, 0)
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case msg := <-messages:
 			received = append(received, msg)
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
 	assert.NotNil(t, received)
+	assert.Greater(t, len(received), 0)
 	assert.Equal(t, headers, received[0].Headers)
 	assert.NotNil(t, received[0].GetAddress())
 }
@@ -836,7 +884,8 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	sourceName := fmt.Sprintf("sas.test.proxy.TPMCME.Consumer.%v", time.Now().Unix())
 	source := &pb.Source{Name: sourceName, Address: address, PrefetchCount: 1, Exclusive: true}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -846,7 +895,8 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	clientConnected2 := make(chan bool)
 	consumerConnection2 := connect()
 	c2 := pb.NewConsumerClient(consumerConnection2)
-	ctx2, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel2()
 	defer c2.Disconnect(ctx2, &pb.Empty{})
 	//defer consumerConnection2.Close()
 	go consumeMessages(consumerConnection2, c2, ctx2, messages2, done2, clientConnected2, source, defaultHandler, t)
@@ -863,6 +913,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	messageUUIDs := make([]string, 0)
 	messageUUIDs2 := make([]string, 0)
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 5*time.Second; {
 		select {
 		case msg := <-messages:
@@ -872,8 +923,12 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 			messageUUIDs2 = append(messageUUIDs2, msg.GetUuid())
 			msgCount2++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(5 * time.Second):
+			breakLoop = true
+		}
+
+		if breakLoop {
 			break
 		}
 	}
@@ -905,7 +960,8 @@ func TestConsumeMultiSubject(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.TSMS.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -931,13 +987,17 @@ func TestConsumeMultiSubject(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -997,7 +1057,8 @@ func TestParentExchange_Consume(t *testing.T) {
 	// Subscribe to the child Address
 	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	defer func() {
 		c.Disconnect(ctx, &pb.Empty{})
 		//consumerConnection.Close()
@@ -1015,13 +1076,17 @@ func TestParentExchange_Consume(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -1072,7 +1137,8 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	//defer c.Disconnect(ctx, &pb.Empty{})
 	//defer consumerConnection.Close()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
@@ -1085,13 +1151,17 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 
 	msgCount := 0
 
+	breakLoop := false
 	for start := time.Now(); time.Since(start) < 1*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
-			break
+			breakLoop = true
 		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -1109,7 +1179,8 @@ func TestSourceTwice(t *testing.T) {
 	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 
 	connConfig := connectConfig()

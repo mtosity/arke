@@ -39,22 +39,20 @@ func connectionWatcher() {
 	// watch connection map
 	ticker := time.NewTicker(30 * time.Second)
 	for {
-		select {
-		case <-ticker.C:
-			for _, connId := range connectionMap.GetList() {
-				if connConf, ok := connectionMap.Get(connId); ok {
-					providerType := connConf.(*pb.ConnectionConfiguration).GetProvider()
-					if prov, err := provider.GetProvider(providerType); err == nil {
-						// if the provider says the client doesn't exists, clean up this dead client
-						if !prov.ClientExists(connId) {
-							util.Logger.Debugf("Provider says client %s does not exist. Cleaning up dead client.", connId)
-							connectionMap.Delete(connId)
-						}
+		<-ticker.C
+		for _, connId := range connectionMap.GetList() {
+			if connConf, ok := connectionMap.Get(connId); ok {
+				providerType := connConf.(*pb.ConnectionConfiguration).GetProvider()
+				if prov, err := provider.GetProvider(providerType); err == nil {
+					// if the provider says the client doesn't exists, clean up this dead client
+					if !prov.ClientExists(connId) {
+						util.Logger.Debugf("Provider says client %s does not exist. Cleaning up dead client.", connId)
+						connectionMap.Delete(connId)
 					}
-				} else {
-					// We had it in the list but then couldn't retrieve it, delete it.
-					connectionMap.Delete(connId)
 				}
+			} else {
+				// We had it in the list but then couldn't retrieve it, delete it.
+				connectionMap.Delete(connId)
 			}
 		}
 	}
@@ -95,7 +93,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		ftlError := errors.New(findErr.Message)
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: findErr}}
 		stream.Send(cnsmResp)
-		util.Logger.ErrorI("error.subscribe", findErr.Message)
+		util.Logger.DebugI("error.subscribe", findErr.Message)
 		return ftlError
 	}
 
@@ -104,7 +102,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		ciErr := &pb.Error{Message: err.Error(), IsFatal: true}
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: ciErr}}
 		stream.Send(cnsmResp)
-		util.Logger.ErrorI("error.subscribe", ciErr.Message)
+		util.Logger.DebugI("error.subscribe", ciErr.Message)
 		return err
 	}
 
@@ -163,7 +161,7 @@ consumeLoop:
 				if cnsmRecv.err == io.EOF {
 					util.Logger.DebugI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				} else {
-					util.Logger.ErrorI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
+					util.Logger.WarnI("error.consumerecvchan", clientIdentifier, cnsmRecv.err.Error())
 				}
 				returnError = cnsmRecv.err
 				break consumeLoop
@@ -176,7 +174,7 @@ consumeLoop:
 			if cnsmRecv.msg.GetSrc() != nil {
 
 				if isSubscribing {
-					errMsg := fmt.Sprintf("Only one source message allowed per subscribe")
+					errMsg := "Only one source message allowed per subscribe"
 					_ = stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
 					// return errors.New(errMsg)
 					continue
@@ -226,7 +224,7 @@ consumeLoop:
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := stream.Send(resp)
 							if err != nil {
-								util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
+								util.Logger.WarnI("error.streamsend", err.Error(), clientIdentifier)
 								*returnErr = err
 								if *stopFor != nil {
 									*stopFor <- true
@@ -242,7 +240,7 @@ consumeLoop:
 					for {
 						defer func() {
 							if err := recover(); err != nil {
-								util.Logger.Error(fmt.Sprintf("%v", err))
+								util.Logger.Warn(fmt.Sprintf("%v", err))
 								// returnError = err
 								return
 							}
@@ -258,11 +256,11 @@ consumeLoop:
 							subscribeAttempts++
 							// Prevent a subscribe to the provider from being attempted too many times
 							if subscribeAttempts == streamMaxSubscribeAttempts {
-								util.Logger.ErrorI("error.streamsubscribemax", clientIdentifier, streamMaxSubscribeAttempts)
+								util.Logger.WarnI("error.streamsubscribemax", clientIdentifier, streamMaxSubscribeAttempts)
 								if *stopFor != nil {
 									*stopFor <- true
 								}
-								*returnErr = fmt.Errorf("Stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
+								*returnErr = fmt.Errorf("stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
 								return
 							}
 							err := prov.Subscribe(ctx, source, mc, stopChan)
@@ -273,10 +271,11 @@ consumeLoop:
 									if connected {
 										continue
 									}
-									util.Logger.ErrorI("error.brokerconnect", err.Message)
+									util.Logger.WarnI("error.brokerconnect", err.Message)
 								} else {
 									util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
 								}
+								fmt.Println(err.GetMessage())
 								*returnErr = fmt.Errorf(err.GetMessage())
 								if *stopFor != nil {
 									*stopFor <- true
@@ -417,7 +416,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				}
 
 				if err != nil {
-					util.Logger.ErrorI("error.streamsend", err.Error(), clientIdentifier)
+					util.Logger.WarnI("error.streamsend", err.Error(), clientIdentifier)
 					returnError = err
 					stopPublish = true
 					return
@@ -437,7 +436,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				if connected {
 					continue
 				}
-				util.Logger.ErrorI("error.brokerconnect", err.Message)
+				util.Logger.WarnI("error.brokerconnect", err.Message)
 			} else {
 				util.Logger.Debugf("Client no longer exists. Stopping publish.")
 			}
@@ -530,7 +529,7 @@ func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 		return &pb.Empty{}, nil
 	}
 	cf, found := connectionMap.Get(clientIdentifier)
-	if found == true {
+	if found {
 		providerType := cf.(*pb.ConnectionConfiguration).GetProvider()
 		prov, _ := provider.GetProvider(providerType)
 		prov.Disconnect(&ctx)
@@ -550,7 +549,7 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 			Message: err.Error(),
 			IsFatal: true,
 		}
-		util.Logger.ErrorI("error.clientfailedidentifier", clientIdentifier, err.Error())
+		util.Logger.WarnI("error.clientfailedidentifier", clientIdentifier, err.Error())
 		return nil, errMsg
 	}
 
@@ -560,7 +559,7 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 			Message: "Failed to find connection information.",
 			IsFatal: true,
 		}
-		util.Logger.ErrorI("error.clientnoprovider", clientIdentifier)
+		util.Logger.WarnI("error.clientnoprovider", clientIdentifier)
 		return nil, errMsg
 	}
 
@@ -576,8 +575,6 @@ func clientExists(ctx context.Context) bool {
 		return false
 	}
 	_, exists := connectionMap.Get(clientIdentifier)
-	if exists {
-		return true
-	}
-	return false
+
+	return exists
 }

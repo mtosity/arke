@@ -726,6 +726,7 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
+	fmt.Println("err:", err)
 	assert.Equal(t, err, io.EOF)
 
 	mockp.AssertExpectations(t)

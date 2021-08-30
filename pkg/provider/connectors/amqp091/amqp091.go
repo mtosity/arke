@@ -81,17 +81,15 @@ func connectionCleaner() {
 	prov := provy.(*amqp091provider)
 	ticker := time.NewTicker(30 * time.Second)
 	for {
-		select {
-		case <-ticker.C:
-			for _, connId := range prov.connections.GetList() {
-				if conn, ok := prov.connections.Get(connId); ok {
-					bd := conn.(*BrokerDetails)
-					util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
-					lastKnown := time.Since(bd.lastPubSubEvent)
-					if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
-						util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
-						prov.disconnectClientByIdentifier(connId)
-					}
+		<-ticker.C
+		for _, connId := range prov.connections.GetList() {
+			if conn, ok := prov.connections.Get(connId); ok {
+				bd := conn.(*BrokerDetails)
+				util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
+				lastKnown := time.Since(bd.lastPubSubEvent)
+				if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
+					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
+					prov.disconnectClientByIdentifier(connId)
 				}
 			}
 		}
@@ -122,7 +120,7 @@ func NewAMQP091Provider() provider.Provider {
 func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
-		util.Logger.ErrorI("error.noclientuuid", err.Error())
+		util.Logger.WarnI("error.noclientuuid", err.Error())
 		return &BrokerDetails{}, err
 	}
 
@@ -173,7 +171,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.ack", err.Error())
+		util.Logger.WarnI("error.ack", err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -203,7 +201,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.nack", err.Error())
+		util.Logger.WarnI("error.nack", err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -318,7 +316,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 	_, bdErr := bd.connect()
 	if bdErr != nil {
-		util.Logger.ErrorI("error.brokerconnect", bdErr.Error())
+		util.Logger.WarnI("error.brokerconnect", bdErr.Error())
 		return &pb.Error{Message: bdErr.Error()}
 	}
 	prov.connections.Add(bd.ClientIdentifier, &bd)
@@ -339,7 +337,7 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 	case pb.Address_QUEUE:
 		exchangeType = "direct"
 	default:
-		util.Logger.ErrorI("error.addresstype", aType.String())
+		util.Logger.WarnI("error.addresstype", aType.String())
 		return "", fmt.Errorf("%s is not a valid address type", aType)
 	}
 	return exchangeType, nil
@@ -397,7 +395,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete())
 		if err != nil {
-			util.Logger.ErrorI("error.exchangedeclare", err.Error())
+			util.Logger.WarnI("error.exchangedeclare", err.Error())
 			return err
 		}
 
@@ -410,7 +408,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		if !known || force {
 			err := prov.declareExchange(parent, bd, amqpChannel, force)
 			if err != nil {
-				util.Logger.ErrorI("error.exchangedeclare", err.Error())
+				util.Logger.WarnI("error.exchangedeclare", err.Error())
 			}
 
 			// Bind each subject from the Address exchange to the ParentAddress exchange
@@ -439,13 +437,13 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 		case "MessageTTL":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("Value for MessageTTL option must be a quoted integer")
+				return errors.New("value for MessageTTL option must be a quoted integer")
 			}
 			args["x-message-ttl"] = val
 		case "Expires":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("Value for Expires option must be a quoted integer")
+				return errors.New("value for Expires option must be a quoted integer")
 			}
 			args["x-expires"] = val
 		case "DeadLetterAddress":
@@ -459,7 +457,7 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 
 	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), source.GetExclusive(), args)
 	if qErr != nil {
-		util.Logger.ErrorI("error.queuedeclare", qErr.Error())
+		util.Logger.WarnI("error.queuedeclare", qErr.Error())
 	}
 	bd.knownQueues.Add(source.GetName(), true)
 
@@ -515,13 +513,13 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 			for _, matchHeaders := range matchHeadersList {
 				bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), matchHeaders)
 				if bErr != nil {
-					util.Logger.ErrorI("error.queuebind", bErr.Error())
+					util.Logger.WarnI("error.queuebind", bErr.Error())
 				}
 			}
 		} else {
 			bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), nil)
 			if bErr != nil {
-				util.Logger.ErrorI("error.queuebind", bErr.Error())
+				util.Logger.WarnI("error.queuebind", bErr.Error())
 			}
 		}
 	}
@@ -578,7 +576,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	cancelChan = amqpChannel.NotifyCancel(cancelChan)
 
 	if err != nil {
-		util.Logger.ErrorI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
+		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
 		return &pb.Error{Message: err.Error()}
 	}
 
@@ -634,7 +632,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
-			if &chanErr != nil {
+			if chanErr != (Amqp091Error{}) {
 				return &pb.Error{Message: chanErr.Error()}
 			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
@@ -745,7 +743,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
-			if &chanErr != nil {
+			if chanErr != (Amqp091Error{}) {
 				retError := &pb.Error{Message: chanErr.Error()}
 				return retError
 			} else if bd.state != provider.CONNECTED {
@@ -798,7 +796,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				amqpMessage)
 
 			if err != nil {
-				util.Logger.ErrorI("error.publish", err.Error())
+				util.Logger.WarnI("error.publish", err.Error())
 
 				errMsg := &pb.Error{
 					Message: err.Error(),
@@ -865,7 +863,7 @@ func (bd *BrokerDetails) connectionWatcher() {
 		case err, ok := <-bd.ErrorChannel:
 
 			bd.Lock()
-			if !ok || (&err != nil && err.Code() != 0) {
+			if !ok || (err != (Amqp091Error{}) && err.Code() != 0) {
 				bd.state = provider.DISCONNECTED
 				sleepRandomReconnect()
 				bd.Unlock()
@@ -893,6 +891,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	if bd.state == provider.CONNECTING {
 		for start := time.Now(); time.Since(start) < 30*time.Second; {
+			breakLoop := false
 			switch bd.state {
 			case provider.CONNECTED:
 				return true, nil
@@ -902,6 +901,10 @@ func (bd *BrokerDetails) connect() (bool, error) {
 			case provider.CLOSED:
 				return false, nil
 			case provider.DISCONNECTED:
+				breakLoop = true
+			}
+
+			if breakLoop {
 				break
 			}
 		}
@@ -953,7 +956,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		if caBundlePath := os.Getenv("CA_BUNDLE"); caBundlePath != "" {
 			caBundle, err := ioutil.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
-				return false, fmt.Errorf("Could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
+				return false, fmt.Errorf("could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
 			}
 			tlsConfig.RootCAs = x509.NewCertPool()
 			tlsConfig.RootCAs.AppendCertsFromPEM(caBundle)
@@ -971,7 +974,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	err = conn.Connect()
 
 	if err != nil {
-		util.Logger.ErrorI("error.brokerconnect", err.Error())
+		util.Logger.WarnI("error.brokerconnect", err.Error())
 		bd.state = provider.CLOSED
 		return false, err
 	}

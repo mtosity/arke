@@ -51,17 +51,15 @@ func connectionCleaner() {
 	prov := provy.(*azureprovider)
 	ticker := time.NewTicker(30 * time.Second)
 	for {
-		select {
-		case <-ticker.C:
-			for _, connId := range prov.connections.GetList() {
-				if conn, ok := prov.connections.Get(connId); ok {
-					bd := conn.(*BrokerDetails)
-					util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
-					lastKnown := time.Since(bd.lastPubSubEvent)
-					if bd.ActiveStreams < 1 && lastKnown > 10*time.Second {
-						util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
-						prov.disconnectClientByIdentifier(connId)
-					}
+		<-ticker.C
+		for _, connId := range prov.connections.GetList() {
+			if conn, ok := prov.connections.Get(connId); ok {
+				bd := conn.(*BrokerDetails)
+				util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
+				lastKnown := time.Since(bd.lastPubSubEvent)
+				if bd.ActiveStreams < 1 && lastKnown > 10*time.Second {
+					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
+					prov.disconnectClientByIdentifier(connId)
 				}
 			}
 		}
@@ -80,7 +78,6 @@ type BrokerDetails struct {
 	knownTopics        *util.ConcurrentMap
 	knownSubscriptions *util.ConcurrentMap
 	activeMessages     *util.ConcurrentMap
-	state              uint16
 	connectionConfig   *pb.ConnectionConfiguration
 	ActiveStreams      int
 	consumed           int
@@ -92,7 +89,7 @@ type BrokerDetails struct {
 func (prov *azureprovider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
-		util.Logger.ErrorI("error.noclientuuid", err.Error())
+		util.Logger.WarnI("error.noclientuuid", err.Error())
 		return &BrokerDetails{}, err
 	}
 
@@ -142,7 +139,7 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.ack", err.Error())
+		util.Logger.WarnI("error.ack", err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -173,7 +170,7 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.nack", err.Error())
+		util.Logger.WarnI("error.nack", err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -264,7 +261,7 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 	err = bd.azure.Connect()
 
 	if err != nil {
-		util.Logger.ErrorI("error.brokerconnect", err.Error())
+		util.Logger.WarnI("error.brokerconnect", err.Error())
 		return &pb.Error{Message: err.Error()}
 	}
 
@@ -401,7 +398,7 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 	case pb.Address_FILTER:
 	case pb.Address_QUEUE:
 	default:
-		util.Logger.ErrorI("error.addresstype", addressType)
+		util.Logger.WarnI("error.addresstype", addressType)
 		return nil, fmt.Errorf("%s is not a valid address type", addressType)
 	}
 
@@ -426,7 +423,7 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 		if !known {
 			parentTopic, err := prov.declareExchange(parent, bd, ctx)
 			if err != nil {
-				util.Logger.ErrorI("error.exchangedeclare", err.Error())
+				util.Logger.WarnI("error.exchangedeclare", err.Error())
 			}
 
 			var smOpts []servicebus.SubscriptionManagementOption
@@ -460,14 +457,14 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topic AzureTopicS
 		case "MessageTTL":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return nil, errors.New("Value for MessageTTL option must be a quoted integer")
+				return nil, errors.New("value for MessageTTL option must be a quoted integer")
 			}
 			ttl := time.Millisecond * time.Duration(val)
 			smOpts = append(smOpts, servicebus.SubscriptionWithMessageTimeToLive(&ttl))
 		case "Expires":
 			val, err := strconv.Atoi(value)
 			if err != nil {
-				return nil, errors.New("Value for Expires option must be a quoted integer")
+				return nil, errors.New("value for Expires option must be a quoted integer")
 			}
 			exp := time.Millisecond * time.Duration(val)
 			smOpts = append(smOpts, servicebus.SubscriptionWithAutoDeleteOnIdle(&exp))
@@ -518,7 +515,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 	// sm, err := bd.namespace.NewSubscriptionManager(topic.Name)
 	sm, err := bd.azure.NewSubscriptionManager(topic.GetName())
 	if err != nil {
-		util.Logger.ErrorI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
+		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
 	}
 
 	// create subscription
@@ -615,7 +612,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 		if actualRule != "" {
 			_, err = sm.PutRule(ctx, subName, "RoutingAndFilterRule", actualRule)
 			if err != nil {
-				util.Logger.ErrorI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
+				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
 			}
 		}
 	}
@@ -627,7 +624,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 	}
 
 	if err != nil {
-		util.Logger.ErrorI("error.clientsubscribe", bd.ClientIdentifier, subName, err.Error())
+		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, subName, err.Error())
 		return nil, err
 	}
 	bd.knownSubscriptions.Add(subName, subscription)
@@ -645,59 +642,57 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 	defer bd.decrementStreamCount()
 
 	for {
-		select {
-		case message := <-messageChannel:
-			if message == nil {
-				// nil message means shut it down
-				return nil
-			}
-
-			topic, topicErr := prov.declareExchange(message.GetAddress(), bd, ctx)
-			if topicErr != nil {
-				errChan <- &pb.Error{
-					Message: topicErr.Error(),
-					IsFatal: true,
-				}
-				continue
-			}
-
-			azureMessage := NewAzureMsg()
-			azureMessage.SetData(message.GetBody())
-
-			headers := make(map[string]interface{})
-
-			for headerName, headerValue := range message.GetHeaders() {
-				headers[headerName] = headerValue
-				switch headerName {
-				case "Content-Type":
-					azureMessage.SetContentType(headerValue)
-				case "Content-Encoding":
-					headers["Content-Encoding"] = headerValue
-				}
-			}
-
-			for _, key := range message.GetAddress().GetSubjects() {
-				headers["RoutingKey"] = key
-			}
-
-			azureMessage.SetUserProperties(headers)
-
-			err = topic.Send(ctx, azureMessage)
-
-			if err != nil {
-				util.Logger.ErrorI("error.publish", err.Error())
-
-				errMsg := &pb.Error{
-					Message: err.Error(),
-					IsFatal: true,
-				}
-				errChan <- errMsg
-			} else {
-				util.Logger.DebugI("debug.clientpublished", bd.ClientIdentifier)
-				bd.produced++
-			}
-			errChan <- nil
+		message := <-messageChannel
+		if message == nil {
+			// nil message means shut it down
+			return nil
 		}
+
+		topic, topicErr := prov.declareExchange(message.GetAddress(), bd, ctx)
+		if topicErr != nil {
+			errChan <- &pb.Error{
+				Message: topicErr.Error(),
+				IsFatal: true,
+			}
+			continue
+		}
+
+		azureMessage := NewAzureMsg()
+		azureMessage.SetData(message.GetBody())
+
+		headers := make(map[string]interface{})
+
+		for headerName, headerValue := range message.GetHeaders() {
+			headers[headerName] = headerValue
+			switch headerName {
+			case "Content-Type":
+				azureMessage.SetContentType(headerValue)
+			case "Content-Encoding":
+				headers["Content-Encoding"] = headerValue
+			}
+		}
+
+		for _, key := range message.GetAddress().GetSubjects() {
+			headers["RoutingKey"] = key
+		}
+
+		azureMessage.SetUserProperties(headers)
+
+		err = topic.Send(ctx, azureMessage)
+
+		if err != nil {
+			util.Logger.WarnI("error.publish", err.Error())
+
+			errMsg := &pb.Error{
+				Message: err.Error(),
+				IsFatal: true,
+			}
+			errChan <- errMsg
+		} else {
+			util.Logger.DebugI("debug.clientpublished", bd.ClientIdentifier)
+			bd.produced++
+		}
+		errChan <- nil
 	}
 }
 
@@ -709,14 +704,8 @@ func (prov *azureprovider) SupportedSourceOptions() map[string]bool {
 // WaitForConnect will always return true for this provider if the broker details exist
 func (prov *azureprovider) WaitForConnect(ctx *context.Context) bool {
 	_, err := prov.getBrokerDetails(*ctx)
-	if err != nil {
-		return false
-	}
 
-	// because there is no single connection per client to the broker and it's all
-	// based on topic/queue/subscription connections, we will alway just return true
-
-	return true
+	return err == nil
 }
 
 func (bd *BrokerDetails) updateLastPubSubEvent() {
@@ -750,7 +739,8 @@ func (prov *azureprovider) disconnectClientByIdentifier(clientIdentifier string)
 
 	bd.clientDisconnect = true
 	for _, topicName := range bd.knownTopics.GetList() {
-		ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 		topicInt, ok := bd.knownTopics.Get(topicName)
 		if ok {
 			fmt.Printf("topicInt: %+v\n", topicInt)
@@ -760,7 +750,8 @@ func (prov *azureprovider) disconnectClientByIdentifier(clientIdentifier string)
 	}
 
 	for _, subName := range bd.knownSubscriptions.GetList() {
-		ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 		subInt, ok := bd.knownSubscriptions.Get(subName)
 		if ok {
 			sub := subInt.(AzureSubscriptionShim)

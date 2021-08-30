@@ -48,7 +48,6 @@ type azureMsgMock struct {
 	mock.Mock
 	AzureMessageShim
 	properties map[string]interface{}
-	data       []byte
 }
 
 func (m *azureNSMock) NewTopic(ctx *context.Context, name string) (AzureTopicShim, error) {
@@ -341,7 +340,7 @@ func Test_Ack(t *testing.T) {
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
-	props := make(map[string]interface{}, 0)
+	props := make(map[string]interface{})
 	props["header1"] = "value"
 	nmsg.On("SetData").Return(nil)
 	nmsg.On("GetUserProperties").Return(props)
@@ -431,7 +430,7 @@ func Test_Nack(t *testing.T) {
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
-	props := make(map[string]interface{}, 0)
+	props := make(map[string]interface{})
 	props["header1"] = "value"
 	nmsg.On("SetData").Return(nil)
 	nmsg.On("GetUserProperties").Return(props)
@@ -507,7 +506,7 @@ func Test_Retry(t *testing.T) {
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
-	props := make(map[string]interface{}, 0)
+	props := make(map[string]interface{})
 	props["header1"] = "value"
 	nmsg.On("SetData").Return(nil)
 	nmsg.On("GetUserProperties").Return(props)
@@ -668,7 +667,7 @@ func Test_SupportedSourceOptions(t *testing.T) {
 	prov := NewAzureProvider()
 	opts := prov.SupportedSourceOptions()
 	assert.NotNil(t, opts)
-	expected := make(map[string]bool, 0)
+	expected := make(map[string]bool)
 	expected["MessageTTL"] = true
 	expected["DeadLetterAddress"] = true
 	expected["DeadLetterSubject"] = true
@@ -850,7 +849,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
 
-	options := make(map[string]string, 0)
+	options := make(map[string]string)
 	options["MessageTTL"] = "100"
 	options["Expires"] = "100"
 	options["DeadLetterAddress"] = "dla"
@@ -913,7 +912,7 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
-	props := make(map[string]interface{}, 0)
+	props := make(map[string]interface{})
 	props["header1"] = "value"
 	nmsg.On("GetUserProperties").Return(props)
 	nmsg.On("GetContentType").Return("json")
