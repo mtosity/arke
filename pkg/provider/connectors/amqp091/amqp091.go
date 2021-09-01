@@ -312,6 +312,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		consumed:         0,
 		ActiveStreams:    0,
 		clientDisconnect: false,
+		lastPubSubEvent:  time.Now(),
 	}
 
 	_, bdErr := bd.connect()

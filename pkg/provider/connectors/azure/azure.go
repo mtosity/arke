@@ -250,6 +250,7 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 		consumed:         0,
 		ActiveStreams:    0,
 		clientDisconnect: false,
+		lastPubSubEvent:  time.Now(),
 	}
 
 	connStr := fmt.Sprintf("Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s",
