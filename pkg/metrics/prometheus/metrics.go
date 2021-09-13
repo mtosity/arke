@@ -67,7 +67,7 @@ func Serve(lis *net.Listener) {
 	}
 
 	if err := metricsServer.Serve(*lis); err != nil {
-		util.Logger.FatalI("error.metricsserve", err)
+		util.Logger.WarnI("error.metricsserve", err)
 	}
 }
 

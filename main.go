@@ -49,17 +49,19 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	if *memprofile != "" {
-		f, err := os.Create(*memprofile)
-		if err != nil {
-			util.Logger.FatalI("error.memprofile", err)
+	defer func() {
+		if *memprofile != "" {
+			f, err := os.Create(*memprofile)
+			if err != nil {
+				util.Logger.FatalI("error.memprofile", err)
+			}
+			defer f.Close()
+			runtime.GC() // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				util.Logger.FatalI("error.memprofile", err)
+			}
 		}
-		defer f.Close()
-		runtime.GC() // get up-to-date statistics
-		if err := pprof.WriteHeapProfile(f); err != nil {
-			util.Logger.FatalI("error.memprofile", err)
-		}
-	}
+	}()
 
 	portEnv := os.Getenv("PORT")
 	if portEnv != "" {

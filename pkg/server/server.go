@@ -141,10 +141,13 @@ consumeLoop:
 		go func(strm pb.Consumer_ConsumeServer, rchan chan consumeRecv) {
 			msg, errer := strm.Recv()
 			cnsmRecv := consumeRecv{err: errer, msg: msg}
+			timer := time.NewTimer(10 * time.Second)
 			select {
 			case rchan <- cnsmRecv:
+				timer.Stop()
 				return
-			case <-time.After(10 * time.Second):
+			case <-timer.C:
+				timer.Stop()
 				return
 			}
 		}(stream, recvChan)
@@ -390,6 +393,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					resp = &pb.MessageResponse{Success: false, Error: errMsg}
 
 				} else {
+					timer := time.NewTimer(30 * time.Second)
 					select {
 					case errChanErr := <-errChan:
 						resp = &pb.MessageResponse{Success: false, Error: errChanErr}
@@ -401,11 +405,12 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 						} else {
 							resp = &pb.MessageResponse{Success: true}
 						}
-					case <-time.After(60 * time.Second):
+					case <-timer.C:
 						errMsg := &pb.Error{Message: "failed to send message to provider for publishing", IsFatal: false}
 						resp = &pb.MessageResponse{Success: false, Error: errMsg}
 						stopPubFunc = true
 					}
+					timer.Stop()
 
 				}
 
@@ -439,6 +444,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				util.Logger.WarnI("error.brokerconnect", err.Message)
 			} else {
 				util.Logger.Debugf("Client no longer exists. Stopping publish.")
+				stopPublish = true
 			}
 		}
 		if stopPublish {

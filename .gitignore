@@ -11,3 +11,4 @@ tests/integration/certs/testca
 tests/integration/rabbit
 env-*
 .idea/
+*.diff
