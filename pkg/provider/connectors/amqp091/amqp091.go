@@ -884,6 +884,11 @@ func (bd *BrokerDetails) connectionWatcher() {
 	}
 }
 
+func getCaBundlePath() string {
+	caBundlePath := os.Getenv("CA_BUNDLE")
+	return caBundlePath
+}
+
 func (bd *BrokerDetails) connect() (bool, error) {
 
 	if bd.clientDisconnect {
@@ -954,7 +959,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
 
 	} else if tlsEnabled { // Regular TLS with cert verification against system certs
-		if caBundlePath := os.Getenv("CA_BUNDLE"); caBundlePath != "" {
+		if caBundlePath := getCaBundlePath(); caBundlePath != "" {
 			caBundle, err := ioutil.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
 				return false, fmt.Errorf("could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())

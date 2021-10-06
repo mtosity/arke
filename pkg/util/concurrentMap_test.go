@@ -29,6 +29,8 @@ func TestConcurrentMapAdd(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, cItem, &testItem)
 	assert.Equal(t, cItem2, testItem2)
+
+	assert.Equal(t, 2, cMap.Length())
 }
 
 func TestConcurrentMapDelete(t *testing.T) {

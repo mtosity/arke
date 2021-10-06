@@ -1,13 +1,29 @@
 package util
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/peer"
 )
+
+type fakeAddr struct {
+	net.Addr
+	s       string
+	network string
+}
+
+func (f fakeAddr) String() string {
+	return f.s
+}
+func (f fakeAddr) Network() string {
+	return f.network
+}
 
 func TestGenUUID(t *testing.T) {
 	uuidStr := GenUUID()
@@ -16,4 +32,54 @@ func TestGenUUID(t *testing.T) {
 	id, err := uuid.Parse(uuidStr)
 	assert.IsType(t, uuid.UUID{}, id)
 	assert.Nil(t, err)
+}
+
+func Test_GetClientAddr(t *testing.T) {
+	p := &peer.Peer{}
+	p.Addr = fakeAddr{s: "127.0.0.1", network: "tcp"}
+	ctx := peer.NewContext(context.Background(), p)
+
+	addr, err := GetClientAddr(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, addr, "127.0.0.1")
+}
+
+func Test_SetClientIdentifier(t *testing.T) {
+
+	p := &peer.Peer{}
+	p.Addr = fakeAddr{s: "127.0.0.1", network: "tcp"}
+	ctx := peer.NewContext(context.Background(), p)
+	id, err := SetClientIdentifier(ctx, "unitTest")
+	assert.Contains(t, id, "unitTest-")
+	assert.Nil(t, err)
+
+	getId, err := GetClientIdentifier(ctx)
+	assert.Equal(t, id, getId)
+	assert.Nil(t, err)
+
+	p.Addr = fakeAddr{}
+	ctx = peer.NewContext(context.Background(), p)
+	getId, err = GetClientIdentifier(ctx)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "Could not retrieve client-id from context")
+	assert.Equal(t, "", getId)
+
+}
+
+func Test_RemoveClientIdentifier(t *testing.T) {
+
+	p := &peer.Peer{}
+	p.Addr = fakeAddr{s: "127.0.0.1", network: "tcp"}
+	ctx := peer.NewContext(context.Background(), p)
+	id, err := SetClientIdentifier(ctx, "unitTest")
+	assert.Contains(t, id, "unitTest-")
+	assert.Nil(t, err)
+
+	RemoveClientIdentifier(ctx)
+
+	getId, err := GetClientIdentifier(ctx)
+	assert.Equal(t, "", getId)
+	assert.NotNil(t, err)
+	assert.Equal(t, "Could not find client identifier", err.Error())
+
 }

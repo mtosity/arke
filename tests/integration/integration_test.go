@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	servicebus "github.com/Azure/azure-service-bus-go"
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
 	cfg "sassoftware.io/convoy/arke/test/config"
@@ -22,6 +23,34 @@ import (
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
+
+func cleanupAzure() {
+	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+		if providerType == "azure" {
+			connConfig := cfg.ConnectionConfigurationFromEnv()
+			connStr := fmt.Sprintf("Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s",
+				connConfig.Host, connConfig.GetCredentials().GetUsername(),
+				connConfig.GetCredentials().GetPassword())
+			ns, err := servicebus.NewNamespace(servicebus.NamespaceWithConnectionString(connStr))
+			if err != nil {
+				// eat the error
+				fmt.Printf("Could not clean up azure namespace")
+				return
+			}
+			ctx := context.Background()
+			tm := ns.NewTopicManager()
+			topics, err := tm.List(ctx)
+			if err != nil {
+				fmt.Printf("Could not clean up azure namespace")
+				return
+			}
+			for _, topic := range topics {
+				tm.Delete(ctx, topic.Name)
+			}
+
+		}
+	}
+}
 
 type MsgHandler func(msg *pb.Message) (int, error)
 
@@ -128,7 +157,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 		var sleep time.Duration
 		switch providerType {
 		case "azure":
-			sleep = 3000
+			sleep = 4000
 		default:
 			sleep = 500
 		}
@@ -1067,7 +1096,13 @@ func TestParentExchange_Consume(t *testing.T) {
 	<-clientConnected
 
 	// adding some extra sleep in because of all the resources that need to be created in azure
-	time.Sleep(6000 * time.Millisecond)
+	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+		switch providerType {
+		case "azure":
+			time.Sleep(6000 * time.Millisecond)
+		default:
+		}
+	}
 
 	// Publish to the parent address
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
@@ -1228,4 +1263,76 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 	// Demonstrate that calling connect twice on a single connection produces an error
 	_, err2 = c2.Connect(ctx2, connConfig)
 	assert.Contains(t, err2.Error(), "can not call Connect more than once. Call Disconnect and try again")
+}
+
+// To simulate a client and slow azure admin actions
+// Connect a consumer
+// Disconnect it soon after subscribe
+// Resubscribe but with just address and source names (no filters or subjects)
+// Send messages
+func TestConsumerQuickResub(t *testing.T) {
+	producerConnection := connect()
+	expectedMessageCount := 30
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	sourceName := fmt.Sprintf("sas.test.proxy.TCQR.Consumer.%d", time.Now().UnixNano())
+
+	consumerConnection := connect()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TCQR")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: sourceName, Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	// defer c.Disconnect(ctx, &pb.Empty{})
+	//defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	c.Disconnect(ctx, &pb.Empty{})
+
+	time.Sleep(1 * time.Second)
+	consumerConnection = connect()
+	emptySubjects := make([]string, 0)
+	// subjects = append(subjects, "sas.test.proxy.TCQR")
+	addressNoSubs := &pb.Address{Name: "amq.topic", Subjects: emptySubjects, Type: pb.Address_TOPIC}
+	source = &pb.Source{Name: sourceName, Address: addressNoSubs, PrefetchCount: 5}
+	c = pb.NewConsumerClient(consumerConnection)
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
+	cleanupAzure()
+	assert.True(t, true)
 }

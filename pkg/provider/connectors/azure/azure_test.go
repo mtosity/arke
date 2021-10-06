@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,8 +51,8 @@ type azureMsgMock struct {
 	properties map[string]interface{}
 }
 
-func (m *azureNSMock) NewTopic(ctx *context.Context, name string) (AzureTopicShim, error) {
-	args := m.Called(ctx, name)
+func (m *azureNSMock) NewTopic(name string) (AzureTopicShim, error) {
+	args := m.Called(name)
 	t := args.Get(0).(AzureTopicShim)
 	return t, args.Error(1)
 }
@@ -66,12 +67,12 @@ func (m *azureNSMock) NewSubscriptionManager(topicName string) (AzureSubscriptio
 	return t, args.Error(1)
 }
 
-func (m *azureTopicMock) ScheduleAt(*context.Context, time.Time, ...AzureMessageShim) ([]int64, error) {
+func (m *azureTopicMock) ScheduleAt(time.Time, ...AzureMessageShim) ([]int64, error) {
 	args := m.Called()
 	return nil, args.Error(0)
 }
 
-func (m *azureTopicMock) Close(*context.Context) error {
+func (m *azureTopicMock) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -86,7 +87,7 @@ func (m *azureTopicMock) GetName() string {
 	return args.String(0)
 }
 
-func (m *azureTopicMock) Send(*context.Context, AzureMessageShim, ...servicebus.SendOption) error {
+func (m *azureTopicMock) Send(context.Context, AzureMessageShim, ...servicebus.SendOption) error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -97,29 +98,29 @@ func (m *azureTopicMock) NewSubscription(name string, opts ...servicebus.Subscri
 	return as, args.Error(1)
 }
 
-func (m *azureSMMock) Create(*context.Context, string, ...servicebus.SubscriptionManagementOption) error {
+func (m *azureSMMock) Create(string, ...servicebus.SubscriptionManagementOption) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *azureSMMock) ListRules(*context.Context, string) ([]*servicebus.RuleEntity, error) {
+func (m *azureSMMock) ListRules(string) ([]*servicebus.RuleEntity, error) {
 	args := m.Called()
 	re := args.Get(0).([]*servicebus.RuleEntity)
 	return re, args.Error(1)
 }
 
-func (m *azureSMMock) DeleteRule(*context.Context, string, string) error {
+func (m *azureSMMock) DeleteRule(string, string) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *azureSMMock) PutRule(ctx *context.Context, subName string, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
-	args := m.Called(ctx, subName, ruleName, ruleText)
+func (m *azureSMMock) PutRule(subName string, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
+	args := m.Called(subName, ruleName, ruleText)
 	re := args.Get(0).(*servicebus.RuleEntity)
 	return re, args.Error(1)
 }
 
-func (m *azureSubMock) Receive(ctx *context.Context, messageChannel chan AzureMessageShim) error {
+func (m *azureSubMock) Receive(ctx context.Context, messageChannel chan AzureMessageShim) error {
 	args := m.Called(ctx, messageChannel)
 
 	for _, msg := range m.Receives {
@@ -128,9 +129,14 @@ func (m *azureSubMock) Receive(ctx *context.Context, messageChannel chan AzureMe
 	return args.Error(0)
 }
 
-func (m *azureSubMock) Close(*context.Context) error {
+func (m *azureSubMock) Close() error {
 	args := m.Called()
 	return args.Error(0)
+}
+
+func (m *azureSubMock) Name() string {
+	args := m.Called()
+	return args.String(0)
 }
 
 func (m *azureMsgMock) GetDeliveryCount() uint32 {
@@ -172,12 +178,12 @@ func (m *azureMsgMock) GetUserProperty(key string) (interface{}, bool) {
 	return val, ok
 }
 
-func (m *azureMsgMock) Complete(*context.Context) error {
+func (m *azureMsgMock) Complete() error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *azureMsgMock) Abandon(*context.Context) error {
+func (m *azureMsgMock) Abandon() error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -335,8 +341,9 @@ func Test_Ack(t *testing.T) {
 	subMock := &azureSubMock{}
 	tmock.On("GetName").Return("topicName")
 	tmock.On("Close").Return(nil)
-	subMock.On("Receive", &ctx, mock.Anything).Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
 	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
@@ -363,14 +370,13 @@ func Test_Ack(t *testing.T) {
 	// mmock.On("PutRule").Return(rule, nil)
 
 	mmock.On("PutRule",
-		&ctx,
 		mock.AnythingOfType("string"),
 		"RoutingAndFilterRule",
 		"(user.RoutingKey = 'one' OR user.RoutingKey = 'two')",
 	).Return(&servicebus.RuleEntity{}, nil).Once()
 
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil).Once()
+	amock.On("NewTopic", "topicName").Return(tmock, nil).Once()
 	amock.On("NewSubscriptionManager").Return(mmock, nil)
 
 	oldNewAzureNS := NewAzureNS
@@ -387,7 +393,6 @@ func Test_Ack(t *testing.T) {
 	cc := &pb.ConnectionConfiguration{}
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	msg := &pb.Message{}
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}}
 	mc := make(chan *pb.Message)
@@ -398,11 +403,101 @@ func Test_Ack(t *testing.T) {
 		assert.Nil(t, suberr)
 	}()
 
-	msg = <-mc
+	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
 	err = prov.Ack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
+
+	subMock.AssertExpectations(t)
+	tmock.AssertExpectations(t)
+	mmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_Ack_CompleteErr(t *testing.T) {
+	prov := NewAzureProvider()
+	ctx := context.Background()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &azureNSMock{}
+	tmock := &azureTopicMock{}
+	mmock := &azureSMMock{}
+	subMock := &azureSubMock{}
+	tmock.On("GetName").Return("topicName")
+	tmock.On("Close").Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
+	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
+
+	subMock.Receives = make([]*azureMsgMock, 0)
+	nmsg := &azureMsgMock{}
+	props := make(map[string]interface{})
+	props["header1"] = "value"
+	nmsg.On("SetData").Return(nil)
+	nmsg.On("GetUserProperties").Return(props)
+	nmsg.On("GetContentType").Return("json")
+	nmsg.On("GetData").Return("hello")
+	nmsg.On("Complete").Return(errors.New("AckError"))
+
+	subMock.Receives = append(subMock.Receives, nmsg)
+	tmock.On("NewSubscription").Return(subMock, nil)
+
+	mmock.On("Create").Return(nil)
+	rules := make([]*servicebus.RuleEntity, 0)
+	defaultRule := &servicebus.RuleEntity{Entity: &servicebus.Entity{
+		Name: "$Default",
+	}}
+	rules = append(rules, defaultRule)
+	mmock.On("ListRules").Return(rules, nil)
+	// rule := &servicebus.RuleEntity{}
+	mmock.On("DeleteRule").Return(nil)
+	// mmock.On("PutRule").Return(rule, nil)
+
+	mmock.On("PutRule",
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule",
+		"(user.RoutingKey = 'one' OR user.RoutingKey = 'two')",
+	).Return(&servicebus.RuleEntity{}, nil).Once()
+
+	amock.On("Connect").Return(nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil).Once()
+	amock.On("NewSubscriptionManager").Return(mmock, nil)
+
+	oldNewAzureNS := NewAzureNS
+
+	NewAzureNS = func(string) AzureNamespaceShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAzureNS = oldNewAzureNS
+	}()
+
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(&ctx, cc, false)
+	assert.Nil(t, err)
+
+	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+	stop := make(chan bool)
+	go func() {
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+	assert.NotNil(t, msg)
+	time.Sleep(100 * time.Millisecond)
+	err = prov.Ack(&ctx, msg.GetUuid())
+	assert.NotNil(t, err)
+	assert.Equal(t, err.GetMessage(), "AckError")
 
 	subMock.AssertExpectations(t)
 	tmock.AssertExpectations(t)
@@ -425,8 +520,9 @@ func Test_Nack(t *testing.T) {
 	subMock := &azureSubMock{}
 	tmock.On("GetName").Return("topicName")
 	tmock.On("Close").Return(nil)
-	subMock.On("Receive", &ctx, mock.Anything).Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
 	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
@@ -446,7 +542,7 @@ func Test_Nack(t *testing.T) {
 	mmock.On("ListRules").Return(rules, nil)
 
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	amock.On("NewSubscriptionManager").Return(mmock, nil)
 
 	oldNewAzureNS := NewAzureNS
@@ -463,7 +559,6 @@ func Test_Nack(t *testing.T) {
 	cc := &pb.ConnectionConfiguration{}
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	msg := &pb.Message{}
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
@@ -474,11 +569,88 @@ func Test_Nack(t *testing.T) {
 		assert.Nil(t, suberr)
 	}()
 
-	msg = <-mc
+	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
 	err = prov.Nack(&ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
+
+	subMock.AssertExpectations(t)
+	tmock.AssertExpectations(t)
+	mmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_Nack_AbandonError(t *testing.T) {
+	prov := NewAzureProvider()
+	ctx := context.Background()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &azureNSMock{}
+	tmock := &azureTopicMock{}
+	mmock := &azureSMMock{}
+	subMock := &azureSubMock{}
+	tmock.On("GetName").Return("topicName")
+	tmock.On("Close").Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
+	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
+
+	subMock.Receives = make([]*azureMsgMock, 0)
+	nmsg := &azureMsgMock{}
+	props := make(map[string]interface{})
+	props["header1"] = "value"
+	nmsg.On("SetData").Return(nil)
+	nmsg.On("GetUserProperties").Return(props)
+	nmsg.On("GetContentType").Return("json")
+	nmsg.On("GetData").Return("hello")
+	nmsg.On("Abandon").Return(errors.New("AbandonError"))
+
+	subMock.Receives = append(subMock.Receives, nmsg)
+	tmock.On("NewSubscription").Return(subMock, nil)
+
+	mmock.On("Create").Return(nil)
+	rules := make([]*servicebus.RuleEntity, 0)
+	mmock.On("ListRules").Return(rules, nil)
+
+	amock.On("Connect").Return(nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
+	amock.On("NewSubscriptionManager").Return(mmock, nil)
+
+	oldNewAzureNS := NewAzureNS
+
+	NewAzureNS = func(string) AzureNamespaceShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAzureNS = oldNewAzureNS
+	}()
+
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(&ctx, cc, false)
+	assert.Nil(t, err)
+
+	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+	stop := make(chan bool)
+	go func() {
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+	assert.NotNil(t, msg)
+	time.Sleep(100 * time.Millisecond)
+	err = prov.Nack(&ctx, msg.GetUuid())
+	assert.NotNil(t, err)
+	assert.Equal(t, err.GetMessage(), "AbandonError")
 
 	subMock.AssertExpectations(t)
 	tmock.AssertExpectations(t)
@@ -501,8 +673,9 @@ func Test_Retry(t *testing.T) {
 	subMock := &azureSubMock{}
 	tmock.On("GetName").Return("topicName")
 	tmock.On("Close").Return(nil)
-	subMock.On("Receive", &ctx, mock.Anything).Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
 	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
@@ -525,7 +698,7 @@ func Test_Retry(t *testing.T) {
 	rules := make([]*servicebus.RuleEntity, 0)
 	mmock.On("ListRules").Return(rules, nil)
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	amock.On("NewSubscriptionManager").Return(mmock, nil)
 
 	oldNewAzureNS := NewAzureNS
@@ -542,7 +715,6 @@ func Test_Retry(t *testing.T) {
 	cc := &pb.ConnectionConfiguration{}
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	msg := &pb.Message{}
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
@@ -553,7 +725,7 @@ func Test_Retry(t *testing.T) {
 		assert.Nil(t, suberr)
 	}()
 
-	msg = <-mc
+	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
 	err = prov.Retry(&ctx, src, msg.GetUuid(), 1)
 	assert.NotNil(t, msg)
@@ -736,7 +908,7 @@ func Test_Publish(t *testing.T) {
 	tmock.On("Send").Return(nil)
 
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	oldNewAzureNS := NewAzureNS
 
 	NewAzureNS = func(string) AzureNamespaceShim {
@@ -801,7 +973,7 @@ func Test_Publish_Error(t *testing.T) {
 	tmock.On("Send").Return(errors.New("an error occured"))
 
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	oldNewAzureNS := NewAzureNS
 
 	NewAzureNS = func(string) AzureNamespaceShim {
@@ -907,8 +1079,9 @@ func Test_Subscribe_Options(t *testing.T) {
 	smMockParent := &azureSMMock{}
 	subMock := &azureSubMock{}
 
-	subMock.On("Receive", &ctx, mock.Anything).Return(nil)
+	subMock.On("Receive", ctx, mock.Anything).Return(nil)
 	subMock.On("Close").Return(nil)
+	subMock.On("Name").Return("sub")
 
 	subMock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
@@ -933,24 +1106,22 @@ func Test_Subscribe_Options(t *testing.T) {
 	smMockParent.On("ListRules").Return(rules, nil)
 
 	smMock.On("PutRule",
-		&ctx,
 		mock.AnythingOfType("string"),
 		"RoutingAndFilterRule",
 		"(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2')",
 	).Return(&servicebus.RuleEntity{}, nil).Once()
 
 	smMockParent.On("PutRule",
-		&ctx,
 		mock.AnythingOfType("string"),
 		"RoutingAndFilterRule",
-		"(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2') AND ((user.key1 = 'value1' OR user.key2 = 'value2') OR (user.key3 = 'value3' OR user.key4 = 'value4'))",
+		`(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2') AND (("key1" = 'value1' OR "key2" = 'value2') OR ("key3" = 'value3' OR "key4" = 'value4'))`,
 	).Return(&servicebus.RuleEntity{}, nil).Once()
 
 	amock.On("NewSubscriptionManager").Return(smMock, nil).Once()
 	amock.On("NewSubscriptionManager").Return(smMockParent, nil).Once()
 	amock.On("Connect").Return(nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "topicName").Return(tmock, nil)
-	amock.On("NewTopic", mock.AnythingOfType("*context.Context"), "parent").Return(tmock, nil)
+	amock.On("NewTopic", "topicName").Return(tmock, nil)
+	amock.On("NewTopic", "parent").Return(tmock, nil)
 
 	oldNewAzureNS := NewAzureNS
 
@@ -1002,4 +1173,29 @@ func Test_Subscribe_Options(t *testing.T) {
 	// smMockParent.AssertExpectations(t)
 	nmsg.AssertExpectations(t)
 	subMock.AssertExpectations(t)
+}
+
+func Test_declareExchange_errorAddressType(t *testing.T) {
+
+	// prov := NewAzureProvider()
+	bd := &BrokerDetails{}
+	address := &pb.Address{Type: 4}
+	_, err := declareExchange(address, bd)
+	assert.Error(t, err)
+	assert.Equal(t, "4 is not a valid address type", err.Error())
+
+}
+
+func Test_sourceNameToSubName_LongName(t *testing.T) {
+	srcName := "ReallyLongNameOverTwentyFiveCharacters"
+	subName := sourceNameToSubName(srcName)
+	idx := strings.Index(subName, "-")
+	assert.Equal(t, idx, 25)
+}
+
+func Test_sourceNameToSubName_ShortName(t *testing.T) {
+	srcName := "ShortName"
+	subName := sourceNameToSubName(srcName)
+	idx := strings.Index(subName, "-")
+	assert.Equal(t, idx, 9)
 }

@@ -8,6 +8,8 @@ import (
 	pb "sassoftware.io/convoy/arke/api"
 )
 
+const brokerP = "SAS_BROKER_PASSWORD"
+
 func getenv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -26,7 +28,7 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 		log.Fatalf("Could not convert '%s' to int", rawport)
 	}
 	username := getenv("SAS_BROKER_USERNAME", "guest")
-	password := getenv("SAS_BROKER_PASSWORD", "guest")
+	password := getenv(brokerP, "guest")
 	brokerType := getenv("SAS_BROKER_TYPE", "amqp091")
 	tenant := getenv("SAS_BROKER_TENANT", "/")
 

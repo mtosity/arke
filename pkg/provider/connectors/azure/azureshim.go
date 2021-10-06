@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-amqp-common-go/v3/uuid"
@@ -14,37 +15,38 @@ import (
 type AzureNamespaceShim interface {
 	Connect() error
 	NewSubscriptionManager(string) (AzureSubscriptionManagerShim, error)
-	NewTopic(*context.Context, string) (AzureTopicShim, error)
+	NewTopic(string) (AzureTopicShim, error)
 }
 
 // AzureTopicShim interface for topic
 type AzureTopicShim interface {
-	Close(*context.Context) error
+	Close() error
 	GetEntity() *servicebus.TopicEntity
 	GetName() string
 	NewSubscription(string, ...servicebus.SubscriptionOption) (AzureSubscriptionShim, error)
-	ScheduleAt(*context.Context, time.Time, ...AzureMessageShim) ([]int64, error)
-	Send(*context.Context, AzureMessageShim, ...servicebus.SendOption) error
+	ScheduleAt(time.Time, ...AzureMessageShim) ([]int64, error)
+	Send(context.Context, AzureMessageShim, ...servicebus.SendOption) error
 }
 
 // AzureSubscriptionManagerShim interface for subscription manager
 type AzureSubscriptionManagerShim interface {
-	Create(*context.Context, string, ...servicebus.SubscriptionManagementOption) error
-	DeleteRule(*context.Context, string, string) error
-	ListRules(*context.Context, string) ([]*servicebus.RuleEntity, error)
-	PutRule(*context.Context, string, string, string) (*servicebus.RuleEntity, error)
+	Create(string, ...servicebus.SubscriptionManagementOption) error
+	DeleteRule(string, string) error
+	ListRules(string) ([]*servicebus.RuleEntity, error)
+	PutRule(string, string, string) (*servicebus.RuleEntity, error)
 }
 
 // AzureSubscriptionShim interface for subscription
 type AzureSubscriptionShim interface {
-	Close(*context.Context) error
-	Receive(*context.Context, chan AzureMessageShim) error
+	Close() error
+	Receive(context.Context, chan AzureMessageShim) error
+	Name() string
 }
 
 // AzureMessageShim interface for messages
 type AzureMessageShim interface {
-	Abandon(*context.Context) error
-	Complete(*context.Context) error
+	Abandon() error
+	Complete() error
 
 	GetContentType() string
 	GetData() []byte
@@ -84,6 +86,7 @@ type AzureTopic struct {
 // AzureSubscription subscription
 type AzureSubscription struct {
 	subscription *servicebus.Subscription
+	name         string
 }
 
 // AzureSubscriptionManager subscription manager
@@ -109,11 +112,18 @@ func (an *AzureNamespace) Connect() error {
 }
 
 // NewTopic create a new topic
-func (an *AzureNamespace) NewTopic(ctx *context.Context, topicName string) (AzureTopicShim, error) {
+func (an *AzureNamespace) NewTopic(topicName string) (AzureTopicShim, error) {
+	ctx := context.Background()
 
-	topicEntity, err := an.topicManager.Get(*ctx, topicName)
+	var topicEntity *servicebus.TopicEntity
+	var err error
+
+	topicEntity, err = an.topicManager.Get(ctx, topicName)
 	if err != nil {
-		return nil, err
+		topicEntity, err = an.topicManager.Put(ctx, topicName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	topic, err := an.namespace.NewTopic(topicEntity.Name)
@@ -126,12 +136,11 @@ func (an *AzureNamespace) NewTopic(ctx *context.Context, topicName string) (Azur
 
 // NewSubscription create a new subscription
 func (at *AzureTopic) NewSubscription(name string, opts ...servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
-
 	sub, err := at.topic.NewSubscription(name, opts...)
 	if err != nil {
 		return nil, err
 	}
-	as := &AzureSubscription{subscription: sub}
+	as := &AzureSubscription{subscription: sub, name: name}
 	return as, nil
 }
 
@@ -146,12 +155,12 @@ func (an *AzureNamespace) NewSubscriptionManager(topicName string) (AzureSubscri
 }
 
 // ScheduleAt schedule a message
-func (at *AzureTopic) ScheduleAt(ctx *context.Context, delay time.Time, messages ...AzureMessageShim) ([]int64, error) {
+func (at *AzureTopic) ScheduleAt(delay time.Time, messages ...AzureMessageShim) ([]int64, error) {
 	sbMessages := make([]*servicebus.Message, 0)
 	for _, message := range messages {
 		sbMessages = append(sbMessages, message.(*AzureMessage).sbMsg)
 	}
-	seq, err := at.topic.ScheduleAt(*ctx, delay, sbMessages...)
+	seq, err := at.topic.ScheduleAt(context.Background(), delay, sbMessages...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +168,8 @@ func (at *AzureTopic) ScheduleAt(ctx *context.Context, delay time.Time, messages
 }
 
 // Close close the topic connection
-func (at *AzureTopic) Close(ctx *context.Context) error {
-	return at.topic.Close(*ctx)
+func (at *AzureTopic) Close() error {
+	return at.topic.Close(context.Background())
 }
 
 // GetEntity get the topic entity
@@ -174,21 +183,23 @@ func (at *AzureTopic) GetName() string {
 }
 
 // Send send a message to a topic
-func (at *AzureTopic) Send(ctx *context.Context, message AzureMessageShim, opts ...servicebus.SendOption) error {
+func (at *AzureTopic) Send(ctx context.Context, message AzureMessageShim, opts ...servicebus.SendOption) error {
 	msg := message.(*AzureMessage)
-	return at.topic.Send(*ctx, msg.sbMsg, opts...)
+	return at.topic.Send(ctx, msg.sbMsg, opts...)
 }
 
 // Create create a new subscription if it does not exist
-func (asm *AzureSubscriptionManager) Create(ctx *context.Context, name string, opts ...servicebus.SubscriptionManagementOption) error {
-
-	_, err := asm.subscriptionManager.Get(*ctx, name)
+func (asm *AzureSubscriptionManager) Create(name string, opts ...servicebus.SubscriptionManagementOption) error {
+	ctx := context.Background()
+	_, err := asm.subscriptionManager.Get(ctx, name)
 	if err != nil {
-		//sm.Use(servicebus.TraceReqAndResponseMiddleware())
-		_, err = asm.subscriptionManager.Put(*ctx, name, opts...)
+		_, err = asm.subscriptionManager.Put(ctx, name, opts...)
 
 		if err != nil {
-			fmt.Printf("error creating subscription: %s\n", err)
+			// don't return an error if we get a 409 (entity already exists)
+			if strings.Contains(err.Error(), "error code: 409") {
+				return nil
+			}
 			return err
 		}
 	}
@@ -196,8 +207,8 @@ func (asm *AzureSubscriptionManager) Create(ctx *context.Context, name string, o
 }
 
 // ListRules list filter rules on a subscription
-func (asm *AzureSubscriptionManager) ListRules(ctx *context.Context, name string) ([]*servicebus.RuleEntity, error) {
-	re, err := asm.subscriptionManager.ListRules(*ctx, name)
+func (asm *AzureSubscriptionManager) ListRules(name string) ([]*servicebus.RuleEntity, error) {
+	re, err := asm.subscriptionManager.ListRules(context.Background(), name)
 	if err != nil {
 		return nil, err
 	}
@@ -205,23 +216,23 @@ func (asm *AzureSubscriptionManager) ListRules(ctx *context.Context, name string
 }
 
 // DeleteRule delete a rule on a subscription
-func (asm *AzureSubscriptionManager) DeleteRule(ctx *context.Context, subscriptionName, ruleName string) error {
-	return asm.subscriptionManager.DeleteRule(*ctx, subscriptionName, ruleName)
+func (asm *AzureSubscriptionManager) DeleteRule(subscriptionName, ruleName string) error {
+	return asm.subscriptionManager.DeleteRule(context.Background(), subscriptionName, ruleName)
 }
 
 // PutRule create a rule on a subscription
-func (asm *AzureSubscriptionManager) PutRule(ctx *context.Context, subscriptionName, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
+func (asm *AzureSubscriptionManager) PutRule(subscriptionName, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
 	filter := &servicebus.SQLFilter{Expression: ruleText}
-	return asm.subscriptionManager.PutRule(*ctx, subscriptionName, ruleName, filter)
+	return asm.subscriptionManager.PutRule(context.Background(), subscriptionName, ruleName, filter)
 }
 
 // Close close the subscription connection
-func (as *AzureSubscription) Close(ctx *context.Context) error {
-	return as.subscription.Close(*ctx)
+func (as *AzureSubscription) Close() error {
+	return as.subscription.Close(context.Background())
 }
 
 //Receive receive messages on a subscription
-func (as *AzureSubscription) Receive(ctx *context.Context, messages chan AzureMessageShim) error {
+func (as *AzureSubscription) Receive(ctx context.Context, messages chan AzureMessageShim) error {
 	// recover sending on closed channel issues
 	defer func() error {
 		if err := recover(); err != nil {
@@ -231,12 +242,16 @@ func (as *AzureSubscription) Receive(ctx *context.Context, messages chan AzureMe
 		return nil
 	}()
 
-	as.subscription.Receive(*ctx, servicebus.HandlerFunc(func(ctx context.Context, msg *servicebus.Message) error {
+	as.subscription.Receive(ctx, servicebus.HandlerFunc(func(ctx context.Context, msg *servicebus.Message) error {
 		amsg := &AzureMessage{sbMsg: msg}
 		messages <- amsg
 		return nil
 	}))
 	return nil
+}
+
+func (as *AzureSubscription) Name() string {
+	return as.name
 }
 
 func (m *AzureMessage) SetData(data []byte) {
@@ -288,12 +303,12 @@ func (m *AzureMessage) SetContentType(contentType string) {
 	m.sbMsg.ContentType = contentType
 }
 
-func (m *AzureMessage) Abandon(ctx *context.Context) error {
-	return m.sbMsg.Abandon(*ctx)
+func (m *AzureMessage) Abandon() error {
+	return m.sbMsg.Abandon(context.Background())
 }
 
-func (m *AzureMessage) Complete(ctx *context.Context) error {
-	return m.sbMsg.Complete(*ctx)
+func (m *AzureMessage) Complete() error {
+	return m.sbMsg.Complete(context.Background())
 }
 
 func NewAzureMessage() AzureMessageShim {

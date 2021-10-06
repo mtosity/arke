@@ -52,6 +52,7 @@ error.clientfailedidentifier=Error determining client identifier from context fo
 info.rfrule=Routing key and filter rule exists. Not adding to subscription {0} for {1}
 info.rulelist=Error listing rules on subscription {0} for {1}
 error.ruleadd=Error adding rule on subscription {0} for {1}: {2} with error {3}
+info.azureclientsubscribe=Client {0} subscribed to {1} on topic {2}
 `
 
 // Logger default logger

@@ -73,17 +73,16 @@ type azureprovider struct {
 
 type BrokerDetails struct {
 	sync.Mutex
-	azure              AzureNamespaceShim
-	ClientIdentifier   string
-	knownTopics        *util.ConcurrentMap
-	knownSubscriptions *util.ConcurrentMap
-	activeMessages     *util.ConcurrentMap
-	connectionConfig   *pb.ConnectionConfiguration
-	ActiveStreams      int
-	consumed           int
-	produced           int
-	clientDisconnect   bool
-	lastPubSubEvent    time.Time
+	azure            AzureNamespaceShim
+	ClientIdentifier string
+	knownTopics      *util.ConcurrentMap
+	activeMessages   *util.ConcurrentMap
+	connectionConfig *pb.ConnectionConfiguration
+	ActiveStreams    int
+	consumed         int
+	produced         int
+	clientDisconnect bool
+	lastPubSubEvent  time.Time
 }
 
 func (prov *azureprovider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
@@ -132,22 +131,22 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(AzureMessageShim)
 		util.Logger.Debugf("Acking message %s", msgid)
-		err = rm.Complete(ctx)
+		err = rm.Complete()
+		if err != nil {
+			util.Logger.WarnI("error.ack", err.Error())
+
+			bd.activeMessages.Delete(msgid)
+			errMsg := &pb.Error{
+				Message: err.Error(),
+				IsFatal: true,
+			}
+			return errMsg
+		}
 	} else {
 		util.Logger.DebugI("debug.acknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
-	if err != nil {
-		util.Logger.WarnI("error.ack", err.Error())
-
-		bd.activeMessages.Delete(msgid)
-		errMsg := &pb.Error{
-			Message: err.Error(),
-			IsFatal: true,
-		}
-		return errMsg
-	}
 	util.Logger.DebugI("debug.ackmessage", bd.ClientIdentifier, msgid)
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -163,22 +162,22 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 		rm := rmu.(AzureMessageShim)
 		//TODO: Abandon will requeue the message, I don't think that is what
 		// we want to do in this case.
-		err = rm.Abandon(ctx)
+		err = rm.Abandon()
+		if err != nil {
+			util.Logger.WarnI("error.nack", err.Error())
+
+			bd.activeMessages.Delete(msgid)
+			errMsg := &pb.Error{
+				Message: err.Error(),
+				IsFatal: true,
+			}
+			return errMsg
+		}
 	} else {
 		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
-	if err != nil {
-		util.Logger.WarnI("error.nack", err.Error())
-
-		bd.activeMessages.Delete(msgid)
-		errMsg := &pb.Error{
-			Message: err.Error(),
-			IsFatal: true,
-		}
-		return errMsg
-	}
 	util.Logger.DebugI("debug.nackmessage", bd.ClientIdentifier, msgid)
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -197,10 +196,10 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 
 		// topicEntity, tmErr := bd.topicManager.Get(*ctx, origSource.Address.GetName())
 		// topic, _ := bd.namespace.NewTopic(topicEntity.Name)
-		topic, tmErr := bd.azure.NewTopic(ctx, origSource.Address.GetName())
+		topic, tmErr := bd.azure.NewTopic(origSource.Address.GetName())
 		if tmErr != nil {
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead [%v]", msgid, tmErr.Error())
-			_ = rm.Abandon(ctx)
+			_ = rm.Abandon()
 			return &pb.Error{Message: fmt.Sprintf("Failed to publish retry message %s, requeueing instead", msgid)}
 		}
 
@@ -216,14 +215,14 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		} else {
 			rm.SetUserProperty("x-death", "[map[count:1 ]]")
 		}
-		_, sErr := topic.ScheduleAt(ctx, timeDelay, rm)
+		_, sErr := topic.ScheduleAt(timeDelay, rm)
 		if sErr != nil {
 			util.Logger.Debugf("Failed to schedule retry message [%s], requeueing instead [%v]", msgid, sErr.Error())
-			_ = rm.Abandon(ctx)
+			_ = rm.Abandon()
 			return &pb.Error{Message: fmt.Sprintf("Failed to schedule retry message [%s], requeueing instead", msgid)}
 		}
 
-		_ = rm.Complete(ctx)
+		_ = rm.Complete()
 		util.Logger.DebugI("debug.retrymessage", bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
@@ -267,7 +266,6 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 	}
 
 	bd.knownTopics = util.NewConcurrentMap()
-	bd.knownSubscriptions = util.NewConcurrentMap()
 
 	prov.connections.Add(bd.ClientIdentifier, &bd)
 
@@ -291,24 +289,26 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 
 	bd.updateLastPubSubEvent()
 
-	topic, topicErr := prov.declareExchange(source.GetAddress(), bd, ctx)
+	topic, topicErr := declareExchange(source.GetAddress(), bd)
 	if topicErr != nil {
-		return &pb.Error{Message: err.Error()}
+		return &pb.Error{Message: topicErr.Error()}
 	}
+
 	defer func() {
-		_ = topic.Close(ctx)
+		topic.Close()
 	}()
 
-	subscription, suberr := declareSubscription(source, bd, topic, ctx)
+	var suberr error
+	subscription, suberr := declareSubscription(source, bd, topic)
 	if suberr != nil {
-		fmt.Printf("error creating subscription: %s\n", suberr)
 		return &pb.Error{Message: suberr.Error()}
 	}
+
 	defer func() {
-		_ = subscription.Close(ctx)
+		subscription.Close()
 	}()
 
-	util.Logger.InfoI("info.clientsubscribe", bd.ClientIdentifier, source.GetName())
+	util.Logger.InfoI("info.azureclientsubscribe", bd.ClientIdentifier, subscription.Name(), source.GetAddress().GetName())
 
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
@@ -316,10 +316,10 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	messages := make(chan AzureMessageShim)
 	// stopChan := make(chan bool)
 
-	//TODO: Need to handle lock expiration, the max we can set is 5 minutes
+	// TODO: Need to handle lock expiration, the max we can set is 5 minutes
 	// and we have some handlers that run for much longer.
 	go func(msgChan chan AzureMessageShim, sub AzureSubscriptionShim) {
-		err := sub.Receive(ctx, msgChan)
+		err := sub.Receive(*ctx, msgChan)
 		if err != nil {
 			close(msgChan)
 		}
@@ -340,7 +340,6 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 				// message chan closed
 				return nil
 			}
-			fmt.Printf("msg: %+v\n", msg)
 			messageUUID := util.GenUUID()
 			headers := make(map[string]string)
 			for header, value := range msg.GetUserProperties() {
@@ -391,7 +390,7 @@ func (prov *azureprovider) Stats() *provider.Stats {
 	return stats
 }
 
-func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetails, ctx *context.Context) (AzureTopicShim, error) {
+func declareExchange(address *pb.Address, bd *BrokerDetails) (AzureTopicShim, error) {
 	// make sure an invalid address type is not sent
 	addressType := address.GetType()
 	switch address.GetType() {
@@ -408,7 +407,7 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 	var err error
 	if !known {
 
-		topic, err = bd.azure.NewTopic(ctx, address.GetName())
+		topic, err = bd.azure.NewTopic(address.GetName())
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +421,7 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 	if parent := address.GetParentAddress(); parent != nil {
 		_, known = bd.exchangeKnown(parent.GetName())
 		if !known {
-			parentTopic, err := prov.declareExchange(parent, bd, ctx)
+			parentTopic, err := declareExchange(parent, bd)
 			if err != nil {
 				util.Logger.WarnI("error.exchangedeclare", err.Error())
 			}
@@ -432,14 +431,14 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 
 			smOpts = append(smOpts, servicebus.SubscriptionWithAutoForward(topic.GetEntity()))
 
-			fmt.Printf("declaring subscription with auto forward for parent %s to child %s\n", parent.GetName(), address.GetName())
+			util.Logger.Debugf("declaring subscription with auto forward for parent %s to child %s\n", parent.GetName(), address.GetName())
 
 			fakeSource := &pb.Source{}
 			fakeSource.Name = fmt.Sprintf("%s-foward-%s", address.GetName(), parent.GetName())
 			fakeSource.Address = &pb.Address{}
 			fakeSource.Address.Subjects = address.GetSubjects()
 
-			declareSubscriptionWithOptions(fakeSource, bd, parentTopic, ctx, smOpts, sOpts)
+			declareSubscriptionWithOptions(fakeSource, bd, parentTopic, smOpts, sOpts)
 			bd.knownTopics.Add(parent.GetName(), parentTopic)
 		}
 	}
@@ -447,7 +446,7 @@ func (prov *azureprovider) declareExchange(address *pb.Address, bd *BrokerDetail
 	return topic, nil
 }
 
-func declareSubscription(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim, ctx *context.Context) (AzureSubscriptionShim, error) {
+func declareSubscription(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim) (AzureSubscriptionShim, error) {
 
 	var smOpts []servicebus.SubscriptionManagementOption
 	var sOpts []servicebus.SubscriptionOption
@@ -507,53 +506,46 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topic AzureTopicS
 
 	sOpts = append(sOpts, servicebus.SubscriptionWithPrefetchCount(uint32(source.GetPrefetchCount())))
 
-	return declareSubscriptionWithOptions(source, bd, topic, ctx, smOpts, sOpts)
+	return declareSubscriptionWithOptions(source, bd, topic, smOpts, sOpts)
 }
 
-func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim, ctx *context.Context,
-	smOpts []servicebus.SubscriptionManagementOption, sOpts []servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
-
-	// sm, err := bd.namespace.NewSubscriptionManager(topic.Name)
-	sm, err := bd.azure.NewSubscriptionManager(topic.GetName())
-	if err != nil {
-		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
-	}
-
-	// create subscription
-	subHash := fmt.Sprintf("%x", sha1.Sum([]byte(source.GetName())))
-	srcPart := source.GetName()
-	if len(source.GetName()) > 25 {
+func sourceNameToSubName(name string) string {
+	subHash := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
+	srcPart := name
+	if len(name) > 25 {
 		srcPart = srcPart[:25]
 	}
 	if len(subHash) > 20 {
 		subHash = subHash[:20]
 	}
-	subName := fmt.Sprintf("%s-%s", srcPart, subHash)
-	err = sm.Create(ctx, subName, smOpts...)
+	return fmt.Sprintf("%s-%s", srcPart, subHash)
+}
+
+func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim,
+	smOpts []servicebus.SubscriptionManagementOption, sOpts []servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
+
+	// create subscription
+	subName := sourceNameToSubName(source.GetName())
+	sm, err := bd.azure.NewSubscriptionManager(topic.GetName())
+	if err != nil {
+		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, subName, err.Error())
+	}
+
+	err = sm.Create(subName, smOpts...)
 	if err != nil {
 		return nil, err
 	}
-	// _, err = sm.Get(*ctx, subName)
-	// if err != nil {
-	// 	//sm.Use(servicebus.TraceReqAndResponseMiddleware())
-	// 	_, err = sm.Put(*ctx, subName, smOpts...)
-
-	// 	if err != nil {
-	// 		fmt.Printf("error creating subscription: %s\n", err)
-	// 		return nil, err
-	// 	}
-	// }
 
 	routingAndFilterRuleName := "RoutingAndFilterRule"
 	routingAndFilterRuleExists := false
 
-	existingRules, err := sm.ListRules(ctx, subName)
+	existingRules, err := sm.ListRules(subName)
 	if err != nil {
-		util.Logger.InfoI("info.rulelist", subName, bd.clientDisconnect)
+		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier)
 	}
 	for _, rule := range existingRules {
 		if rule.Name == "$Default" {
-			sm.DeleteRule(ctx, subName, rule.Name)
+			sm.DeleteRule(subName, rule.Name)
 			continue
 		} else if rule.Name == routingAndFilterRuleName {
 			routingAndFilterRuleExists = true
@@ -590,7 +582,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 				for _, match := range filter.GetMatches() {
 					header := match.GetName()
 					value := match.GetValue()
-					rule := fmt.Sprintf("user.%s = '%s'", header, value)
+					rule := fmt.Sprintf(`"%s" = '%s'`, header, value)
 					fRules = append(fRules, rule)
 				}
 				var op string
@@ -611,7 +603,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 
 		actualRule := strings.Join(rules, " AND ")
 		if actualRule != "" {
-			_, err = sm.PutRule(ctx, subName, "RoutingAndFilterRule", actualRule)
+			_, err = sm.PutRule(subName, "RoutingAndFilterRule", actualRule)
 			if err != nil {
 				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
 			}
@@ -621,14 +613,10 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 	subscription, err := topic.NewSubscription(subName, sOpts...)
 
 	if err != nil {
-		fmt.Printf("error calling NewSubscription: %s\n", err)
-	}
-
-	if err != nil {
 		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, subName, err.Error())
 		return nil, err
 	}
-	bd.knownSubscriptions.Add(subName, subscription)
+
 	return subscription, nil
 }
 
@@ -649,7 +637,7 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 			return nil
 		}
 
-		topic, topicErr := prov.declareExchange(message.GetAddress(), bd, ctx)
+		topic, topicErr := declareExchange(message.GetAddress(), bd)
 		if topicErr != nil {
 			errChan <- &pb.Error{
 				Message: topicErr.Error(),
@@ -660,7 +648,6 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 
 		azureMessage := NewAzureMsg()
 		azureMessage.SetData(message.GetBody())
-
 		headers := make(map[string]interface{})
 
 		for headerName, headerValue := range message.GetHeaders() {
@@ -679,7 +666,7 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 
 		azureMessage.SetUserProperties(headers)
 
-		err = topic.Send(ctx, azureMessage)
+		err = topic.Send(*ctx, azureMessage)
 
 		if err != nil {
 			util.Logger.WarnI("error.publish", err.Error())
@@ -730,7 +717,6 @@ func (bd *BrokerDetails) exchangeKnown(name string) (interface{}, bool) {
 }
 
 func (prov *azureprovider) disconnectClientByIdentifier(clientIdentifier string) {
-
 	var bd *BrokerDetails
 	if bdu, ok := prov.connections.Get(clientIdentifier); ok {
 		bd = bdu.(*BrokerDetails)
@@ -740,27 +726,12 @@ func (prov *azureprovider) disconnectClientByIdentifier(clientIdentifier string)
 
 	bd.clientDisconnect = true
 	for _, topicName := range bd.knownTopics.GetList() {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
 		topicInt, ok := bd.knownTopics.Get(topicName)
 		if ok {
-			fmt.Printf("topicInt: %+v\n", topicInt)
 			topic := topicInt.(AzureTopicShim)
-			topic.Close(&ctx)
-		}
-	}
-
-	for _, subName := range bd.knownSubscriptions.GetList() {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		subInt, ok := bd.knownSubscriptions.Get(subName)
-		if ok {
-			sub := subInt.(AzureSubscriptionShim)
-			sub.Close(&ctx)
+			topic.Close()
 		}
 	}
 
 	prov.connections.Delete(clientIdentifier)
-
-	bd = nil
 }
