@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -24,6 +25,9 @@ var GetClientAddr = util.GetClientAddr
 var GetClientIdentifier = util.GetClientIdentifier
 var SetClientIdentifier = util.SetClientIdentifier
 var RemoveClientIdentifier = util.RemoveClientIdentifier
+var GetProcessStats = util.GetProcessStats
+
+var NewTimestampPB = util.NewTimestampPB
 
 // Map that tracks our connection information
 var connectionMap = util.NewConcurrentMap()
@@ -32,6 +36,7 @@ func init() {
 	if !strings.HasSuffix(os.Args[0], ".test") {
 		util.Logger.Debugf("Starting server connection watcher")
 		go connectionWatcher()
+		go util.MonitorProcessStats()
 	}
 }
 
@@ -65,12 +70,18 @@ type consumeRecv struct {
 
 // ProducerServer producer server struct
 type ProducerServer struct {
+	pb.UnimplementedProducerServer
 	TLSSkipVerify bool
 }
 
 // ConsumerServer consumer server struct
 type ConsumerServer struct {
+	pb.UnimplementedConsumerServer
 	TLSSkipVerify bool
+}
+
+type HealthzServer struct {
+	pb.UnimplementedHealthzServer
 }
 
 // Connect Connect for the producer server
@@ -583,4 +594,54 @@ func clientExists(ctx context.Context) bool {
 	_, exists := connectionMap.Get(clientIdentifier)
 
 	return exists
+}
+
+func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
+
+	ctx := stream.Context()
+
+	clientAddr, err := GetClientAddr(ctx)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				break
+			}
+
+			if check := msg.GetCheck(); check != nil {
+				// client asked for a health check
+				util.Logger.Debugf("healthz check requested for %s with uuid %s", clientAddr, check.GetUuid())
+				hlth := &pb.Health{}
+				hs := &pb.Health_Status{}
+				hs.Status = &pb.HealthStatus{}
+				hs.Status.Uuid = check.GetUuid()
+				hs.Status.Code = pb.HealthStatus_OK
+
+				processStats := GetProcessStats()
+				// if mem usage > 90% or cpu usage has been high for an extended period then report unhealthy
+				if processStats.MaxMemory > 0 && (processStats.MemoryAverage)/float64(processStats.MaxMemory) > 0.9 {
+					hs.Status.Code = pb.HealthStatus_UNHEALTHY
+				} else if processStats.CpuUsageAverage/float64(runtime.NumCPU()) > 90 { // cpu usage > 90% per cpu
+					hs.Status.Code = pb.HealthStatus_UNHEALTHY
+				}
+
+				// set the time right before sending the response
+				hs.Status.Time = NewTimestampPB()
+				hlth.Resp = hs
+				stream.Send(hlth)
+			} else if status := msg.GetStatus(); status != nil {
+				// TODO: we are going to do nothing for now, but we need to determine
+				// if there are any actual scenarios for us caring about a status response
+				// from a client. Possible arke->arke status messages in the future?
+				util.Logger.Debugf("client %s status is %v", clientAddr, status.GetCode())
+			}
+		}
+	}()
+
+	<-ctx.Done()
+	return nil
 }

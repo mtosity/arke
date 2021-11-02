@@ -7,6 +7,9 @@ syntax = "proto3";
 
 option java_outer_classname = "ArkeProtos";
 option java_package = "org.arke";
+option go_package = "sassoftware.io/convoy/arke/api";
+
+import "google/protobuf/timestamp.proto";
 
 package arke;
 
@@ -201,4 +204,43 @@ service Consumer {
     rpc Consume(stream arke.Consume) returns (stream arke.ConsumeResponse) {}
     // Disconnect from the proxy and the message broker.
     rpc Disconnect(arke.Empty) returns (arke.Empty){}
+}
+
+/**
+ * Message requesting the health of the other end of the stream. Essentially a ping.
+ */
+ message HealthCheck {
+    string uuid = 1; // UUID to identify the check and match with the response
+ }
+
+ /**
+ * Message containing the response to a health check request
+ */
+ message HealthStatus {
+    string uuid = 1; // UUID of the HealthCheck message being responded to
+    google.protobuf.Timestamp time = 2;
+    enum Code {
+        OK = 0; // Everything is fine.
+        UNHEALTHY = 1; // Everything is not fine (cpu/memory high) but we are operational.
+        GOAWAY = 2; // Please go away and come back.
+    }
+    Code code = 3;
+}
+
+/**
+ * Message used to communicate or request health to/from the server and client
+ */
+message Health {
+    oneof resp {
+        HealthCheck check = 1;
+        HealthStatus status = 2;
+    }
+}
+
+/**
+ * Service for health checks and communication
+ */
+service Healthz {
+
+    rpc Check(stream arke.Health) returns (stream arke.Health) {}
 }

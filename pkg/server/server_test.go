@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
 	. "sassoftware.io/convoy/arke/pkg/server"
+	"sassoftware.io/convoy/arke/pkg/util"
 	// mp "sassoftware.io/convoy/arke/pkg/provider/mock"
 )
 
@@ -24,6 +27,7 @@ var cf *pb.ConnectionConfiguration
 var mockp *MockProvider
 var conSrv *ConsumerServer
 var proSrv *ProducerServer
+var hlthSrv *HealthzServer
 var expectedErrorMessage string = "this is my error"
 var errMsg pb.Error = pb.Error{Message: expectedErrorMessage}
 
@@ -38,6 +42,7 @@ func init() {
 	mockp = mocky.(*MockProvider)
 	conSrv = &ConsumerServer{}
 	proSrv = &ProducerServer{}
+	hlthSrv = &HealthzServer{}
 }
 
 type MockConsumerConsumeServerStream struct {
@@ -54,6 +59,18 @@ type MockProducerPublishServerStream struct {
 	mock.Mock
 	pb.Producer_PublishServer
 	Receives   []*MockPubRecv
+	SendErrors []error
+}
+
+type MockCheckRecv struct {
+	Check *pb.Health
+	Error error
+}
+
+type MockHealthzCheckServerStream struct {
+	mock.Mock
+	pb.Healthz_CheckServer
+	Checks     []*MockCheckRecv
 	SendErrors []error
 }
 
@@ -94,6 +111,29 @@ func (stream *MockConsumerConsumeServerStream) Recv() (*pb.Consume, error) {
 func (stream *MockConsumerConsumeServerStream) Context() context.Context {
 	ctx := context.Background()
 	return ctx
+}
+
+func (stream *MockHealthzCheckServerStream) Context() context.Context {
+	args := stream.Called()
+	ctx := args.Get(0).(context.Context)
+	return ctx
+}
+
+func (stream *MockHealthzCheckServerStream) Recv() (*pb.Health, error) {
+	var health *pb.Health
+	args := stream.Called()
+	healthRaw := args.Get(0)
+	if healthRaw != nil {
+		health = args.Get(0).(*pb.Health)
+	}
+	err := args.Error(1)
+	return health, err
+}
+
+func (stream *MockHealthzCheckServerStream) Send(hlth *pb.Health) error {
+	args := stream.Called(hlth)
+	err := args.Error(0)
+	return err
 }
 
 func (stream *MockProducerPublishServerStream) Context() context.Context {
@@ -139,6 +179,8 @@ type MockContext struct {
 
 const provName string = "mockp"
 
+var defaultDate time.Time = time.Date(2021, time.November, 6, 15, 0, 0, 0, time.Local)
+
 // NewMockProvider creates a new provider
 func NewMockProvider() provider.Provider {
 	prov := &MockProvider{}
@@ -151,6 +193,9 @@ func NewMockProvider() provider.Provider {
 	RemoveClientIdentifier = func(context.Context) {}
 	GetClientAddr = func(context.Context) (string, error) {
 		return "127.0.0.1:1234", nil
+	}
+	NewTimestampPB = func() *timestamppb.Timestamp {
+		return timestamppb.New(defaultDate)
 	}
 	return prov
 }
@@ -264,7 +309,7 @@ func (prov *MockProvider) SupportedSourceOptions() map[string]bool {
 }
 
 func (prov *MockProvider) MockConnect() {
-	prov.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	prov.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 }
 
 // TestProducerServerNew creates a new producer server
@@ -290,7 +335,7 @@ func TestConsumerServerNew(t *testing.T) {
 func TestConsumerServerConnect_Success(t *testing.T) {
 	// We have to clear the ExpectedCalls before each test.
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	(*mockp).On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	(*mockp).On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	connectResp, err := conSrv.Connect(ctx, cf)
 	conSrv.Disconnect(ctx, &pb.Empty{})
 	assert.NotNil(t, connectResp)
@@ -301,7 +346,7 @@ func TestConsumerServerConnect_Success(t *testing.T) {
 
 func TestProducerServerConnect_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	connectResp, err := proSrv.Connect(ctx, cf)
 	proSrv.Disconnect(ctx, &pb.Empty{})
@@ -314,7 +359,7 @@ func TestProducerServerConnect_Success(t *testing.T) {
 func TestConsumerServerConnect_Fail(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&errMsg)
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&errMsg)
 	connectResp, err := conSrv.Connect(ctx, cf)
 
 	assert.NotNil(t, connectResp)
@@ -335,7 +380,7 @@ func TestServerConnectBadProvider_Fail(t *testing.T) {
 func TestServerConnectTwice_Fail(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	proSrv.Connect(ctx, cf)
 	connectResp, err := proSrv.Connect(ctx, cf)
@@ -352,7 +397,7 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 func TestServerNoConnectionShare(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	connectResp, err := proSrv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
@@ -377,12 +422,12 @@ func TestServerNoConnectionShare(t *testing.T) {
 func TestProducerServerPublish_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("publish_sucess message body")}
 
 	proSrv.Connect(ctx, cf)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	stream := &MockProducerPublishServerStream{}
 	stream.Receives = make([]*MockPubRecv, 0)
 	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
@@ -403,7 +448,7 @@ func TestProducerServerPublish_Success(t *testing.T) {
 
 func TestProducerServerPublishRecv_Fail(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("pub recv fail")}
@@ -428,7 +473,7 @@ func TestProducerServerPublishRecv_Fail(t *testing.T) {
 
 func TestProducerServerPublishSend_Fail(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("pub send fail")}
@@ -459,7 +504,7 @@ func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 		return "", errors.New("Can't get Client UUID")
 	}
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	empty := &pb.Empty{}
 	conSrv.Connect(ctx, cf)
@@ -479,7 +524,7 @@ func TestServerDisconnect_FailNoMap(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	empty := &pb.Empty{}
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	conSrv.Connect(ctx, cf)
 
@@ -502,7 +547,7 @@ func TestConsumerServerDisconnect_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	empty := &pb.Empty{}
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	conSrv.Connect(ctx, cf)
 	connectResp, err := conSrv.Disconnect(ctx, empty)
@@ -518,7 +563,7 @@ func TestProducerServerDisconnect_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	empty := &pb.Empty{}
 
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	proSrv.Connect(ctx, cf)
 	connectResp, err := proSrv.Disconnect(ctx, empty)
@@ -537,14 +582,14 @@ func TestServerNoConnect_FAIL(t *testing.T) {
 	assert.Contains(t, err.Error(), "Failed to find connection information")
 
 	stream := &MockConsumerConsumeServerStream{}
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	subErr := conSrv.Consume(stream)
 	assert.NotNil(t, subErr)
 }
 
 func TestConsumerServerConsume(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -559,9 +604,9 @@ func TestConsumerServerConsume(t *testing.T) {
 
 	mockp.MockMessages = messages
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
 	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1"}}}
 	stream.On("Recv").Return(cnsm, nil).Once()
@@ -581,7 +626,7 @@ func TestConsumerServerConsume(t *testing.T) {
 
 func TestConsumerServerConsume_Nack(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -596,9 +641,9 @@ func TestConsumerServerConsume_Nack(t *testing.T) {
 
 	mockp.MockMessages = messages
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
 	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1", Nack: true}}}
 	stream.On("Recv").Return(cnsm, nil).Once()
@@ -618,7 +663,7 @@ func TestConsumerServerConsume_Nack(t *testing.T) {
 
 func TestConsumerServerConsume_Retry(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -633,9 +678,9 @@ func TestConsumerServerConsume_Retry(t *testing.T) {
 
 	mockp.MockMessages = messages
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
 	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1", Nack: true, RequeueDelay: 10}}}
 	stream.On("Recv").Return(cnsm, nil).Once()
@@ -655,7 +700,7 @@ func TestConsumerServerConsume_Retry(t *testing.T) {
 
 func TestConsumerServerConsume_BadOption(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -664,7 +709,7 @@ func TestConsumerServerConsume_BadOption(t *testing.T) {
 	stream := &MockConsumerConsumeServerStream{}
 	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
 	conSrv.Connect(ctx, cf)
 	err := conSrv.Consume(stream)
@@ -676,7 +721,7 @@ func TestConsumerServerConsume_BadOption(t *testing.T) {
 
 func TestConsumerServerConsume_AckErr(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}}
 	stream := &MockConsumerConsumeServerStream{}
@@ -689,9 +734,9 @@ func TestConsumerServerConsume_AckErr(t *testing.T) {
 
 	mockp.MockMessages = messages
 
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
-	stream.On("Send", mock.AnythingOfType("*arke.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
 	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1"}}}
 	stream.On("Recv").Return(cnsm, nil).Once()
@@ -711,7 +756,7 @@ func TestConsumerServerConsume_AckErr(t *testing.T) {
 
 func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
-	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*arke.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -731,4 +776,116 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 
 	mockp.AssertExpectations(t)
 	stream.AssertExpectations(t)
+}
+
+func TestHealthzServerCheck(t *testing.T) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	stream := &MockHealthzCheckServerStream{}
+	stream.On("Context").Return(ctx)
+	hc := &pb.Health_Check{}
+	hc.Check = &pb.HealthCheck{Uuid: util.GenUUID()}
+	hlth := &pb.Health{Resp: hc}
+	stream.On("Recv").Return(hlth, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
+	stream.On("Send", mock.AnythingOfType("*api.Health")).Return(nil)
+
+	err := hlthSrv.Check(stream)
+	assert.Nil(t, err)
+	stream.AssertExpectations(t)
+}
+
+func TestHealthzServerCheck_CPUHigh(t *testing.T) {
+
+	oldGetProcessStats := GetProcessStats
+	defer func() {
+		oldGetProcessStats = GetProcessStats
+	}()
+
+	GetProcessStats = func() *util.ProcessStats {
+		cpus := runtime.NumCPU()
+		ps := &util.ProcessStats{}
+		ps.MaxMemory = 1000
+		ps.MemoryAverage = 50
+		ps.CurrentMemory = 50
+		ps.CpuUsageAverage = float64(100 * cpus)
+		ps.CurrentCpuUsage = float64(100 * cpus)
+		return ps
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	stream := &MockHealthzCheckServerStream{}
+	stream.On("Context").Return(ctx)
+	uuid := util.GenUUID()
+	hc := &pb.Health_Check{}
+	hc.Check = &pb.HealthCheck{Uuid: uuid}
+	hlth := &pb.Health{Resp: hc}
+	stream.On("Recv").Return(hlth, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
+
+	sendHealth := &pb.Health{
+		Resp: &pb.Health_Status{
+			Status: &pb.HealthStatus{
+				Uuid: uuid,
+				Code: pb.HealthStatus_UNHEALTHY,
+				Time: NewTimestampPB(),
+			},
+		},
+	}
+	stream.On("Send", sendHealth).Return(nil)
+
+	err := hlthSrv.Check(stream)
+	assert.Nil(t, err)
+	stream.AssertExpectations(t)
+	GetProcessStats = oldGetProcessStats
+}
+
+func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
+
+	oldGetProcessStats := GetProcessStats
+	defer func() {
+		oldGetProcessStats = GetProcessStats
+	}()
+
+	GetProcessStats = func() *util.ProcessStats {
+		ps := &util.ProcessStats{}
+		ps.MaxMemory = 1000
+		ps.MemoryAverage = 1000
+		ps.CurrentMemory = 1000
+		ps.CpuUsageAverage = 0
+		ps.CurrentCpuUsage = 0
+		return ps
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	stream := &MockHealthzCheckServerStream{}
+	stream.On("Context").Return(ctx)
+	uuid := util.GenUUID()
+	hc := &pb.Health_Check{}
+	hc.Check = &pb.HealthCheck{Uuid: uuid}
+	hlth := &pb.Health{Resp: hc}
+	stream.On("Recv").Return(hlth, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
+
+	sendHealth := &pb.Health{
+		Resp: &pb.Health_Status{
+			Status: &pb.HealthStatus{
+				Uuid: uuid,
+				Code: pb.HealthStatus_UNHEALTHY,
+				Time: NewTimestampPB(),
+			},
+		},
+	}
+	stream.On("Send", sendHealth).Return(nil)
+
+	err := hlthSrv.Check(stream)
+	assert.Nil(t, err)
+	stream.AssertExpectations(t)
+	GetProcessStats = oldGetProcessStats
 }

@@ -20,22 +20,22 @@ generate: generate-proto generate-doc
 
 generate-proto: ## Generates protobufs
     ifneq ("$(HAVE_PROTOC)","")
-	protoc --proto_path=api/protobuf-spec --go_out=plugins=grpc:api/ api/protobuf-spec/*.proto
+	protoc -I/usr/include --proto_path=api/protobuf-spec --go_out=api --go_opt=paths=source_relative --go-grpc_out=api --go-grpc_opt=paths=source_relative api/protobuf-spec/arke.proto
     else
         $(info No protoc command found, skipping generate task.)
     endif
 
 generate-proto-java: ## Generates protobufs for java
     ifneq ("$(HAVE_PROTOC_JAVA)","")
-	protoc --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
-	protoc --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
+	protoc -I/usr/include --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
+	protoc -I/usr/include --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
     else
         $(info No protoc-gen-grpc-java command found, skipping generate task.)
     endif
 
 generate-doc: ## Generates protobuf docs
     ifneq ("$(HAVE_PROTOC_DOC)","")
-	protoc --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
+	protoc -I/usr/include --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
     else
         $(info No protoc doc command found, skipping generate doc task.)
     endif
@@ -46,6 +46,7 @@ linux: setup generate ## Builds binary for linux_amd64 (lax)
 	$(MAKE) -C test/test_consumer linux
 	$(MAKE) -C test/simple_consumer linux
 	$(MAKE) -C test/simple_producer linux
+	$(MAKE) -C test/healthz linux
 
 osx: setup generate ## Builds binary for darwin_amd64 (osx)
 	${BUILD_ENV} GOARCH=amd64 GOOS=darwin go build -o build/osx/${OUT_FILE}
@@ -53,6 +54,7 @@ osx: setup generate ## Builds binary for darwin_amd64 (osx)
 	$(MAKE) -C test/test_consumer osx
 	$(MAKE) -C test/simple_consumer osx
 	$(MAKE) -C test/simple_producer osx
+	$(MAKE) -C test/healthz osx
 
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE}
@@ -60,6 +62,7 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	$(MAKE) -C test/test_consumer windows
 	$(MAKE) -C test/simple_consumer windows
 	$(MAKE) -C test/simple_producer windows
+	$(MAKE) -C test/healthz windows
 
 test: generate ## Executes unit tests
 	LOG_FORMAT=term go test -timeout 30s --coverprofile coverage.out ./pkg/... -cover -v

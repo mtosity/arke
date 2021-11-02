@@ -3,7 +3,7 @@
 
 ## Table of Contents
 
-- [api/protobuf-spec/arke.proto](#api/protobuf-spec/arke.proto)
+- [arke.proto](#arke.proto)
     - [Address](#arke.Address)
     - [ConnectResponse](#arke.ConnectResponse)
     - [ConnectionConfiguration](#arke.ConnectionConfiguration)
@@ -13,6 +13,9 @@
     - [Empty](#arke.Empty)
     - [Error](#arke.Error)
     - [Filter](#arke.Filter)
+    - [Health](#arke.Health)
+    - [HealthCheck](#arke.HealthCheck)
+    - [HealthStatus](#arke.HealthStatus)
     - [Match](#arke.Match)
     - [Message](#arke.Message)
     - [Message.HeadersEntry](#arke.Message.HeadersEntry)
@@ -24,9 +27,11 @@
   
     - [Address.TargetType](#arke.Address.TargetType)
     - [Filter.MatchType](#arke.Filter.MatchType)
+    - [HealthStatus.Code](#arke.HealthStatus.Code)
   
   
     - [Consumer](#arke.Consumer)
+    - [Healthz](#arke.Healthz)
     - [Producer](#arke.Producer)
   
 
@@ -34,10 +39,10 @@
 
 
 
-<a name="api/protobuf-spec/arke.proto"></a>
+<a name="arke.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## api/protobuf-spec/arke.proto
+## arke.proto
 Arke message broker proxy messages.
 
 This file outlines the gRPC interface for the Arke proxy.
@@ -191,6 +196,54 @@ from consuming all messages from a Source.
 | ----- | ---- | ----- | ----------- |
 | matches | [Match](#arke.Match) | repeated | One or more filter Matches. |
 | type | [Filter.MatchType](#arke.Filter.MatchType) |  | The MatchType for this filter. Default is ALL. |
+
+
+
+
+
+
+<a name="arke.Health"></a>
+
+### Health
+Message used to communicate or request health to/from the server and client
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| check | [HealthCheck](#arke.HealthCheck) |  |  |
+| status | [HealthStatus](#arke.HealthStatus) |  |  |
+
+
+
+
+
+
+<a name="arke.HealthCheck"></a>
+
+### HealthCheck
+Message requesting the health of the other end of the stream. Essentially a ping.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| uuid | [string](#string) |  | UUID to identify the check and match with the response |
+
+
+
+
+
+
+<a name="arke.HealthStatus"></a>
+
+### HealthStatus
+Message containing the response to a health check request
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| uuid | [string](#string) |  | UUID of the HealthCheck message being responded to |
+| time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
+| code | [HealthStatus.Code](#arke.HealthStatus.Code) |  |  |
 
 
 
@@ -366,6 +419,19 @@ Represents the source for consumer subscriptions.
 | ANY | 1 | Any match can match for a successful filter. |
 
 
+
+<a name="arke.HealthStatus.Code"></a>
+
+### HealthStatus.Code
+
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| OK | 0 | Everything is fine. |
+| UNHEALTHY | 1 | Everything is not fine (cpu/memory high) but we are operational. |
+| GOAWAY | 2 | Please go away and come back. |
+
+
  
 
  
@@ -381,6 +447,16 @@ Service for consuming messages
 | Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
 | Consume | [Consume](#arke.Consume) stream | [ConsumeResponse](#arke.ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
 | Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |
+
+
+<a name="arke.Healthz"></a>
+
+### Healthz
+Service for health checks and communication
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+| Check | [Health](#arke.Health) stream | [Health](#arke.Health) stream |  |
 
 
 <a name="arke.Producer"></a>

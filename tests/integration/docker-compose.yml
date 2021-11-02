@@ -4,7 +4,6 @@ services:
     build:
       dockerfile: Dockerfile.arke
       context: .
-    deploy:
     image: tests_arke:latest
     networks:
     - arketest

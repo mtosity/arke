@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -82,4 +83,15 @@ func Test_RemoveClientIdentifier(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "Could not find client identifier", err.Error())
 
+}
+
+func Test_TestProcessStats(t *testing.T) {
+	go MonitorProcessStats()
+	time.Sleep(1 * time.Second)
+	ps := GetProcessStats()
+	assert.NotNil(t, ps)
+	assert.Equal(t, ps.MaxMemory, 0) // 0 because we aren't in k8s
+	assert.Greater(t, ps.CurrentMemory, 0)
+	assert.Greater(t, ps.MemoryAverage, 0.0)
+	// might not be able to calculate cpu usage yet
 }

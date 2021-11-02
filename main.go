@@ -110,6 +110,7 @@ func main() {
 	util.Logger.Debug("Registering producer and consumer services")
 	pb.RegisterProducerServer(s, &server.ProducerServer{TLSSkipVerify: *tlsSkipVerify})
 	pb.RegisterConsumerServer(s, &server.ConsumerServer{TLSSkipVerify: *tlsSkipVerify})
+	pb.RegisterHealthzServer(s, &server.HealthzServer{})
 
 	util.Logger.Debug("Registering health check service")
 	server.RegisterHealthServer(s)
