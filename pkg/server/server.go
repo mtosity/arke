@@ -31,12 +31,18 @@ var NewTimestampPB = util.NewTimestampPB
 
 // Map that tracks our connection information
 var connectionMap = util.NewConcurrentMap()
+var healthNotifiers = util.NewConcurrentMap()
 
 func init() {
 	if !strings.HasSuffix(os.Args[0], ".test") {
 		util.Logger.Debugf("Starting server connection watcher")
 		go connectionWatcher()
 		go util.MonitorProcessStats()
+		util.Logger.InfoI("info.hpamonitor")
+		healthChan := make(chan pb.HealthStatus_Code)
+		go util.MonitorHPA(healthChan)
+		go monitorHealthChan(healthChan)
+
 	}
 }
 
@@ -596,6 +602,27 @@ func clientExists(ctx context.Context) bool {
 	return exists
 }
 
+func notifyHealth(clientAddr string, receiver chan pb.HealthStatus_Code) {
+	// only allow one notifier per client
+	if recInt, ok := healthNotifiers.Get(clientAddr); ok {
+		rec := recInt.(chan pb.HealthStatus_Code)
+		close(rec)
+		healthNotifiers.Delete(clientAddr)
+	}
+	healthNotifiers.Add(clientAddr, receiver)
+}
+
+func monitorHealthChan(receiver chan pb.HealthStatus_Code) {
+	for code := range receiver {
+		for _, clientAddr := range healthNotifiers.GetList() {
+			if notifierInt, ok := healthNotifiers.Get(clientAddr); ok {
+				notifier := notifierInt.(chan pb.HealthStatus_Code)
+				notifier <- code
+			}
+		}
+	}
+}
+
 func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 
 	ctx := stream.Context()
@@ -604,6 +631,13 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 	if err != nil {
 		return err
 	}
+
+	notifyHealthChan := make(chan pb.HealthStatus_Code)
+	notifyHealth(clientAddr, notifyHealthChan)
+	defer func() {
+		healthNotifiers.Delete(clientAddr)
+		close(notifyHealthChan)
+	}()
 
 	go func() {
 		for {
@@ -642,6 +676,26 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 		}
 	}()
 
-	<-ctx.Done()
+	for {
+		done := false
+
+		select {
+		case code := <-notifyHealthChan:
+			util.Logger.Debugf("Internal health notification received. Sending %s to %s", code.String(), clientAddr)
+			hlth := &pb.Health{}
+			hs := &pb.Health_Status{}
+			hs.Status = &pb.HealthStatus{}
+			hs.Status.Code = code
+			hs.Status.Time = NewTimestampPB()
+			hlth.Resp = hs
+			stream.Send(hlth)
+		case <-ctx.Done():
+			done = true
+		}
+
+		if done {
+			break
+		}
+	}
 	return nil
 }

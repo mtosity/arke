@@ -53,6 +53,13 @@ info.rfrule=Routing key and filter rule exists. Not adding to subscription {0} f
 info.rulelist=Error listing rules on subscription {0} for {1}
 error.ruleadd=Error adding rule on subscription {0} for {1}: {2} with error {3}
 info.azureclientsubscribe=Client {0} subscribed to {1} on topic {2}
+info.hpamonitor=Monitoring Horizontal Pod Autoscaler
+warn.namespace=Could not determine namespace for pod. Not monitoring for HPA changes
+warn.clusterconfig=Could not configure cluster monitoring: {0}
+info.scaled={0} HPA scaled up from {1} to {2}. Asking clients to GOAWAY
+debug.healthnotify=Health notification code {0} sent to {1}
+warn.hpamonitorpanic=HPA monitor error: {0}
+info.nohpa=No HPA found
 `
 
 // Logger default logger

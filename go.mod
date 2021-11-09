@@ -7,7 +7,6 @@ require (
 	github.com/Azure/azure-service-bus-go v0.11.3
 	github.com/armon/go-metrics v0.3.10
 	github.com/fatih/color v1.10.0 // indirect
-	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/gotnospirit/messageformat v0.0.0-20190719172517-c1d0bdacdea2 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
@@ -17,12 +16,13 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/net v0.0.0-20210119194325-5f4716e94777 // indirect
-	golang.org/x/text v0.3.5 // indirect
 	google.golang.org/genproto v0.0.0-20210212180131-e7f2df4ecc2d // indirect
 	google.golang.org/grpc v1.41.0
-	google.golang.org/protobuf v1.26.0 // indirect
+	google.golang.org/protobuf v1.26.0
 	sassoftware.io/viya/zlog v0.1.14
+	k8s.io/api v0.22.3 // indirect
+	k8s.io/apimachinery v0.22.3
+	k8s.io/client-go v0.22.3
 )
 
 // NGMTS-21506: fix for CVE-2020-14040

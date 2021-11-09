@@ -1,0 +1,107 @@
+package util
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	pb "sassoftware.io/convoy/arke/api"
+	v1 "k8s.io/api/autoscaling/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
+)
+
+var LastGoAwayTime time.Time
+
+func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
+	currentReplicaCount := int32(-1)
+	var namespace string
+	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		namespace = os.Getenv("NAMESPACE")
+	} else {
+		namespace = string(data)
+	}
+
+	if namespace == "" {
+		Logger.Warn("warn.namespace")
+		return
+	}
+
+	config, err := rest.InClusterConfig()
+	if err == rest.ErrNotInCluster {
+		home := homedir.HomeDir()
+		kubeconfig := filepath.Join(home, ".kube", "config")
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			Logger.WarnI("warn.clusterconfig", err.Error())
+			return
+		}
+
+	} else if err != nil {
+		Logger.WarnI("warn.clusterconfig", err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		Logger.WarnI("warn.clusterconfig", err.Error())
+		return
+	}
+
+	arkeHpaName := os.Getenv("HPA_NAME")
+	if arkeHpaName == "" {
+		arkeHpaName = "arke"
+	}
+
+	defer func() {
+		// protect from send on closed channel
+		if err := recover(); err != nil {
+			Logger.WarnI("warn.hpamonitorpanic", err)
+			return
+		}
+	}()
+
+	for {
+		// hpa := clientset.AutoscalingV1().HorizontalPodAutoscalers()
+		watcher, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, metav1.ListOptions{})
+		if err != nil {
+			fmt.Println(err)
+		}
+		if watcher == nil {
+			Logger.Info("info.nohpa")
+			return
+		}
+		for event := range watcher.ResultChan() {
+
+			hpa := event.Object.(*v1.HorizontalPodAutoscaler)
+			if hpa.ObjectMeta.GetName() != arkeHpaName {
+				continue
+			}
+
+			newReplicaCount := currentReplicaCount
+			switch event.Type {
+			case watch.Modified:
+				newReplicaCount = hpa.Status.CurrentReplicas
+			default:
+				continue
+			}
+
+			if currentReplicaCount > 0 && newReplicaCount > currentReplicaCount {
+				healthChan <- pb.HealthStatus_GOAWAY
+				Logger.InfoI("info.scaled", arkeHpaName, currentReplicaCount, newReplicaCount)
+			}
+
+			currentReplicaCount = newReplicaCount
+		}
+	}
+}
