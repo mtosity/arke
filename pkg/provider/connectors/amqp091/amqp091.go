@@ -165,6 +165,12 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		rm := rmu.(Amqp091Message)
 		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
 		err = rm.Ack()
+
+		elapsed := time.Since(rm.ClientSentTime).Microseconds()
+		util.DebugNoFormat("method:ack,client:%s,elapsed:%v,time:%v\n",
+			bd.ClientIdentifier,
+			elapsed,
+			time.Now().UnixNano())
 	} else {
 		util.Logger.DebugI("debug.acknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -195,6 +201,11 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(Amqp091Message)
 		err = rm.Nack(false)
+		elapsed := time.Since(rm.ClientSentTime).Microseconds()
+		fmt.Printf("method:nack,client:%s,elapsed:%v,time:%v\n",
+			bd.ClientIdentifier,
+			elapsed,
+			time.Now().UnixNano())
 	} else {
 		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -276,7 +287,17 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
 		}
 
+		start := time.Now()
 		retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
+
+		elapsed := time.Since(start).Microseconds()
+		util.DebugNoFormat("method:retry,client:%s,elapsed:%v,address:%s,subjects:%s,time:%v\n",
+			bd.ClientIdentifier,
+			elapsed,
+			retrySource.GetAddress().GetName(),
+			strings.Join(retrySource.GetAddress().GetSubjects(), ","),
+			time.Now().UnixNano())
+
 		if retryErr != nil {
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
 			_ = rm.Nack(true)
@@ -663,6 +684,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				headers["Content-Encoding"] = msg.ContentEncoding
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
+			msg.ClientSentTime = time.Now()
 			bd.activeMessages.Add(messageUUID, msg)
 			messageChannel <- message
 			bd.consumed++
@@ -791,10 +813,19 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 			amqpMessage.Headers = headers
 
 			// util.Logger.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
+			start := time.Now()
 			err = amqpChannel.Publish(
 				address.GetName(),        // exchange
 				address.GetSubjects()[0], // routing key
 				amqpMessage)
+
+			elapsed := time.Since(start).Microseconds()
+			util.DebugNoFormat("method:publish,client:%s,elapsed:%v,address:%s,subjects:%s,time:%v\n",
+				bd.ClientIdentifier,
+				elapsed,
+				address.GetName(),
+				strings.Join(address.GetSubjects(), ","),
+				time.Now().UnixNano())
 
 			if err != nil {
 				util.Logger.WarnI("error.publish", err.Error())

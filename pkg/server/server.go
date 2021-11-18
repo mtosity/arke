@@ -295,7 +295,6 @@ consumeLoop:
 								} else {
 									util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
 								}
-								fmt.Println(err.GetMessage())
 								*returnErr = fmt.Errorf(err.GetMessage())
 								if *stopFor != nil {
 									*stopFor <- true

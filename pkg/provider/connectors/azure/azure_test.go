@@ -188,6 +188,12 @@ func (m *azureMsgMock) Abandon() error {
 	return args.Error(0)
 }
 
+func (m *azureMsgMock) ClientSentTime() time.Time {
+	return time.Now()
+}
+
+func (m *azureMsgMock) SetClientSentTime() {}
+
 func TestNewAzureProvider(t *testing.T) {
 	prov := NewAzureProvider()
 	assert.NotNil(t, prov)

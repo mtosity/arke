@@ -18,6 +18,7 @@ import (
 	servicebus "github.com/Azure/azure-service-bus-go"
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
+	"sassoftware.io/convoy/arke/pkg/util"
 	cfg "sassoftware.io/convoy/arke/test/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -1335,4 +1336,104 @@ func TestConsumerQuickResub(t *testing.T) {
 func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
 	cleanupAzure()
 	assert.True(t, true)
+}
+
+func TestConsumeNoAckReconnectConsume(t *testing.T) {
+	expectedMsgBodyUuid := util.GenUUID()
+
+	// Set up the consumer
+	// Produce a single message
+	// Consume the message but do not ack/nack
+	// Disconnect consumer
+	// Connect new consumer
+	// Consume message
+	// Make sure it's the correct one
+
+	consumerConnection := connect()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TCNARC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	// use a unique source name so we don't consume messages from a failed test
+	source := &pb.Source{Name: "sas.test.proxy.TCNARC.Consumer-" + expectedMsgBodyUuid, Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+	connConfig := connectConfig()
+	connConfig.ClientName = "consumer1"
+
+	_, _ = c.Connect(ctx, connConfig)
+
+	stream, err := c.Consume(ctx)
+
+	assert.Nil(t, err)
+	if err != nil {
+		fmt.Println("could not subscribe:", err)
+	}
+
+	m := &pb.Consume{}
+	m.Msg = &pb.Consume_Src{Src: source}
+
+	stream.SendMsg(m)
+
+	// After we send the consume message, produce a single message
+	producerConnection := connect()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	message := &pb.Message{Body: []byte(expectedMsgBodyUuid), Address: address}
+
+	go func() {
+		err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+		assert.Nil(t, err)
+		if err != nil {
+			fmt.Println("err producing messages:", err)
+		}
+		pc.Disconnect(pctx, &pb.Empty{})
+		producerConnection.Close()
+	}()
+
+	// Receive the message
+	resp, err := stream.Recv()
+	assert.Nil(t, err)
+	msgBody := string(resp.GetMsg().GetBody())
+	assert.Equal(t, expectedMsgBodyUuid, msgBody)
+	// Disconnect before ack/nack
+	cancel()
+	c.Disconnect(ctx, &pb.Empty{})
+	consumerConnection.Close()
+
+	// Create a new consumer
+	consumerConnection2 := connect()
+	c2 := pb.NewConsumerClient(consumerConnection2)
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	connConfig.ClientName = "consumer2"
+	_, _ = c2.Connect(ctx2, connConfig)
+
+	defer func() {
+		cancel2()
+		c2.Disconnect(ctx2, &pb.Empty{})
+		consumerConnection2.Close()
+	}()
+
+	stream2, err := c2.Consume(ctx2)
+	assert.Nil(t, err)
+	if err != nil {
+		fmt.Println("could not subscribe:", err)
+	}
+	// Consume message and make sure it is correct
+	stream2.SendMsg(m)
+	resp2, err := stream2.Recv()
+	assert.Nil(t, err)
+	msgBody2 := string(resp2.GetMsg().GetBody())
+	assert.Equal(t, expectedMsgBodyUuid, msgBody2)
+	ret := &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: resp2.GetMsg().GetUuid()}}}
+	err = stream2.Send(ret)
+	assert.Nil(t, err)
+
+	assert.Equal(t, msgBody, msgBody2)
 }

@@ -18,14 +18,7 @@ services:
     volumes:
     - ./certs:/certs
   rabbitmq:
-    image: rabbitmq:3.8-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-      - RABBITMQ_SSL_CACERTFILE=/certs/testca/ca_certificate.pem
-      - RABBITMQ_SSL_CERTFILE=/certs/server/rabbitmq.pem
-      - RABBITMQ_SSL_KEYFILE=/certs/server/rabbitmq.key
-      - RABBITMQ_SSL_VERIFY=verify_none
+    image: rabbitmq:3.9-management
     ports:
       - "5672:5672"
       - "5671:5671"
@@ -35,6 +28,7 @@ services:
     - arketest
     volumes:
     - ./certs:/certs
+    - ./rabbitmq.conf:/etc/rabbitmq/conf.d/00-rabbitmq.conf
 networks:
   arketest:
 

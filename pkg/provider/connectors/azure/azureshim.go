@@ -60,12 +60,16 @@ type AzureMessageShim interface {
 	SetLockToken(*uuid.UUID)
 	SetUserProperties(map[string]interface{})
 	SetUserProperty(string, interface{})
+
+	ClientSentTime() time.Time
+	SetClientSentTime()
 }
 
 // AzureMessage message
 type AzureMessage struct {
 	AzureMessageShim
-	sbMsg *servicebus.Message
+	sbMsg          *servicebus.Message
+	clientSentTime time.Time
 }
 
 // AzureNamespace namespace
@@ -309,6 +313,14 @@ func (m *AzureMessage) Abandon() error {
 
 func (m *AzureMessage) Complete() error {
 	return m.sbMsg.Complete(context.Background())
+}
+
+func (m *AzureMessage) ClientSentTime() time.Time {
+	return m.clientSentTime
+}
+
+func (m *AzureMessage) SetClientSentTime() {
+	m.clientSentTime = time.Now()
 }
 
 func NewAzureMessage() AzureMessageShim {

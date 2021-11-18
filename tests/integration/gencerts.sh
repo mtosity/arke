@@ -116,6 +116,8 @@ cd server
 generateCert "rabbitmq"
 generateCert "arke"
 
+cat rabbitmq.pem rabbitmq.key > rabbitmq_combined.pem
+
 cd ../
 
 chmod -R 755 testca

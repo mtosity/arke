@@ -58,6 +58,7 @@ type Amqp091Message struct {
 	ContentEncoding string
 	Headers         Amqp091Table
 	DeliveryTag     uint64
+	ClientSentTime  time.Time
 }
 
 // Amqp091Table Simple map
@@ -126,8 +127,6 @@ func (ac *Amqp091Connection) NotifyClose(rec chan Amqp091Error) chan Amqp091Erro
 				return
 			}
 		}
-
-		close(rec)
 	}()
 	return rec
 }
@@ -226,8 +225,6 @@ func (ch *Amqp091Channel) NotifyCancel(rec chan string) chan string {
 				return
 			}
 		}
-
-		close(rec)
 	}()
 	return rec
 }

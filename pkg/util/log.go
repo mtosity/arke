@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 
 	"sassoftware.io/viya/zlog"
@@ -65,6 +66,8 @@ info.nohpa=No HPA found
 // Logger default logger
 var Logger *zlog.Logger
 
+var tracePerf bool
+
 func init() {
 	err := zlog.DefaultBundle.Add([]byte(messages))
 	if err != nil {
@@ -89,4 +92,16 @@ func init() {
 	}
 
 	Logger.Level = logLevel
+
+	tracePerf = false
+	if tracePerfEnv := os.Getenv("TRACE_PERF"); tracePerfEnv == "1" {
+		tracePerf = true
+	}
+
+}
+
+func DebugNoFormat(s string, args ...interface{}) {
+	if tracePerf {
+		fmt.Printf(s, args...)
+	}
 }

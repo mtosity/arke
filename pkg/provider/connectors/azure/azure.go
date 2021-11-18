@@ -132,6 +132,13 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		rm := rmu.(AzureMessageShim)
 		util.Logger.Debugf("Acking message %s", msgid)
 		err = rm.Complete()
+
+		elapsed := time.Since(rm.ClientSentTime()).Microseconds()
+		util.DebugNoFormat("method:ack,client:%s,elapsed:%v,time:%v\n",
+			bd.ClientIdentifier,
+			elapsed,
+			time.Now().UnixNano())
+
 		if err != nil {
 			util.Logger.WarnI("error.ack", err.Error())
 
@@ -167,6 +174,11 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 			util.Logger.WarnI("error.nack", err.Error())
 
 			bd.activeMessages.Delete(msgid)
+			elapsed := time.Since(rm.ClientSentTime()).Microseconds()
+			fmt.Printf("method:nack,client:%s,elapsed:%v,time:%v\n",
+				bd.ClientIdentifier,
+				elapsed,
+				time.Now().UnixNano())
 			errMsg := &pb.Error{
 				Message: err.Error(),
 				IsFatal: true,
@@ -351,6 +363,7 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 			}
 
 			message := &pb.Message{Uuid: messageUUID, Body: msg.GetData(), Headers: headers, Address: source.GetAddress()}
+			msg.SetClientSentTime()
 			bd.activeMessages.Add(messageUUID, msg)
 
 			messageChannel <- message

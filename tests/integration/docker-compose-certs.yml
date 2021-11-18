@@ -10,3 +10,7 @@ services:
     # environment:
     # - ADDITIONAL_HOSTNAMES=${ADDITIONAL_HOSTNAMES}
     command: ${ARKE_ADDITIONAL_HOSTNAMES}
+    networks:
+    - arketest
+networks:
+  arketest:
