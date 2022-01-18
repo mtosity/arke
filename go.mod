@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/Azure/azure-amqp-common-go/v3 v3.2.1
-	github.com/Azure/azure-service-bus-go v0.11.3
+	github.com/Azure/azure-service-bus-go v0.11.5
 	github.com/armon/go-metrics v0.3.10
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/google/uuid v1.3.0
@@ -28,6 +28,7 @@ require (
 
 // NGMTS-21506: fix for CVE-2020-14040
 replace (
+	github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.3
 	golang.org/x/text v0.3.0 => golang.org/x/text v0.3.7
 	golang.org/x/text v0.3.2 => golang.org/x/text v0.3.7
 )
