@@ -29,6 +29,7 @@ require (
 // NGMTS-21506: fix for CVE-2020-14040
 replace (
 	github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.3
+	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
 	golang.org/x/text v0.3.0 => golang.org/x/text v0.3.7
 	golang.org/x/text v0.3.2 => golang.org/x/text v0.3.7
 )
