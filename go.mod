@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	sassoftware.io/convoy/arke/api v0.0.0-20211213191304-b79d5663ed51
 	google.golang.org/genproto v0.0.0-20210212180131-e7f2df4ecc2d // indirect
-	google.golang.org/grpc v1.42.0
+	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	sassoftware.io/viya/zlog v0.1.14
 	k8s.io/api v0.22.3

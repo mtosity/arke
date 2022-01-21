@@ -5,6 +5,14 @@ HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
 HAVE_PROTOC_JAVA:=$(shell which protoc-gen-grpc-java.exe 2>/dev/null)
 GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	proto_libs = /usr/include
+endif
+ifeq ($(UNAME_S),Darwin)
+	proto_libs = /opt/homebrew/include
+endif
+
 all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
 
@@ -20,22 +28,22 @@ generate: generate-proto generate-doc
 
 generate-proto: ## Generates protobufs
     ifneq ("$(HAVE_PROTOC)","")
-	protoc -I/usr/include --proto_path=api/protobuf-spec --go_out=api --go_opt=paths=source_relative --go-grpc_out=api --go-grpc_opt=paths=source_relative api/protobuf-spec/arke.proto
+	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --go_out=api --go_opt=paths=source_relative --go-grpc_out=api --go-grpc_opt=paths=source_relative api/protobuf-spec/arke.proto
     else
         $(info No protoc command found, skipping generate task.)
     endif
 
 generate-proto-java: ## Generates protobufs for java
     ifneq ("$(HAVE_PROTOC_JAVA)","")
-	protoc -I/usr/include --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
-	protoc -I/usr/include --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
+	protoc -I$(proto_libs) --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
+	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
     else
         $(info No protoc-gen-grpc-java command found, skipping generate task.)
     endif
 
 generate-doc: ## Generates protobuf docs
     ifneq ("$(HAVE_PROTOC_DOC)","")
-	protoc -I/usr/include --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
+	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
     else
         $(info No protoc doc command found, skipping generate doc task.)
     endif

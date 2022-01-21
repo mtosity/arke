@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	pb "sassoftware.io/convoy/arke/api"
@@ -102,14 +103,33 @@ func (s *ConsumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfigura
 	return resp, err
 }
 
+type streamSender struct {
+	sync.Mutex
+	stream pb.Consumer_ConsumeServer
+}
+
+func newStreamSender(stream pb.Consumer_ConsumeServer) *streamSender {
+	snd := &streamSender{stream: stream}
+	return snd
+}
+
+func (snd *streamSender) Send(cr *pb.ConsumeResponse) error {
+	snd.Lock()
+	defer snd.Unlock()
+	err := snd.stream.Send(cr)
+	return err
+}
+
 // Consume Receives a stream of messages (source, ack, nack) and returns a message (message, ackresponse, nackresponse)
 func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
+	sender := newStreamSender(stream)
+
 	ctx := stream.Context()
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: findErr}}
-		stream.Send(cnsmResp)
+		_ = sender.Send(cnsmResp)
 		util.Logger.DebugI("error.subscribe", findErr.Message)
 		return ftlError
 	}
@@ -118,7 +138,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	if err != nil {
 		ciErr := &pb.Error{Message: err.Error(), IsFatal: true}
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: ciErr}}
-		stream.Send(cnsmResp)
+		_ = sender.Send(cnsmResp)
 		util.Logger.DebugI("error.subscribe", ciErr.Message)
 		return err
 	}
@@ -195,7 +215,7 @@ consumeLoop:
 
 				if isSubscribing {
 					errMsg := "Only one source message allowed per subscribe"
-					_ = stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
+					_ = sender.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
 					// return errors.New(errMsg)
 					continue
 				}
@@ -219,7 +239,7 @@ consumeLoop:
 
 				if len(unsupported) > 0 {
 					errMsg := fmt.Sprintf("provider does not support the following source options: %s", unsupported)
-					_ = stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
+					_ = sender.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
 					return errors.New(errMsg)
 				}
 
@@ -242,7 +262,7 @@ consumeLoop:
 							}
 
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
-							err := stream.Send(resp)
+							err := sender.Send(resp)
 							if err != nil {
 								util.Logger.WarnI("error.streamsend", err.Error(), clientIdentifier)
 								*returnErr = err
@@ -327,7 +347,7 @@ consumeLoop:
 						mcr.Error = ackerr
 					}
 
-					stream.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_ConsumedResponse{ConsumedResponse: mcr}})
+					_ = sender.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_ConsumedResponse{ConsumedResponse: mcr}})
 				}()
 			}
 		case <-stopForLoop:
