@@ -377,7 +377,7 @@ func TestServerConnectBadProvider_Fail(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile("Invalid provider name"), err.Error())
 }
 
-func TestServerConnectTwice_Fail(t *testing.T) {
+func TestServerConnectTwice_Ignore(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
@@ -386,9 +386,9 @@ func TestServerConnectTwice_Fail(t *testing.T) {
 	connectResp, err := proSrv.Connect(ctx, cf)
 	proSrv.Disconnect(ctx, &pb.Empty{})
 
-	connTwiceError := "can not call Connect more than once. Call Disconnect and try again"
 	assert.NotNil(t, connectResp)
-	assert.Contains(t, err.Error(), connTwiceError)
+	assert.Nil(t, err)
+	assert.True(t, connectResp.GetSuccess())
 
 	mockp.AssertExpectations(t)
 }
