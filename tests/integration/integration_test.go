@@ -1261,9 +1261,10 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 	assert.Nil(t, err1)
 	_, err2 := c2.Connect(ctx2, connConfig)
 	assert.Nil(t, err2)
-	// Demonstrate that calling connect twice on a single connection produces an error
+	// Demonstrate that calling connect twice on a single connection does not produce
+	// an error, Arke should ignore the second Connect() call
 	_, err2 = c2.Connect(ctx2, connConfig)
-	assert.Contains(t, err2.Error(), "can not call Connect more than once. Call Disconnect and try again")
+	assert.Nil(t, err2)
 }
 
 // To simulate a client and slow azure admin actions
