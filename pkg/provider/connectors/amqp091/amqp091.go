@@ -40,9 +40,9 @@ type amqp091provider struct {
 // BrokerDetails struct houses connection specific information for the broker
 type BrokerDetails struct {
 	sync.Mutex
-	Connection       Amqp091ConnectionShim
-	ErrorChannel     chan Amqp091Error
-	RetryChannel     *Amqp091ChannelShim
+	Connection       amqp091ConnectionShim
+	ErrorChannel     chan amqp091Error
+	RetryChannel     *amqp091ChannelShim
 	ClientIdentifier string
 	knownExchanges   *util.ConcurrentMap
 	knownQueues      *util.ConcurrentMap
@@ -82,14 +82,14 @@ func connectionCleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	for {
 		<-ticker.C
-		for _, connId := range prov.connections.GetList() {
-			if conn, ok := prov.connections.Get(connId); ok {
+		for _, connID := range prov.connections.GetList() {
+			if conn, ok := prov.connections.Get(connID); ok {
 				bd := conn.(*BrokerDetails)
-				util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
+				util.Logger.Debugf("Client %v has %d open streams", connID, bd.ActiveStreams)
 				lastKnown := time.Since(bd.lastPubSubEvent)
 				if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
-					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
-					prov.disconnectClientByIdentifier(connId)
+					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connID, lastKnown)
+					prov.disconnectClientByIdentifier(connID)
 				}
 			}
 		}
@@ -162,7 +162,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(Amqp091Message)
+		rm := rmu.(amqp091Message)
 		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
 		err = rm.Ack()
 
@@ -199,7 +199,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	}
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(Amqp091Message)
+		rm := rmu.(amqp091Message)
 		err = rm.Nack(false)
 		elapsed := time.Since(rm.ClientSentTime).Microseconds()
 		fmt.Printf("method:nack,client:%s,elapsed:%v,time:%v\n",
@@ -233,7 +233,7 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 	}
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(Amqp091Message)
+		rm := rmu.(amqp091Message)
 
 		// setup exchange/queue/binding
 		subjects := make([]string, 0)
@@ -326,7 +326,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 	bd := BrokerDetails{
 		connectionConfig: cf,
 		ClientIdentifier: clientIdentifier,
-		ErrorChannel:     make(chan Amqp091Error),
+		ErrorChannel:     make(chan amqp091Error),
 		activeMessages:   activeMessages,
 		tlsSkipVerify:    tlsSkipVerify,
 		produced:         0,
@@ -397,7 +397,7 @@ func (bd *BrokerDetails) decrementStreamCount() {
 	bd.updateLastPubSubEvent()
 }
 
-func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
+func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
 
 	// don't try to declare an exchange with amq. in the name
 	if strings.Contains(address.GetName(), "amq.") {
@@ -447,13 +447,13 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	return nil
 }
 
-func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
+func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
 	known := bd.queueKnown(source.GetName())
 	if known && !force {
 		return nil
 	}
 
-	args := make(Amqp091Table)
+	args := make(amqp091Table)
 	for option, value := range source.GetOptions() {
 		switch option {
 		case "MessageTTL":
@@ -486,7 +486,7 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 	return nil
 }
 
-func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel Amqp091ChannelShim, force bool) error {
+func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
 	knownBindingKey := fmt.Sprintf("%s:%s", source.GetName(), strings.Join(source.Address.GetSubjects(), ":"))
 	known := bd.bindingKnown(knownBindingKey)
 	if known && !force {
@@ -497,11 +497,11 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 	// But if the address has no subjects, bind without a subject. Don't do both.
 	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
 
-	matchHeadersList := make([]Amqp091Table, 0)
+	matchHeadersList := make([]amqp091Table, 0)
 
 	if source.GetAddress().GetType() == pb.Address_FILTER {
 		for _, filter := range source.GetFilters() {
-			matchHeaders := make(Amqp091Table)
+			matchHeaders := make(amqp091Table)
 			matches := filter.GetMatches()
 			for _, match := range matches {
 				util.Logger.Debugf("match: %v", match)
@@ -604,14 +604,14 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	util.Logger.InfoI("info.clientsubscribe", bd.ClientIdentifier, source.GetName())
 
-	connErrChan := make(chan Amqp091Error)
+	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
 	defer func() {
 		// try to send on the channel and if we can't it's
 		// probably not receiving on the other end for some
 		// reason
 		select {
-		case connErrChan <- NewAmqp091Error("Subscribe done", 2001):
+		case connErrChan <- newAmqp091Error("Subscribe done", 2001):
 			return
 		default:
 			return
@@ -654,7 +654,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
-			if chanErr != (Amqp091Error{}) {
+			if chanErr != (amqp091Error{}) {
 				return &pb.Error{Message: chanErr.Error()}
 			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
@@ -743,7 +743,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 	}
 	defer amqpChannel.Close()
 
-	connErrChan := make(chan Amqp091Error)
+	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
 
 	defer func() {
@@ -751,7 +751,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 		// probably not receiving on the other end for some
 		// reason
 		select {
-		case connErrChan <- NewAmqp091Error("Publish done", 2002):
+		case connErrChan <- newAmqp091Error("Publish done", 2002):
 			return
 		default:
 			return
@@ -766,7 +766,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
-			if chanErr != (Amqp091Error{}) {
+			if chanErr != (amqp091Error{}) {
 				retError := &pb.Error{Message: chanErr.Error()}
 				return retError
 			} else if bd.state != provider.CONNECTED {
@@ -794,11 +794,11 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				continue
 			}
 
-			amqpMessage := Amqp091Message{}
+			amqpMessage := amqp091Message{}
 			amqpMessage.Body = message.GetBody()
 			amqpMessage.DeliveryMode = deliveryMode
 
-			headers := Amqp091Table{}
+			headers := amqp091Table{}
 
 			for headerName, headerValue := range message.GetHeaders() {
 				headers[headerName] = headerValue
@@ -862,7 +862,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
 
-	for start := time.Now(); time.Since(start) < provider.CONNECT_TIMEOUT*time.Second; {
+	for start := time.Now(); time.Since(start) < provider.CONNECTTIMEOUT*time.Second; {
 		if bd.state == provider.CONNECTED {
 			util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
 			return true
@@ -895,7 +895,7 @@ func (bd *BrokerDetails) connectionWatcher() {
 		case err, ok := <-bd.ErrorChannel:
 
 			bd.Lock()
-			if !ok || (err != (Amqp091Error{}) && err.Code() != 0) {
+			if !ok || (err != (amqp091Error{}) && err.Code() != 0) {
 				bd.state = provider.DISCONNECTED
 				sleepRandomReconnect()
 				bd.Unlock()
@@ -954,7 +954,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	}
 
 	bd.state = provider.CONNECTING
-	var conn Amqp091ConnectionShim
+	var conn amqp091ConnectionShim
 	var err error
 
 	cf := bd.connectionConfig
@@ -1017,7 +1017,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	}
 
 	bd.Connection = conn
-	bd.ErrorChannel = make(chan Amqp091Error)
+	bd.ErrorChannel = make(chan amqp091Error)
 	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
 	bd.state = provider.CONNECTED
 	bd.knownExchanges = util.NewConcurrentMap()

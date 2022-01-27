@@ -18,8 +18,7 @@ import (
 
 type stats struct {
 	met.Metrics
-	Sink         *promet.PrometheusSink
-	isPrometheus bool
+	Sink *promet.PrometheusSink
 }
 
 // Stats global Stats variable for access to the sinks
@@ -44,9 +43,9 @@ func init() {
 
 	Stats.Sink, _ = promet.NewPrometheusSink()
 
-	prom_conf := met.DefaultConfig("")
-	prom_conf.EnableHostname = false
-	met.NewGlobal(prom_conf, Stats.Sink)
+	promConf := met.DefaultConfig("")
+	promConf.EnableHostname = false
+	met.NewGlobal(promConf, Stats.Sink)
 }
 
 // Serve Create a new HTTP server and Serve metrics requests

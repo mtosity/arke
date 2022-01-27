@@ -27,7 +27,7 @@ func init() {
 
 type amqpConnectionMock struct {
 	mock.Mock
-	Amqp091ConnectionShim
+	amqp091ConnectionShim
 	blockConnect time.Duration
 }
 
@@ -49,19 +49,19 @@ func (m *amqpConnectionMock) IsClosed() bool {
 	return args.Bool(0)
 }
 
-func (m *amqpConnectionMock) NewChannel() (Amqp091ChannelShim, error) {
+func (m *amqpConnectionMock) NewChannel() (amqp091ChannelShim, error) {
 	args := m.Called()
-	return args.Get(0).(Amqp091ChannelShim), args.Error(1)
+	return args.Get(0).(amqp091ChannelShim), args.Error(1)
 }
 
-func (m *amqpConnectionMock) NotifyClose(chan Amqp091Error) chan Amqp091Error {
+func (m *amqpConnectionMock) NotifyClose(chan amqp091Error) chan amqp091Error {
 	args := m.Called()
-	return args.Get(0).(chan Amqp091Error)
+	return args.Get(0).(chan amqp091Error)
 }
 
 type amqpChannelMock struct {
 	mock.Mock
-	Amqp091ChannelShim
+	amqp091ChannelShim
 }
 
 func (m *amqpChannelMock) Close() error {
@@ -69,7 +69,7 @@ func (m *amqpChannelMock) Close() error {
 	return args.Error(0)
 }
 
-func (m *amqpChannelMock) Publish(arg1 string, arg2 string, arg3 Amqp091Message) error {
+func (m *amqpChannelMock) Publish(arg1 string, arg2 string, arg3 amqp091Message) error {
 	args := m.Called(arg1, arg2, arg3)
 	return args.Error(0)
 }
@@ -85,17 +85,17 @@ func (m *amqpChannelMock) SetPrefetch(arg1 int) error {
 	args := m.Called(arg1)
 	return args.Error(0)
 }
-func (m *amqpChannelMock) QueueDeclare(arg1 string, arg2 bool, arg3 bool, arg4 bool, arg5 Amqp091Table) error {
+func (m *amqpChannelMock) QueueDeclare(arg1 string, arg2 bool, arg3 bool, arg4 bool, arg5 amqp091Table) error {
 	args := m.Called(arg1, arg2, arg3, arg4, arg5)
 	return args.Error(0)
 }
-func (m *amqpChannelMock) QueueBind(arg1 string, arg2 string, arg3 string, arg4 Amqp091Table) error {
+func (m *amqpChannelMock) QueueBind(arg1 string, arg2 string, arg3 string, arg4 amqp091Table) error {
 	args := m.Called(arg1, arg2, arg3, arg4)
 	return args.Error(0)
 }
-func (m *amqpChannelMock) Consume(arg1 string, arg2 bool, arg3 bool) (<-chan Amqp091Message, error) {
+func (m *amqpChannelMock) Consume(arg1 string, arg2 bool, arg3 bool) (<-chan amqp091Message, error) {
 	args := m.Called(arg1, arg2, arg3)
-	mc := args.Get(0).(chan Amqp091Message)
+	mc := args.Get(0).(chan amqp091Message)
 	return mc, args.Error(1)
 }
 
@@ -120,10 +120,10 @@ func TestConnect(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -153,7 +153,7 @@ func TestConnect_Error(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(errors.New("error"))
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -203,10 +203,10 @@ func TestConnect_TLS_SkipVerify(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -236,10 +236,10 @@ func TestConnect_TLS_WithCert(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -270,10 +270,10 @@ func TestConnect_Stats(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -310,10 +310,10 @@ func Test_Ack_NoMsg(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -343,10 +343,10 @@ func Test_Nack_NoMsg(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -375,14 +375,14 @@ func Test_Ack(t *testing.T) {
 	}
 
 	cmock := &amqpChannelMock{}
-	msgs := make(chan Amqp091Message)
+	msgs := make(chan amqp091Message)
 	defer close(msgs)
 	go func() {
-		mm := Amqp091Message{}
+		mm := amqp091Message{}
 		mm.DeliveryTag = 1
 		delMock := mock.Mock{}
 		delMock.On("Ack").Return(nil)
-		mm.SetDelivery(delMock)
+		mm.SetDelivery(delMock) //nolint
 
 		msgs <- mm
 	}()
@@ -398,11 +398,11 @@ func Test_Ack(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -459,14 +459,14 @@ func Test_Nack(t *testing.T) {
 	}
 
 	cmock := &amqpChannelMock{}
-	msgs := make(chan Amqp091Message)
+	msgs := make(chan amqp091Message)
 	defer close(msgs)
 	go func() {
-		mm := Amqp091Message{}
+		mm := amqp091Message{}
 		mm.DeliveryTag = 1
 		delMock := mock.Mock{}
 		delMock.On("Nack").Return(nil)
-		mm.SetDelivery(delMock)
+		mm.SetDelivery(delMock) //nolint
 
 		msgs <- mm
 	}()
@@ -482,11 +482,11 @@ func Test_Nack(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -543,14 +543,14 @@ func Test_Retry(t *testing.T) {
 	}
 
 	cmock := &amqpChannelMock{}
-	msgs := make(chan Amqp091Message)
+	msgs := make(chan amqp091Message)
 	defer close(msgs)
 	go func() {
-		mm := Amqp091Message{}
+		mm := amqp091Message{}
 		mm.DeliveryTag = 1
 		delMock := mock.Mock{}
 		delMock.On("Nack").Return(nil)
-		mm.SetDelivery(delMock)
+		mm.SetDelivery(delMock) //nolint
 
 		msgs <- mm
 	}()
@@ -567,11 +567,11 @@ func Test_Retry(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -696,7 +696,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	options["DeadLetterAddress"] = "dla"
 	options["DeadLetterSubject"] = "dls"
 
-	expectedQueueArgs := Amqp091Table{}
+	expectedQueueArgs := amqp091Table{}
 	expectedQueueArgs["x-message-ttl"] = 100
 	expectedQueueArgs["x-expires"] = 100
 	expectedQueueArgs["x-dead-letter-exchange"] = "dla"
@@ -708,13 +708,13 @@ func Test_Subscribe_Options(t *testing.T) {
 	}
 
 	cmock := &amqpChannelMock{}
-	msgs := make(chan Amqp091Message)
+	msgs := make(chan amqp091Message)
 	defer close(msgs)
 	go func() {
-		mm := Amqp091Message{}
+		mm := amqp091Message{}
 		mm.ContentType = "application/json"
 		mm.ContentEncoding = "text"
-		mm.Headers = make(Amqp091Table)
+		mm.Headers = make(amqp091Table)
 		mm.Headers["something"] = "somethingelse"
 		mm.DeliveryTag = 1
 		delMock := mock.Mock{}
@@ -748,12 +748,12 @@ func Test_Subscribe_Options(t *testing.T) {
 		AutoDelete:    true,
 		PrefetchCount: 4}
 
-	expectedMatchHeaders1 := Amqp091Table{}
+	expectedMatchHeaders1 := amqp091Table{}
 	expectedMatchHeaders1["key1"] = "value1"
 	expectedMatchHeaders1["key2"] = "value2"
 	expectedMatchHeaders1["x-match"] = "any"
 
-	expectedMatchHeaders2 := Amqp091Table{}
+	expectedMatchHeaders2 := amqp091Table{}
 	expectedMatchHeaders2["key3"] = "value3"
 	expectedMatchHeaders2["key4"] = "value4"
 	expectedMatchHeaders2["x-match"] = "any"
@@ -776,11 +776,11 @@ func Test_Subscribe_Options(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -845,7 +845,7 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	}
 
 	cmock := &amqpChannelMock{}
-	msgs := make(chan Amqp091Message)
+	msgs := make(chan amqp091Message)
 	defer close(msgs)
 
 	cmock.On("Close").Return(nil)
@@ -854,11 +854,11 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -898,10 +898,10 @@ func Test_Disconnect(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -944,10 +944,10 @@ func Test_WaitForConnect(t *testing.T) {
 	amock := &amqpConnectionMock{blockConnect: 1}
 	amock.On("Connect").Return(nil)
 	amock.On("Connect").Return(nil)
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -959,7 +959,7 @@ func Test_WaitForConnect(t *testing.T) {
 	cc := &pb.ConnectionConfiguration{}
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
-	errs <- NewAmqp091Error("chanerr", 1) // simulate an error
+	errs <- newAmqp091Error("chanerr", 1) // simulate an error
 	time.Sleep(500 * time.Millisecond)
 	connected := prov.WaitForConnect(&ctx)
 	assert.True(t, connected)
@@ -986,12 +986,12 @@ func Test_Publish(t *testing.T) {
 	msg.Headers["Content-Encoding"] = "utf8"
 	msg.Persistent = true
 
-	expectedMsg := Amqp091Message{}
+	expectedMsg := amqp091Message{}
 	expectedMsg.Body = msg.GetBody()
 	expectedMsg.DeliveryMode = 2 // persistent
 	expectedMsg.ContentType = msg.Headers["Content-Type"]
 	expectedMsg.ContentEncoding = msg.Headers["Content-Encoding"]
-	expectedMsg.Headers = Amqp091Table{}
+	expectedMsg.Headers = amqp091Table{}
 	expectedMsg.Headers["Content-Type"] = msg.Headers["Content-Type"]
 	expectedMsg.Headers["Content-Encoding"] = msg.Headers["Content-Encoding"]
 
@@ -1001,11 +1001,11 @@ func Test_Publish(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -1057,11 +1057,11 @@ func Test_Publish_Error(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 
@@ -1119,11 +1119,11 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 
-	errs := make(chan Amqp091Error)
+	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
 	amock.On("NewChannel").Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
 	}
 

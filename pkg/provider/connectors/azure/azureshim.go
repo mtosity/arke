@@ -11,40 +11,40 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
-// AzureNamespaceShim interface for namespace
-type AzureNamespaceShim interface {
+// azureNamespaceShim interface for namespace
+type azureNamespaceShim interface {
 	Connect() error
-	NewSubscriptionManager(string) (AzureSubscriptionManagerShim, error)
-	NewTopic(string) (AzureTopicShim, error)
+	NewSubscriptionManager(string) (azureSubscriptionManagerShim, error)
+	NewTopic(string) (azureTopicShim, error)
 }
 
-// AzureTopicShim interface for topic
-type AzureTopicShim interface {
+// azureTopicShim interface for topic
+type azureTopicShim interface {
 	Close() error
 	GetEntity() *servicebus.TopicEntity
 	GetName() string
-	NewSubscription(string, ...servicebus.SubscriptionOption) (AzureSubscriptionShim, error)
-	ScheduleAt(time.Time, ...AzureMessageShim) ([]int64, error)
-	Send(context.Context, AzureMessageShim, ...servicebus.SendOption) error
+	NewSubscription(string, ...servicebus.SubscriptionOption) (azureSubscriptionShim, error)
+	ScheduleAt(time.Time, ...azureMessageShim) ([]int64, error)
+	Send(context.Context, azureMessageShim, ...servicebus.SendOption) error
 }
 
-// AzureSubscriptionManagerShim interface for subscription manager
-type AzureSubscriptionManagerShim interface {
+// azureSubscriptionManagerShim interface for subscription manager
+type azureSubscriptionManagerShim interface {
 	Create(string, ...servicebus.SubscriptionManagementOption) error
 	DeleteRule(string, string) error
 	ListRules(string) ([]*servicebus.RuleEntity, error)
 	PutRule(string, string, string) (*servicebus.RuleEntity, error)
 }
 
-// AzureSubscriptionShim interface for subscription
-type AzureSubscriptionShim interface {
+// azureSubscriptionShim interface for subscription
+type azureSubscriptionShim interface {
 	Close() error
-	Receive(context.Context, chan AzureMessageShim) error
+	Receive(context.Context, chan azureMessageShim) error
 	Name() string
 }
 
-// AzureMessageShim interface for messages
-type AzureMessageShim interface {
+// azureMessageShim interface for messages
+type azureMessageShim interface {
 	Abandon() error
 	Complete() error
 
@@ -65,47 +65,47 @@ type AzureMessageShim interface {
 	SetClientSentTime()
 }
 
-// AzureMessage message
-type AzureMessage struct {
-	AzureMessageShim
+// azureMessage message
+type azureMessage struct {
+	azureMessageShim
 	sbMsg          *servicebus.Message
 	clientSentTime time.Time
 }
 
-// AzureNamespace namespace
-type AzureNamespace struct {
-	AzureNamespaceShim
+// azureNamespace namespace
+type azureNamespace struct {
+	azureNamespaceShim
 	namespace        *servicebus.Namespace
 	topicManager     *servicebus.TopicManager
 	connectionString string
 }
 
-// AzureTopic topic
-type AzureTopic struct {
-	AzureTopicShim
+// azureTopic topic
+type azureTopic struct {
+	azureTopicShim
 	topic       *servicebus.Topic
 	topicEntity *servicebus.TopicEntity
 }
 
-// AzureSubscription subscription
-type AzureSubscription struct {
+// azureSubscription subscription
+type azureSubscription struct {
 	subscription *servicebus.Subscription
 	name         string
 }
 
-// AzureSubscriptionManager subscription manager
-type AzureSubscriptionManager struct {
-	AzureSubscriptionManagerShim
+// azureSubscriptionManager subscription manager
+type azureSubscriptionManager struct {
+	azureSubscriptionManagerShim
 	subscriptionManager *servicebus.SubscriptionManager
 }
 
 // NewAzureNamespace create a new namespace object
-func NewAzureNamespace(connStr string) AzureNamespaceShim {
-	return &AzureNamespace{connectionString: connStr}
+func NewAzureNamespace(connStr string) azureNamespaceShim {
+	return &azureNamespace{connectionString: connStr}
 }
 
 // Connect create a connection to the azure namespace
-func (an *AzureNamespace) Connect() error {
+func (an *azureNamespace) Connect() error {
 	ns, err := servicebus.NewNamespace(servicebus.NamespaceWithConnectionString(an.connectionString))
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func (an *AzureNamespace) Connect() error {
 }
 
 // NewTopic create a new topic
-func (an *AzureNamespace) NewTopic(topicName string) (AzureTopicShim, error) {
+func (an *azureNamespace) NewTopic(topicName string) (azureTopicShim, error) {
 	ctx := context.Background()
 
 	var topicEntity *servicebus.TopicEntity
@@ -134,35 +134,35 @@ func (an *AzureNamespace) NewTopic(topicName string) (AzureTopicShim, error) {
 	if err != nil {
 		return nil, err
 	}
-	ast := &AzureTopic{topic: topic, topicEntity: topicEntity}
+	ast := &azureTopic{topic: topic, topicEntity: topicEntity}
 	return ast, nil
 }
 
 // NewSubscription create a new subscription
-func (at *AzureTopic) NewSubscription(name string, opts ...servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
+func (at *azureTopic) NewSubscription(name string, opts ...servicebus.SubscriptionOption) (azureSubscriptionShim, error) {
 	sub, err := at.topic.NewSubscription(name, opts...)
 	if err != nil {
 		return nil, err
 	}
-	as := &AzureSubscription{subscription: sub, name: name}
+	as := &azureSubscription{subscription: sub, name: name}
 	return as, nil
 }
 
 // NewSubscriptionManager create a new subscription manager
-func (an *AzureNamespace) NewSubscriptionManager(topicName string) (AzureSubscriptionManagerShim, error) {
+func (an *azureNamespace) NewSubscriptionManager(topicName string) (azureSubscriptionManagerShim, error) {
 	sm, err := an.namespace.NewSubscriptionManager(topicName)
 	if err != nil {
 		return nil, err
 	}
-	asm := &AzureSubscriptionManager{subscriptionManager: sm}
+	asm := &azureSubscriptionManager{subscriptionManager: sm}
 	return asm, nil
 }
 
 // ScheduleAt schedule a message
-func (at *AzureTopic) ScheduleAt(delay time.Time, messages ...AzureMessageShim) ([]int64, error) {
+func (at *azureTopic) ScheduleAt(delay time.Time, messages ...azureMessageShim) ([]int64, error) {
 	sbMessages := make([]*servicebus.Message, 0)
 	for _, message := range messages {
-		sbMessages = append(sbMessages, message.(*AzureMessage).sbMsg)
+		sbMessages = append(sbMessages, message.(*azureMessage).sbMsg)
 	}
 	seq, err := at.topic.ScheduleAt(context.Background(), delay, sbMessages...)
 	if err != nil {
@@ -172,28 +172,28 @@ func (at *AzureTopic) ScheduleAt(delay time.Time, messages ...AzureMessageShim) 
 }
 
 // Close close the topic connection
-func (at *AzureTopic) Close() error {
+func (at *azureTopic) Close() error {
 	return at.topic.Close(context.Background())
 }
 
 // GetEntity get the topic entity
-func (at *AzureTopic) GetEntity() *servicebus.TopicEntity {
+func (at *azureTopic) GetEntity() *servicebus.TopicEntity {
 	return at.topicEntity
 }
 
 // GetName get the topic name
-func (at *AzureTopic) GetName() string {
+func (at *azureTopic) GetName() string {
 	return at.topic.Name
 }
 
 // Send send a message to a topic
-func (at *AzureTopic) Send(ctx context.Context, message AzureMessageShim, opts ...servicebus.SendOption) error {
-	msg := message.(*AzureMessage)
+func (at *azureTopic) Send(ctx context.Context, message azureMessageShim, opts ...servicebus.SendOption) error {
+	msg := message.(*azureMessage)
 	return at.topic.Send(ctx, msg.sbMsg, opts...)
 }
 
 // Create create a new subscription if it does not exist
-func (asm *AzureSubscriptionManager) Create(name string, opts ...servicebus.SubscriptionManagementOption) error {
+func (asm *azureSubscriptionManager) Create(name string, opts ...servicebus.SubscriptionManagementOption) error {
 	ctx := context.Background()
 	_, err := asm.subscriptionManager.Get(ctx, name)
 	if err != nil {
@@ -211,7 +211,7 @@ func (asm *AzureSubscriptionManager) Create(name string, opts ...servicebus.Subs
 }
 
 // ListRules list filter rules on a subscription
-func (asm *AzureSubscriptionManager) ListRules(name string) ([]*servicebus.RuleEntity, error) {
+func (asm *azureSubscriptionManager) ListRules(name string) ([]*servicebus.RuleEntity, error) {
 	re, err := asm.subscriptionManager.ListRules(context.Background(), name)
 	if err != nil {
 		return nil, err
@@ -220,23 +220,23 @@ func (asm *AzureSubscriptionManager) ListRules(name string) ([]*servicebus.RuleE
 }
 
 // DeleteRule delete a rule on a subscription
-func (asm *AzureSubscriptionManager) DeleteRule(subscriptionName, ruleName string) error {
+func (asm *azureSubscriptionManager) DeleteRule(subscriptionName, ruleName string) error {
 	return asm.subscriptionManager.DeleteRule(context.Background(), subscriptionName, ruleName)
 }
 
 // PutRule create a rule on a subscription
-func (asm *AzureSubscriptionManager) PutRule(subscriptionName, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
+func (asm *azureSubscriptionManager) PutRule(subscriptionName, ruleName string, ruleText string) (*servicebus.RuleEntity, error) {
 	filter := &servicebus.SQLFilter{Expression: ruleText}
 	return asm.subscriptionManager.PutRule(context.Background(), subscriptionName, ruleName, filter)
 }
 
 // Close close the subscription connection
-func (as *AzureSubscription) Close() error {
+func (as *azureSubscription) Close() error {
 	return as.subscription.Close(context.Background())
 }
 
 //Receive receive messages on a subscription
-func (as *AzureSubscription) Receive(ctx context.Context, messages chan AzureMessageShim) error {
+func (as *azureSubscription) Receive(ctx context.Context, messages chan azureMessageShim) error {
 	// recover sending on closed channel issues
 	defer func() error {
 		if err := recover(); err != nil {
@@ -247,84 +247,84 @@ func (as *AzureSubscription) Receive(ctx context.Context, messages chan AzureMes
 	}()
 
 	as.subscription.Receive(ctx, servicebus.HandlerFunc(func(ctx context.Context, msg *servicebus.Message) error {
-		amsg := &AzureMessage{sbMsg: msg}
+		amsg := &azureMessage{sbMsg: msg}
 		messages <- amsg
 		return nil
 	}))
 	return nil
 }
 
-func (as *AzureSubscription) Name() string {
+func (as *azureSubscription) Name() string {
 	return as.name
 }
 
-func (m *AzureMessage) SetData(data []byte) {
+func (m *azureMessage) SetData(data []byte) {
 	m.sbMsg.Data = data
 }
 
-func (m *AzureMessage) SetLockToken(token *uuid.UUID) {
+func (m *azureMessage) SetLockToken(token *uuid.UUID) {
 	m.sbMsg.LockToken = token
 }
 
-func (m *AzureMessage) UserProperties(properties map[string]interface{}) {
+func (m *azureMessage) UserProperties(properties map[string]interface{}) {
 	m.sbMsg.UserProperties = properties
 }
 
-func (m *AzureMessage) SetUserProperties(props map[string]interface{}) {
+func (m *azureMessage) SetUserProperties(props map[string]interface{}) {
 	m.sbMsg.UserProperties = props
 }
 
-func (m *AzureMessage) SetUserProperty(key string, value interface{}) {
+func (m *azureMessage) SetUserProperty(key string, value interface{}) {
 	m.sbMsg.UserProperties[key] = value
 }
 
-func (m *AzureMessage) GetUserProperty(key string) (interface{}, bool) {
+func (m *azureMessage) GetUserProperty(key string) (interface{}, bool) {
 	val, ok := m.sbMsg.UserProperties[key]
 	return val, ok
 }
 
-func (m *AzureMessage) GetUserProperties() map[string]interface{} {
+func (m *azureMessage) GetUserProperties() map[string]interface{} {
 	return m.sbMsg.UserProperties
 }
 
-func (m *AzureMessage) GetID() string {
+func (m *azureMessage) GetID() string {
 	return m.sbMsg.ID
 }
 
-func (m *AzureMessage) GetData() []byte {
+func (m *azureMessage) GetData() []byte {
 	return m.sbMsg.Data
 }
 
-func (m *AzureMessage) GetDeliveryCount() uint32 {
+func (m *azureMessage) GetDeliveryCount() uint32 {
 	return m.sbMsg.DeliveryCount
 }
 
-func (m *AzureMessage) GetContentType() string {
+func (m *azureMessage) GetContentType() string {
 	return m.sbMsg.ContentType
 }
 
-func (m *AzureMessage) SetContentType(contentType string) {
+func (m *azureMessage) SetContentType(contentType string) {
 	m.sbMsg.ContentType = contentType
 }
 
-func (m *AzureMessage) Abandon() error {
+func (m *azureMessage) Abandon() error {
 	return m.sbMsg.Abandon(context.Background())
 }
 
-func (m *AzureMessage) Complete() error {
+func (m *azureMessage) Complete() error {
 	return m.sbMsg.Complete(context.Background())
 }
 
-func (m *AzureMessage) ClientSentTime() time.Time {
+func (m *azureMessage) ClientSentTime() time.Time {
 	return m.clientSentTime
 }
 
-func (m *AzureMessage) SetClientSentTime() {
+func (m *azureMessage) SetClientSentTime() {
 	m.clientSentTime = time.Now()
 }
 
-func NewAzureMessage() AzureMessageShim {
-	msg := &AzureMessage{}
+func NewAzureMessage() azureMessageShim {
+	msg := &azureMessage{}
 	msg.sbMsg = &servicebus.Message{}
 	return msg
 }

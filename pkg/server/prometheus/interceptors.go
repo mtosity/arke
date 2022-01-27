@@ -30,7 +30,7 @@ func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServ
 		status = "error"
 	}
 
-	elapsed := float32(time.Now().Sub(start).Nanoseconds()) / float32(time.Millisecond)
+	elapsed := float32(time.Since(start).Nanoseconds()) / float32(time.Millisecond)
 
 	labelset.AddLabel("status", status)
 	prometheus.Stats.Sink.AddSampleWithLabels(metrics.RequestElapsedSummary, elapsed, labelset.Labels)
@@ -101,7 +101,7 @@ func StreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamS
 		status = "error"
 	}
 
-	elapsed := float32(time.Now().Sub(start).Nanoseconds()) / float32(time.Millisecond)
+	elapsed := float32(time.Since(start).Nanoseconds()) / float32(time.Millisecond)
 	labelset.AddLabel("status", status)
 	prometheus.Stats.Sink.AddSampleWithLabels(metrics.RequestElapsedSummary, elapsed, labelset.Labels)
 	prometheus.Stats.Sink.IncrCounterWithLabels(metrics.RequestTotalCounter, 1, labelset.Labels)

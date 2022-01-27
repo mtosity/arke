@@ -69,8 +69,8 @@ type ProcessStats struct {
 	MaxMemory       int
 	MemoryAverage   float64
 	CurrentMemory   int
-	CurrentCpuUsage float64
-	CpuUsageAverage float64
+	CurrentCPUUsage float64
+	CPUUsageAverage float64
 }
 
 func GetProcessStats() *ProcessStats {
@@ -81,7 +81,7 @@ func GetProcessStats() *ProcessStats {
 		cpuUsageTotal += usage
 	}
 	cpuUsageAvg := cpuUsageTotal / float64(len(cpuHistory))
-	ps.CpuUsageAverage = cpuUsageAvg
+	ps.CPUUsageAverage = cpuUsageAvg
 
 	var memTotal int
 	for _, mem := range memHistory {
@@ -89,7 +89,7 @@ func GetProcessStats() *ProcessStats {
 	}
 	ps.MemoryAverage = float64(memTotal) / float64(len(memHistory))
 	ps.CurrentMemory = memHistory[len(memHistory)-1]
-	ps.CurrentCpuUsage = cpuHistory[len(cpuHistory)-1]
+	ps.CurrentCPUUsage = cpuHistory[len(cpuHistory)-1]
 
 	return ps
 }

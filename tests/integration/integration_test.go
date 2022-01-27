@@ -98,7 +98,7 @@ func connectConfig() *pb.ConnectionConfiguration {
 	return &connConfig
 }
 
-func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message) error {
+func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message) error { //nolint
 
 	connConfig := connectConfig()
 	defer c.Disconnect(ctx, &pb.Empty{})
@@ -128,7 +128,7 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 }
 
 //TODO: pass in a message handler to control ack/nack
-func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler, t *testing.T) error {
+func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler, t *testing.T) error { //nolint
 
 	defer c.Disconnect(ctx, &pb.Empty{})
 
@@ -332,7 +332,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 		headers := msg.GetHeaders()
 		count := 0
 		delay := 0
-		var err error = nil
+		var err error
 
 		if xDeath, ok := headers["x-death"]; ok {
 			pieces := strings.Split(xDeath, " ")
@@ -401,7 +401,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	//retry handler
 	retryHandler := func(msg *pb.Message) (int, error) {
 		delay := 0
-		var err error = nil
+		var err error
 
 		return delay, err
 	}
@@ -1340,7 +1340,7 @@ func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
 }
 
 func TestConsumeNoAckReconnectConsume(t *testing.T) {
-	expectedMsgBodyUuid := util.GenUUID()
+	expectedMsgBodyUUID := util.GenUUID()
 
 	// Set up the consumer
 	// Produce a single message
@@ -1356,7 +1356,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TCNARC")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	// use a unique source name so we don't consume messages from a failed test
-	source := &pb.Source{Name: "sas.test.proxy.TCNARC.Consumer-" + expectedMsgBodyUuid, Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TCNARC.Consumer-" + expectedMsgBodyUUID, Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1383,7 +1383,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
-	message := &pb.Message{Body: []byte(expectedMsgBodyUuid), Address: address}
+	message := &pb.Message{Body: []byte(expectedMsgBodyUUID), Address: address}
 
 	go func() {
 		err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
@@ -1399,7 +1399,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	resp, err := stream.Recv()
 	assert.Nil(t, err)
 	msgBody := string(resp.GetMsg().GetBody())
-	assert.Equal(t, expectedMsgBodyUuid, msgBody)
+	assert.Equal(t, expectedMsgBodyUUID, msgBody)
 	// Disconnect before ack/nack
 	cancel()
 	c.Disconnect(ctx, &pb.Empty{})
@@ -1431,7 +1431,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	resp2, err := stream2.Recv()
 	assert.Nil(t, err)
 	msgBody2 := string(resp2.GetMsg().GetBody())
-	assert.Equal(t, expectedMsgBodyUuid, msgBody2)
+	assert.Equal(t, expectedMsgBodyUUID, msgBody2)
 	ret := &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: resp2.GetMsg().GetUuid()}}}
 	err = stream2.Send(ret)
 	assert.Nil(t, err)

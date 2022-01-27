@@ -55,16 +55,16 @@ func Test_SetClientIdentifier(t *testing.T) {
 	assert.Contains(t, id, "unitTest-")
 	assert.Nil(t, err)
 
-	getId, err := GetClientIdentifier(ctx)
-	assert.Equal(t, id, getId)
+	getID, err := GetClientIdentifier(ctx)
+	assert.Equal(t, id, getID)
 	assert.Nil(t, err)
 
 	p.Addr = fakeAddr{}
 	ctx = peer.NewContext(context.Background(), p)
-	getId, err = GetClientIdentifier(ctx)
+	getID, err = GetClientIdentifier(ctx)
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "Could not retrieve client-id from context")
-	assert.Equal(t, "", getId)
+	assert.Equal(t, "", getID)
 
 }
 
@@ -79,8 +79,8 @@ func Test_RemoveClientIdentifier(t *testing.T) {
 
 	RemoveClientIdentifier(ctx)
 
-	getId, err := GetClientIdentifier(ctx)
-	assert.Equal(t, "", getId)
+	getID, err := GetClientIdentifier(ctx)
+	assert.Equal(t, "", getID)
 	assert.NotNil(t, err)
 	assert.Equal(t, "Could not find client identifier", err.Error())
 

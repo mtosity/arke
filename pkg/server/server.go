@@ -52,19 +52,19 @@ func connectionWatcher() {
 	ticker := time.NewTicker(30 * time.Second)
 	for {
 		<-ticker.C
-		for _, connId := range connectionMap.GetList() {
-			if connConf, ok := connectionMap.Get(connId); ok {
+		for _, connID := range connectionMap.GetList() {
+			if connConf, ok := connectionMap.Get(connID); ok {
 				providerType := connConf.(*pb.ConnectionConfiguration).GetProvider()
 				if prov, err := provider.GetProvider(providerType); err == nil {
 					// if the provider says the client doesn't exists, clean up this dead client
-					if !prov.ClientExists(connId) {
-						util.Logger.Debugf("Provider says client %s does not exist. Cleaning up dead client.", connId)
-						connectionMap.Delete(connId)
+					if !prov.ClientExists(connID) {
+						util.Logger.Debugf("Provider says client %s does not exist. Cleaning up dead client.", connID)
+						connectionMap.Delete(connID)
 					}
 				}
 			} else {
 				// We had it in the list but then couldn't retrieve it, delete it.
-				connectionMap.Delete(connId)
+				connectionMap.Delete(connID)
 			}
 		}
 	}
@@ -678,7 +678,7 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 				// if mem usage > 90% or cpu usage has been high for an extended period then report unhealthy
 				if processStats.MaxMemory > 0 && (processStats.MemoryAverage)/float64(processStats.MaxMemory) > 0.9 {
 					hs.Status.Code = pb.HealthStatus_UNHEALTHY
-				} else if processStats.CpuUsageAverage/float64(runtime.NumCPU()) > 90 { // cpu usage > 90% per cpu
+				} else if processStats.CPUUsageAverage/float64(runtime.NumCPU()) > 90 { // cpu usage > 90% per cpu
 					hs.Status.Code = pb.HealthStatus_UNHEALTHY
 				}
 

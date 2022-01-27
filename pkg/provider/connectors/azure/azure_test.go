@@ -20,18 +20,18 @@ func init() {
 
 type azureTopicMock struct {
 	mock.Mock
-	AzureTopicShim
+	azureTopicShim
 }
 
 type azureNSMock struct {
 	mock.Mock
-	AzureNamespaceShim
+	azureNamespaceShim
 	blockConnect time.Duration
 }
 
 type azureSMMock struct {
 	mock.Mock
-	AzureSubscriptionManagerShim
+	azureSubscriptionManagerShim
 }
 
 type MockRecv struct {
@@ -41,19 +41,19 @@ type MockRecv struct {
 
 type azureSubMock struct {
 	mock.Mock
-	AzureSubscriptionShim
+	azureSubscriptionShim
 	Receives []*azureMsgMock
 }
 
 type azureMsgMock struct {
 	mock.Mock
-	AzureMessageShim
+	azureMessageShim
 	properties map[string]interface{}
 }
 
-func (m *azureNSMock) NewTopic(name string) (AzureTopicShim, error) {
+func (m *azureNSMock) NewTopic(name string) (azureTopicShim, error) {
 	args := m.Called(name)
-	t := args.Get(0).(AzureTopicShim)
+	t := args.Get(0).(azureTopicShim)
 	return t, args.Error(1)
 }
 func (m *azureNSMock) Connect() error {
@@ -61,13 +61,13 @@ func (m *azureNSMock) Connect() error {
 	return args.Error(0)
 }
 
-func (m *azureNSMock) NewSubscriptionManager(topicName string) (AzureSubscriptionManagerShim, error) {
+func (m *azureNSMock) NewSubscriptionManager(topicName string) (azureSubscriptionManagerShim, error) {
 	args := m.Called()
-	t := args.Get(0).(AzureSubscriptionManagerShim)
+	t := args.Get(0).(azureSubscriptionManagerShim)
 	return t, args.Error(1)
 }
 
-func (m *azureTopicMock) ScheduleAt(time.Time, ...AzureMessageShim) ([]int64, error) {
+func (m *azureTopicMock) ScheduleAt(time.Time, ...azureMessageShim) ([]int64, error) {
 	args := m.Called()
 	return nil, args.Error(0)
 }
@@ -87,14 +87,14 @@ func (m *azureTopicMock) GetName() string {
 	return args.String(0)
 }
 
-func (m *azureTopicMock) Send(context.Context, AzureMessageShim, ...servicebus.SendOption) error {
+func (m *azureTopicMock) Send(context.Context, azureMessageShim, ...servicebus.SendOption) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *azureTopicMock) NewSubscription(name string, opts ...servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
+func (m *azureTopicMock) NewSubscription(name string, opts ...servicebus.SubscriptionOption) (azureSubscriptionShim, error) {
 	args := m.Called()
-	as := args.Get(0).(AzureSubscriptionShim)
+	as := args.Get(0).(azureSubscriptionShim)
 	return as, args.Error(1)
 }
 
@@ -120,7 +120,7 @@ func (m *azureSMMock) PutRule(subName string, ruleName string, ruleText string) 
 	return re, args.Error(1)
 }
 
-func (m *azureSubMock) Receive(ctx context.Context, messageChannel chan AzureMessageShim) error {
+func (m *azureSubMock) Receive(ctx context.Context, messageChannel chan azureMessageShim) error {
 	args := m.Called(ctx, messageChannel)
 
 	for _, msg := range m.Receives {
@@ -240,7 +240,7 @@ func TestConnect_Stats(t *testing.T) {
 	amock.On("Connect").Return(nil)
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -279,7 +279,7 @@ func Test_Ack_NoMsg(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -312,7 +312,7 @@ func Test_Nack_NoMsg(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -387,7 +387,7 @@ func Test_Ack(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -476,7 +476,7 @@ func Test_Ack_CompleteErr(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -553,7 +553,7 @@ func Test_Nack(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -629,7 +629,7 @@ func Test_Nack_AbandonError(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -709,7 +709,7 @@ func Test_Retry(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -823,7 +823,7 @@ func Test_Disconnect(t *testing.T) {
 	amock.On("Connect").Return(nil)
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -868,7 +868,7 @@ func Test_WaitForConnect(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
@@ -917,12 +917,12 @@ func Test_Publish(t *testing.T) {
 	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
 	oldNewAzureMsg := NewAzureMsg
-	NewAzureMsg = func() AzureMessageShim {
+	NewAzureMsg = func() azureMessageShim {
 		return msgMock
 	}
 
@@ -982,12 +982,12 @@ func Test_Publish_Error(t *testing.T) {
 	amock.On("NewTopic", "topicName").Return(tmock, nil)
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
 	oldNewAzureMsg := NewAzureMsg
-	NewAzureMsg = func() AzureMessageShim {
+	NewAzureMsg = func() azureMessageShim {
 		return msgMock
 	}
 
@@ -1131,12 +1131,12 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	oldNewAzureNS := NewAzureNS
 
-	NewAzureNS = func(string) AzureNamespaceShim {
+	NewAzureNS = func(string) azureNamespaceShim {
 		return amock
 	}
 
 	oldNewAzureMsg := NewAzureMsg
-	NewAzureMsg = func() AzureMessageShim {
+	NewAzureMsg = func() azureMessageShim {
 		return msgMock
 	}
 

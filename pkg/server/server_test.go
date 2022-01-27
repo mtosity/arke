@@ -28,7 +28,7 @@ var mockp *MockProvider
 var conSrv *ConsumerServer
 var proSrv *ProducerServer
 var hlthSrv *HealthzServer
-var expectedErrorMessage string = "this is my error"
+var expectedErrorMessage = "this is my error"
 var errMsg pb.Error = pb.Error{Message: expectedErrorMessage}
 
 func init() {
@@ -179,7 +179,7 @@ type MockContext struct {
 
 const provName string = "mockp"
 
-var defaultDate time.Time = time.Date(2021, time.November, 6, 15, 0, 0, 0, time.Local)
+var defaultDate = time.Date(2021, time.November, 6, 15, 0, 0, 0, time.Local)
 
 // NewMockProvider creates a new provider
 func NewMockProvider() provider.Provider {
@@ -764,8 +764,8 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	stream := &MockConsumerConsumeServerStream{}
 	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
 
-	cnsm_resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: "Only one source message allowed per subscribe"}}}}
-	stream.On("Send", cnsm_resp).Return(nil, nil).Once()
+	cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: "Only one source message allowed per subscribe"}}}}
+	stream.On("Send", cnsmResp).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Twice()
 	stream.On("Recv").Return(nil, io.EOF).After(100 * time.Millisecond)
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
@@ -810,8 +810,8 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 		ps.MaxMemory = 1000
 		ps.MemoryAverage = 50
 		ps.CurrentMemory = 50
-		ps.CpuUsageAverage = float64(100 * cpus)
-		ps.CurrentCpuUsage = float64(100 * cpus)
+		ps.CPUUsageAverage = float64(100 * cpus)
+		ps.CurrentCPUUsage = float64(100 * cpus)
 		return ps
 	}
 
@@ -856,8 +856,8 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 		ps.MaxMemory = 1000
 		ps.MemoryAverage = 1000
 		ps.CurrentMemory = 1000
-		ps.CpuUsageAverage = 0
-		ps.CurrentCpuUsage = 0
+		ps.CPUUsageAverage = 0
+		ps.CurrentCPUUsage = 0
 		return ps
 	}
 

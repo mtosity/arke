@@ -52,14 +52,14 @@ func connectionCleaner() {
 	ticker := time.NewTicker(30 * time.Second)
 	for {
 		<-ticker.C
-		for _, connId := range prov.connections.GetList() {
-			if conn, ok := prov.connections.Get(connId); ok {
+		for _, connID := range prov.connections.GetList() {
+			if conn, ok := prov.connections.Get(connID); ok {
 				bd := conn.(*BrokerDetails)
-				util.Logger.Debugf("Client %v has %d open streams", connId, bd.ActiveStreams)
+				util.Logger.Debugf("Client %v has %d open streams", connID, bd.ActiveStreams)
 				lastKnown := time.Since(bd.lastPubSubEvent)
 				if bd.ActiveStreams < 1 && lastKnown > 10*time.Second {
-					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connId, lastKnown)
-					prov.disconnectClientByIdentifier(connId)
+					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connID, lastKnown)
+					prov.disconnectClientByIdentifier(connID)
 				}
 			}
 		}
@@ -73,7 +73,7 @@ type azureprovider struct {
 
 type BrokerDetails struct {
 	sync.Mutex
-	azure            AzureNamespaceShim
+	azure            azureNamespaceShim
 	ClientIdentifier string
 	knownTopics      *util.ConcurrentMap
 	activeMessages   *util.ConcurrentMap
@@ -129,7 +129,7 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(AzureMessageShim)
+		rm := rmu.(azureMessageShim)
 		util.Logger.Debugf("Acking message %s", msgid)
 		err = rm.Complete()
 
@@ -166,7 +166,7 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 	}
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(AzureMessageShim)
+		rm := rmu.(azureMessageShim)
 		//TODO: Abandon will requeue the message, I don't think that is what
 		// we want to do in this case.
 		err = rm.Abandon()
@@ -202,7 +202,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 	}
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(AzureMessageShim)
+		rm := rmu.(azureMessageShim)
 		timeDelay := time.Now().Add(time.Second * time.Duration(delay))
 		util.Logger.Debugf("Retry message[%s](%v)(%v) at %s for %s", rm.GetID(), delay, rm.GetDeliveryCount(), time.Now(), timeDelay)
 
@@ -325,12 +325,12 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
 
-	messages := make(chan AzureMessageShim)
+	messages := make(chan azureMessageShim)
 	// stopChan := make(chan bool)
 
 	// TODO: Need to handle lock expiration, the max we can set is 5 minutes
 	// and we have some handlers that run for much longer.
-	go func(msgChan chan AzureMessageShim, sub AzureSubscriptionShim) {
+	go func(msgChan chan azureMessageShim, sub azureSubscriptionShim) {
 		err := sub.Receive(*ctx, msgChan)
 		if err != nil {
 			close(msgChan)
@@ -403,7 +403,7 @@ func (prov *azureprovider) Stats() *provider.Stats {
 	return stats
 }
 
-func declareExchange(address *pb.Address, bd *BrokerDetails) (AzureTopicShim, error) {
+func declareExchange(address *pb.Address, bd *BrokerDetails) (azureTopicShim, error) {
 	// make sure an invalid address type is not sent
 	addressType := address.GetType()
 	switch address.GetType() {
@@ -416,7 +416,7 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (AzureTopicShim, er
 	}
 
 	topicInt, known := bd.exchangeKnown(address.GetName())
-	var topic AzureTopicShim
+	var topic azureTopicShim
 	var err error
 	if !known {
 
@@ -428,7 +428,7 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (AzureTopicShim, er
 		bd.knownTopics.Add(address.GetName(), topic)
 
 	} else {
-		topic = topicInt.(AzureTopicShim)
+		topic = topicInt.(azureTopicShim)
 	}
 
 	if parent := address.GetParentAddress(); parent != nil {
@@ -459,7 +459,7 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (AzureTopicShim, er
 	return topic, nil
 }
 
-func declareSubscription(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim) (AzureSubscriptionShim, error) {
+func declareSubscription(source *pb.Source, bd *BrokerDetails, topic azureTopicShim) (azureSubscriptionShim, error) {
 
 	var smOpts []servicebus.SubscriptionManagementOption
 	var sOpts []servicebus.SubscriptionOption
@@ -534,8 +534,8 @@ func sourceNameToSubName(name string) string {
 	return fmt.Sprintf("%s-%s", srcPart, subHash)
 }
 
-func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic AzureTopicShim,
-	smOpts []servicebus.SubscriptionManagementOption, sOpts []servicebus.SubscriptionOption) (AzureSubscriptionShim, error) {
+func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic azureTopicShim,
+	smOpts []servicebus.SubscriptionManagementOption, sOpts []servicebus.SubscriptionOption) (azureSubscriptionShim, error) {
 
 	// create subscription
 	subName := sourceNameToSubName(source.GetName())
@@ -741,7 +741,7 @@ func (prov *azureprovider) disconnectClientByIdentifier(clientIdentifier string)
 	for _, topicName := range bd.knownTopics.GetList() {
 		topicInt, ok := bd.knownTopics.Get(topicName)
 		if ok {
-			topic := topicInt.(AzureTopicShim)
+			topic := topicInt.(azureTopicShim)
 			topic.Close()
 		}
 	}

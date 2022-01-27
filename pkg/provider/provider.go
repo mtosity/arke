@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -76,7 +75,7 @@ func NewProvider(providerType string) (Provider, error) {
 	pf, ok := registeredProviderTypes.Get(providerType)
 	if !ok {
 		providerList := registeredProviderTypes.GetList()
-		return nil, errors.New(fmt.Sprintf("Invalid provider name. Must be one of: %s", strings.Join(providerList, ",")))
+		return nil, fmt.Errorf("Invalid provider name. Must be one of: %s", strings.Join(providerList, ","))
 	}
 	var provOnce providerOnce
 	providerVault[providerType] = &provOnce

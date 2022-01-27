@@ -47,5 +47,5 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 		Tenant:        tenant,
 		CaCertificate: caCertificate,
 	}
-	return connConf
+	return connConf //nolint
 }
