@@ -252,6 +252,7 @@ func toAmqpMessage(msg *amqp091Message) amqp.Publishing {
 	pub.Headers = toAmqpTable(msg.Headers)
 	pub.ContentType = msg.ContentType
 	pub.ContentEncoding = msg.ContentEncoding
+	pub.Timestamp = time.Now()
 	return pub
 }
 
