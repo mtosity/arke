@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"time"
@@ -38,7 +39,7 @@ func main() {
 	// Set up cpu and memory profiling if passed in as args
 	flag.Parse()
 	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+		f, err := os.Create(filepath.Clean(*cpuprofile))
 		if err != nil {
 			util.Logger.FatalI("error.cpuprofile", err)
 		}
@@ -51,7 +52,7 @@ func main() {
 
 	defer func() {
 		if *memprofile != "" {
-			f, err := os.Create(*memprofile)
+			f, err := os.Create(filepath.Clean(*memprofile))
 			if err != nil {
 				util.Logger.FatalI("error.memprofile", err)
 			}
