@@ -8,8 +8,8 @@ require (
 	github.com/armon/go-metrics v0.3.10
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.11.0
+	github.com/rabbitmq/amqp091-go v1.3.0
 	github.com/soheilhy/cmux v0.1.5
-	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0
 	sassoftware.io/convoy/arke/api v0.0.0-20211213191304-b79d5663ed51
 	google.golang.org/grpc v1.43.0
