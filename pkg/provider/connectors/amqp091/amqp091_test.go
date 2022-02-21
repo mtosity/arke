@@ -104,6 +104,11 @@ func (m *amqpChannelMock) NotifyCancel(chan string) chan string {
 	return args.Get(0).(chan string)
 }
 
+func (m *amqpChannelMock) IsClosed() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
 func TestNewAMQP091Provider(t *testing.T) {
 	prov := NewAMQP091Provider()
 	assert.NotNil(t, prov)
@@ -390,6 +395,7 @@ func Test_Ack(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
+	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -474,6 +480,7 @@ func Test_Nack(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
+	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -558,6 +565,7 @@ func Test_Retry(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
+	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -760,6 +768,7 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	cmock.On("SetPrefetch", 4).Return(nil)
 	cmock.On("Close").Return(nil)
+	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
 	cmock.On("ExchangeDeclare", parent.GetName(), "direct", parent.GetDurable(), parent.GetAutoDelete()).Return(nil).Once()
 	cmock.On("ExchangeBind", address.GetName(), subjects[0], parent.GetName()).Return(nil)

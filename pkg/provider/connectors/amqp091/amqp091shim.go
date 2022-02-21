@@ -19,6 +19,7 @@ type amqp091ConnectionShim interface {
 // amqp091ChannelShim Shim so we can do unit testing
 type amqp091ChannelShim interface {
 	Close() error
+	IsClosed() bool
 	Publish(string, string, amqp091Message) error
 	ExchangeDeclare(string, string, bool, bool) error
 	ExchangeBind(string, string, string) error
@@ -144,6 +145,10 @@ func (ac *amqp091Connection) IsClosed() bool {
 // Close Close the channel
 func (ch *amqp091Channel) Close() error {
 	return ch.channel.Close()
+}
+
+func (ch *amqp091Channel) IsClosed() bool {
+	return ch.channel.IsClosed()
 }
 
 // ExchangeDeclare Declare a new exchange

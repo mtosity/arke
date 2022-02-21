@@ -87,14 +87,16 @@ func Test_RemoveClientIdentifier(t *testing.T) {
 }
 
 func Test_TestProcessStats(t *testing.T) {
-	go MonitorProcessStats()
-	time.Sleep(1 * time.Second)
-	ps := GetProcessStats()
-	assert.NotNil(t, ps)
-	assert.Equal(t, ps.MaxMemory, 0) // 0 because we aren't in k8s
-	if runtime.GOOS != "windows" {
-		assert.Greater(t, ps.CurrentMemory, 0)
-		assert.Greater(t, ps.MemoryAverage, 0.0)
+	if runtime.GOOS == "linux" {
+		go MonitorProcessStats()
+		time.Sleep(1 * time.Second)
+		ps := GetProcessStats()
+		assert.NotNil(t, ps)
+		assert.Equal(t, ps.MaxMemory, 0) // 0 because we aren't in k8s
+		if runtime.GOOS != "windows" {
+			assert.Greater(t, ps.CurrentMemory, 0)
+			assert.Greater(t, ps.MemoryAverage, 0.0)
+		}
+		// might not be able to calculate cpu usage yet
 	}
-	// might not be able to calculate cpu usage yet
 }

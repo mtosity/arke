@@ -278,13 +278,29 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry exchange [%s]", retrySource.GetAddress().GetName())
 		}
+
 		declareErr = prov.declareQueue(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
 		}
+
+		if amqpChannel.IsClosed() {
+			amqpChannel, err = bd.Connection.NewChannel()
+			if err != nil {
+				return &pb.Error{Message: err.Error()}
+			}
+		}
+
 		declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
+		}
+
+		if amqpChannel.IsClosed() {
+			amqpChannel, err = bd.Connection.NewChannel()
+			if err != nil {
+				return &pb.Error{Message: err.Error()}
+			}
 		}
 
 		start := time.Now()
@@ -583,9 +599,23 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	if amqpChannel.IsClosed() {
+		amqpChannel, err = bd.Connection.NewChannel()
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
+	}
+
 	err = prov.declareBinding(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
+	}
+
+	if amqpChannel.IsClosed() {
+		amqpChannel, err = bd.Connection.NewChannel()
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
 	}
 
 	messages, err := amqpChannel.Consume(
