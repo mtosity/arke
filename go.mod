@@ -35,6 +35,7 @@ require (
 	github.com/devigned/tab v0.1.1 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
+	github.com/gin-gonic/gin v1.7.7 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -83,7 +84,7 @@ require (
 
 // NGMTS-21506: fix for CVE-2020-14040
 replace (
-	github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.3
+	github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.7
 	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
 	golang.org/x/text v0.3.0 => golang.org/x/text v0.3.7
 	golang.org/x/text v0.3.2 => golang.org/x/text v0.3.7
