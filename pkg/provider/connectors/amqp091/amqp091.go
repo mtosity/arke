@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -56,6 +60,8 @@ type BrokerDetails struct {
 	produced         int
 	clientDisconnect bool
 	lastPubSubEvent  time.Time
+	tlsConfig        *tls.Config
+	tlsEnabled       bool
 }
 
 func init() {
@@ -502,6 +508,120 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 	return nil
 }
 
+func (bd *BrokerDetails) getManagementClient() *http.Client {
+	client := &http.Client{}
+
+	if bd.tlsEnabled {
+		tr := &http.Transport{TLSClientConfig: bd.tlsConfig}
+		client = &http.Client{Transport: tr}
+	}
+	return client
+}
+
+func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+
+	client := bd.getManagementClient()
+	proto := "http"
+	if bd.tlsEnabled {
+		proto = "https"
+	}
+	port := bd.connectionConfig.Port + 10000
+	host := bd.connectionConfig.Host
+
+	rurl := fmt.Sprintf("%s://%s:%d%s", proto, host, port, urn)
+	req, _ := http.NewRequest(method, rurl, nil)
+	req.SetBasicAuth(bd.connectionConfig.GetCredentials().GetUsername(), bd.connectionConfig.GetCredentials().GetPassword())
+	req.Header.Add("Accept", "application/json")
+	resp, respErr := client.Do(req)
+
+	if respErr != nil {
+		err := fmt.Errorf("Error retrieving bindings: %s", respErr.Error())
+		return results, err
+	} else if resp == nil {
+		err := fmt.Errorf("Error %s binding %s: no response", method, rurl)
+		return results, err
+	} else if resp.StatusCode >= 300 || resp.StatusCode < 200 {
+		err := fmt.Errorf("Error %s binding %s: request returned a %d", method, rurl, resp.StatusCode)
+		return results, err
+	}
+
+	defer resp.Body.Close()
+	body, bodyErr := io.ReadAll(resp.Body)
+	if bodyErr != nil {
+		return results, bodyErr
+	}
+
+	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
+		return results, marshErr
+	}
+
+	return results, nil
+}
+
+func (bd *BrokerDetails) getBindingKeysForSource(source *pb.Source) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	exchange := url.QueryEscape(source.GetAddress().GetName())
+	queue := url.QueryEscape(source.GetName())
+	vhost := bd.connectionConfig.GetTenant()
+	if vhost == "" {
+		vhost = "/"
+	}
+	vhost = url.QueryEscape(vhost)
+
+	urn := fmt.Sprintf("/api/bindings/%s/e/%s/q/%s/", vhost, exchange, queue)
+	results, err := bd.doManagementRequest("GET", urn)
+
+	if err != nil {
+		util.Logger.Debugf("Error listing bindings for %s: %s", queue, err.Error())
+	}
+
+	return results
+}
+
+func (bd *BrokerDetails) deleteBindingByKeyFromSource(source *pb.Source, propKey string) error {
+	exchange := url.QueryEscape(source.GetAddress().GetName())
+	queue := url.QueryEscape(source.GetName())
+	vhost := bd.connectionConfig.GetTenant()
+	if vhost == "" {
+		vhost = "/"
+	}
+	vhost = url.QueryEscape(vhost)
+
+	urn := fmt.Sprintf("/api/bindings/%s/e/%s/q/%s/%s/", vhost, exchange, queue, propKey)
+	_, err := bd.doManagementRequest("DELETE", urn)
+
+	if err != nil {
+		util.Logger.Debugf("Error deletting binding %s from %s: %s", propKey, queue, err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) error {
+	bindings := bd.getBindingKeysForSource(source)
+	for _, binding := range bindings {
+		bindingExpected := false
+		routingKey := binding["routing_key"].(string)
+		for _, subject := range subjects {
+			if routingKey == subject {
+				bindingExpected = true
+				break
+			}
+		}
+		if !bindingExpected {
+			util.Logger.Debugf("Deleting binding %s for routing key %s from %s\n", binding["properties_key"], binding["routing_key"], source.GetName())
+			err := bd.deleteBindingByKeyFromSource(source, binding["properties_key"].(string))
+			if err != nil {
+				util.Logger.Debugf("Error deleting binding: %s", err.Error())
+			}
+		}
+	}
+	return nil
+}
+
 func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
 	knownBindingKey := fmt.Sprintf("%s:%s", source.GetName(), strings.Join(source.Address.GetSubjects(), ":"))
 	known := bd.bindingKnown(knownBindingKey)
@@ -561,6 +681,9 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 			}
 		}
 	}
+
+	bd.cleanupBindings(source, subjects)
+
 	bd.knownBindings.Add(knownBindingKey, true)
 	return nil
 }
@@ -996,30 +1119,29 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	util.Logger.InfoI("info.clientconnect", bd.ClientIdentifier, cf.GetHost())
 
-	tlsEnabled := false
 	scheme := "amqp"
 
 	// Use TLS in these scenarios:
 	// * ConnectionConfiguration.TLS = true
 	// * ConnectionConfiguration.CaCertificate is not empty
 	if cf.GetTls() || len(cf.GetCaCertificate()) > 0 {
-		tlsEnabled = true
+		bd.tlsEnabled = true
 		scheme = "amqps"
 	}
 
 	var connStr string
 	var tlsConfig = &tls.Config{}
 
-	if tlsEnabled && bd.tlsSkipVerify { // force TLS and also skip verification if true
+	if bd.tlsEnabled && bd.tlsSkipVerify { // force TLS and also skip verification if true
 		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 		tlsConfig.InsecureSkipVerify = true
 
-	} else if tlsEnabled && string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
+	} else if bd.tlsEnabled && string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
 		util.Logger.Debugf("%s connecting with TLS and provided certificate: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 		tlsConfig.RootCAs = x509.NewCertPool()
 		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
 
-	} else if tlsEnabled { // Regular TLS with cert verification against system certs
+	} else if bd.tlsEnabled { // Regular TLS with cert verification against system certs
 		if caBundlePath := getCaBundlePath(); caBundlePath != "" {
 			caBundle, err := ioutil.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
@@ -1037,6 +1159,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	connStr = fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme, cf.GetCredentials().GetUsername(),
 		cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 
+	bd.tlsConfig = tlsConfig
 	conn = NewAmqpConn091(connStr, bd.ClientIdentifier, tlsConfig)
 	err = conn.Connect()
 

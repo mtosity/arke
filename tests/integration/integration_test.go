@@ -1441,3 +1441,85 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 
 	assert.Equal(t, msgBody, msgBody2)
 }
+
+func TestConsumeDeleteBinding(t *testing.T) {
+	// create a consumer with multiple bindings, stop consuming
+	// wait a second
+	// create the same consumer but with less bindings
+	// publish a message with one subject from consumer 2
+	// publish another message with the removed binding from consumer 1
+	// ensure we only get the one message from the consumer 2 bindings
+	producerConnection := connect()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	//defer producerConnection.Close()
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	// set up consumer 1 and subscribe with 2 subjects, then disconnect
+	consumerConnection := connect()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TCDB.1")
+	subjects = append(subjects, "sas.test.proxy.TCDB.2")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TCDB.Consumer", Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+	cancel()
+	_, _ = c.Disconnect(ctx, &pb.Empty{})
+
+	// set up consumer 1 and subscribe with 2 subjects, then disconnect
+	consumerConnection = connect()
+	subjects = []string{"sas.test.proxy.TCDB.2"}
+	address.Subjects = subjects
+	source.Address = address
+	c = pb.NewConsumerClient(consumerConnection)
+	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer consumerConnection.Close()
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	// publish to sas.test.proxy.TCDB.2, then to sas.test.proxy.TCBD.1
+	subjects = []string{"sas.test.proxy.TCDB.2"}
+	address.Subjects = subjects
+	source.Address = address
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	subjects = []string{"sas.test.proxy.TCDB.1"}
+	address.Subjects = subjects
+	source.Address = address
+	message = &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err = produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}

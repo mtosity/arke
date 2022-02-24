@@ -565,63 +565,85 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 		}
 	}
 
-	if routingAndFilterRuleExists {
-		util.Logger.InfoI("info.rfrule", subName, bd.ClientIdentifier)
-	} else {
-		var rules []string
+	var rules []string
 
-		// add rules for routing keys
-		var routingRules []string
-		routingKeys := source.GetAddress().GetSubjects()
-		for _, key := range routingKeys {
-			rule := fmt.Sprintf("user.RoutingKey = '%s'", key)
-			if strings.ContainsAny(key, "*#") {
-				key = strings.ReplaceAll(strings.ReplaceAll(key, "#", "%"), "*", "%")
-				rule = fmt.Sprintf("user.RoutingKey like '%s'", key)
-			}
-			routingRules = append(routingRules, rule)
+	// add rules for routing keys
+	// for subjects (routing keys), we need to replace # and * with %. % is the only wildcard in ASB and matches multiple words
+	// the subjects then need to be combined in as an OR
+	var routingRules []string
+	routingKeys := source.GetAddress().GetSubjects()
+	for _, key := range routingKeys {
+		rule := fmt.Sprintf("user.RoutingKey = '%s'", key)
+		if strings.ContainsAny(key, "*#") {
+			key = strings.ReplaceAll(strings.ReplaceAll(key, "#", "%"), "*", "%")
+			rule = fmt.Sprintf("user.RoutingKey like '%s'", key)
 		}
+		routingRules = append(routingRules, rule)
+	}
 
-		if len(routingRules) > 0 {
-			routingRule := fmt.Sprintf("(%s)", strings.Join(routingRules, " OR "))
-			rules = append(rules, routingRule)
-		}
+	if len(routingRules) > 0 {
+		routingRule := fmt.Sprintf("(%s)", strings.Join(routingRules, " OR "))
+		rules = append(rules, routingRule)
+	}
 
-		if len(source.GetFilters()) > 0 {
-			var filterRules []string
-
-			for _, filter := range source.GetFilters() {
-				var fRules []string
-				for _, match := range filter.GetMatches() {
-					header := match.GetName()
-					value := match.GetValue()
-					rule := fmt.Sprintf(`"%s" = '%s'`, header, value)
-					fRules = append(fRules, rule)
-				}
-				var op string
-				if filter.GetType() == pb.Filter_ALL {
-					op = " AND "
-				} else {
-					op = " OR "
-				}
-				if len(fRules) > 0 {
-					filterRules = append(filterRules, fmt.Sprintf("(%s)", strings.Join(fRules, op)))
-				}
+	if len(source.GetFilters()) > 0 {
+		var filterRules []string
+		// loop through filters, if any, and OR them together
+		for _, filter := range source.GetFilters() {
+			var fRules []string
+			// loop through mathces and AND or OR them together based on filter type
+			for _, match := range filter.GetMatches() {
+				header := match.GetName()
+				value := match.GetValue()
+				rule := fmt.Sprintf(`"%s" = '%s'`, header, value)
+				fRules = append(fRules, rule)
 			}
-			if len(filterRules) > 0 {
-				compiledFilterRules := fmt.Sprintf("(%s)", strings.Join(filterRules, " OR "))
-				rules = append(rules, compiledFilterRules)
+			var op string
+			if filter.GetType() == pb.Filter_ALL {
+				op = " AND "
+			} else {
+				op = " OR "
+			}
+			if len(fRules) > 0 {
+				filterRules = append(filterRules, fmt.Sprintf("(%s)", strings.Join(fRules, op)))
 			}
 		}
+		if len(filterRules) > 0 {
+			compiledFilterRules := fmt.Sprintf("(%s)", strings.Join(filterRules, " OR "))
+			rules = append(rules, compiledFilterRules)
+		}
+	}
 
-		actualRule := strings.Join(rules, " AND ")
-		if actualRule != "" {
-			_, err = sm.PutRule(subName, "RoutingAndFilterRule", actualRule)
+	actualRule := strings.Join(rules, " AND ")
+	tmpRuleName := routingAndFilterRuleName + ".tmp"
+	// we need to recreate the RoutingAndFilterRule rule if it exists, but we need to prevent message loss
+	// so we:
+	// If rule exists: add temp rule, delete RoutingAndFilterRule, create new RoutingAndFilterRule, delete temp rule
+	// If rule does not exist, just create the rule
+	if actualRule != "" {
+		if routingAndFilterRuleExists {
+			_, err = sm.PutRule(subName, tmpRuleName, actualRule)
 			if err != nil {
 				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
 			}
+			err = sm.DeleteRule(subName, routingAndFilterRuleName)
+			if err != nil {
+				util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+			}
+		}
+		_, err = sm.PutRule(subName, routingAndFilterRuleName, actualRule)
+		if err != nil {
+			util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
+		}
+		// delete the temporary rule
+		if routingAndFilterRuleExists {
+			err = sm.DeleteRule(subName, tmpRuleName)
+			if err != nil {
+				util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+			}
 		}
 	}
+	// }
 
 	subscription, err := topic.NewSubscription(subName, sOpts...)
 
