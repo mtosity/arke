@@ -55,7 +55,7 @@ type Stats struct {
 	Clients []*ClientStats
 }
 
-var providerVault = make(map[string]*providerOnce)
+var providerVault = util.NewConcurrentMap()
 
 func (po *providerOnce) Do(f func() Provider) Provider {
 	if atomic.LoadUint32(&po.done) == 1 {
@@ -78,7 +78,8 @@ func NewProvider(providerType string) (Provider, error) {
 		return nil, fmt.Errorf("Invalid provider name. Must be one of: %s", strings.Join(providerList, ","))
 	}
 	var provOnce providerOnce
-	providerVault[providerType] = &provOnce
+	// store provOnce in a map so it doesn't get gc'd
+	providerVault.Add(providerType, &provOnce)
 	providerFactory := pf.(Factory)
 	// This ensures we only generate one provider of providerType
 	provider := provOnce.Do(func() Provider { return providerFactory() })
