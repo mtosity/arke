@@ -221,7 +221,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		if xDeath, ok := rm.GetUserProperty("x-death"); ok {
 			var count int
 			fmt.Sscanf(xDeath.(string), "[map[count:%d", &count)
-			count = count + 1
+			count++
 			util.Logger.Debugf("Updating x-death to %d", count)
 			rm.SetUserProperty("x-death", fmt.Sprintf("[map[count:%d ]]", count))
 		} else {
@@ -500,7 +500,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topic azureTopicS
 			// // We can't use an auto-delete policy and a Forward DLQ policy, not permited.
 			// needDelete = 0
 		case "DeadLetterSubject":
-			//args["x-dead-letter-routing-key"] = value
+			// args["x-dead-letter-routing-key"] = value
 		default:
 			return nil, fmt.Errorf("%s is an unsupported source option", option)
 		}

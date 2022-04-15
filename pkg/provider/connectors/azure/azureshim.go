@@ -235,7 +235,7 @@ func (as *azureSubscription) Close() error {
 	return as.subscription.Close(context.Background())
 }
 
-//Receive receive messages on a subscription
+// Receive receive messages on a subscription
 func (as *azureSubscription) Receive(ctx context.Context, messages chan azureMessageShim) error {
 	// recover sending on closed channel issues
 	defer func() error {

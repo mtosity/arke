@@ -276,7 +276,7 @@ func fromAmqpMessage(del amqp.Delivery) amqp091Message {
 // Ack Ack a message
 func (msg *amqp091Message) Ack() error {
 	// For unit testing
-	switch msg.delivery.(type) {
+	switch msg.delivery.(type) { //nolint gocritic
 	case amqp.Delivery:
 		return msg.delivery.(amqp.Delivery).Ack(false)
 	}
@@ -286,7 +286,7 @@ func (msg *amqp091Message) Ack() error {
 // Nack Nack a message
 func (msg *amqp091Message) Nack(requeue bool) error {
 	// For unit testing
-	switch msg.delivery.(type) {
+	switch msg.delivery.(type) { //nolint gocritic
 	case amqp.Delivery:
 		return msg.delivery.(amqp.Delivery).Nack(false, requeue)
 	}

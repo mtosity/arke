@@ -535,7 +535,7 @@ func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]i
 	req.Header.Add("Accept", "application/json")
 	resp, respErr := client.Do(req)
 
-	if respErr != nil {
+	if respErr != nil { //nolint gocritic
 		err := fmt.Errorf("Error retrieving bindings: %s", respErr.Error())
 		return results, err
 	} else if resp == nil {
@@ -1138,7 +1138,8 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	var connStr string
 	var tlsConfig = &tls.Config{}
 
-	if bd.tlsEnabled && bd.tlsSkipVerify { // force TLS and also skip verification if true
+	// force TLS and also skip verification if true
+	if bd.tlsEnabled && bd.tlsSkipVerify { //nolint gocritic
 		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 		tlsConfig.InsecureSkipVerify = true
 

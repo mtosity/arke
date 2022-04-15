@@ -332,7 +332,7 @@ consumeLoop:
 
 					var ackerr *pb.Error
 
-					if ackmsg.GetUuid() == "" {
+					if ackmsg.GetUuid() == "" { //nolint gocritic
 						ackerr = &pb.Error{Message: "Uuid not set when acking/nacking"}
 					} else if ackmsg.GetNack() && ackmsg.GetRequeueDelay() > 0 { // delayed retry
 						ackerr = prov.Retry(&ctx, source, ackmsg.GetUuid(), ackmsg.GetRequeueDelay())

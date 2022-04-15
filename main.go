@@ -150,7 +150,7 @@ func main() {
 	go metrics.Serve(&httpListener)
 
 	if err := mx.Serve(); err != nil {
-		switch err.(type) {
+		switch err.(type) { //nolint gocritic
 		case *net.OpError:
 			return
 		}
