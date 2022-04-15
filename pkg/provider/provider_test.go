@@ -77,12 +77,12 @@ func TestConcurrentNewProvider(t *testing.T) {
 		Register(letter, NewTestProvider)
 	}
 	for _, letter := range strings.Split(letters, "") {
-		go GetProvider(letter)
+		go GetProvider(letter) //nolint errorcheck
 	}
 
 	providerNames := []string{"amqp091", "azure", "test"}
 	for _, name := range providerNames {
-		go GetProvider(name)
+		go GetProvider(name) //nolint errcheck
 	}
 	time.Sleep(100 * time.Millisecond)
 	providers := RegisteredProviders()

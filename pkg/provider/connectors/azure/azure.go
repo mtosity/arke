@@ -451,7 +451,8 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (azureTopicShim, er
 			fakeSource.Address = &pb.Address{}
 			fakeSource.Address.Subjects = address.GetSubjects()
 
-			declareSubscriptionWithOptions(fakeSource, bd, parentTopic, smOpts, sOpts)
+			// TODO: should we return the error from this declaration?
+			declareSubscriptionWithOptions(fakeSource, bd, parentTopic, smOpts, sOpts) //nolint errcheck
 			bd.knownTopics.Add(parent.GetName(), parentTopic)
 		}
 	}
@@ -558,7 +559,8 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topic 
 	}
 	for _, rule := range existingRules {
 		if rule.Name == "$Default" {
-			sm.DeleteRule(subName, rule.Name)
+			// Ignore any errors, we will try again when we subscribe again
+			sm.DeleteRule(subName, rule.Name) //nolint errcheck
 			continue
 		} else if rule.Name == routingAndFilterRuleName {
 			routingAndFilterRuleExists = true

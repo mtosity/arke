@@ -337,7 +337,7 @@ func TestConsumerServerConnect_Success(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	(*mockp).On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	connectResp, err := conSrv.Connect(ctx, cf)
-	conSrv.Disconnect(ctx, &pb.Empty{})
+	conSrv.Disconnect(ctx, &pb.Empty{}) //nolint errcheck
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
 
@@ -349,7 +349,7 @@ func TestProducerServerConnect_Success(t *testing.T) {
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	connectResp, err := proSrv.Connect(ctx, cf)
-	proSrv.Disconnect(ctx, &pb.Empty{})
+	proSrv.Disconnect(ctx, &pb.Empty{}) //nolint errcheck
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
 
@@ -382,9 +382,9 @@ func TestServerConnectTwice_Ignore(t *testing.T) {
 
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
-	proSrv.Connect(ctx, cf)
+	proSrv.Connect(ctx, cf) //nolint errcheck
 	connectResp, err := proSrv.Connect(ctx, cf)
-	proSrv.Disconnect(ctx, &pb.Empty{})
+	proSrv.Disconnect(ctx, &pb.Empty{}) //nolint errcheck
 
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -402,7 +402,7 @@ func TestServerNoConnectionShare(t *testing.T) {
 	connectResp, err := proSrv.Connect(ctx, cf)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
-	defer proSrv.Disconnect(ctx, &pb.Empty{})
+	defer proSrv.Disconnect(ctx, &pb.Empty{}) //nolint errcheck
 
 	oldClientIdentifier := GetClientIdentifier
 	GetClientIdentifier = func(context.Context) (string, error) {
@@ -414,7 +414,7 @@ func TestServerNoConnectionShare(t *testing.T) {
 	cr2, err2 := proSrv.Connect(ctx2, cf)
 	assert.NotNil(t, cr2)
 	assert.Nil(t, err2)
-	defer proSrv.Disconnect(ctx2, &pb.Empty{})
+	defer proSrv.Disconnect(ctx2, &pb.Empty{}) //nolint errcheck
 
 	mockp.AssertExpectations(t)
 }
@@ -426,7 +426,7 @@ func TestProducerServerPublish_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("publish_sucess message body")}
 
-	proSrv.Connect(ctx, cf)
+	proSrv.Connect(ctx, cf) //nolint errcheck
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 	stream := &MockProducerPublishServerStream{}
 	stream.Receives = make([]*MockPubRecv, 0)
@@ -453,7 +453,7 @@ func TestProducerServerPublishRecv_Fail(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("pub recv fail")}
 
-	proSrv.Connect(ctx, cf)
+	proSrv.Connect(ctx, cf) //nolint errcheck
 	stream := &MockProducerPublishServerStream{}
 	stream.Receives = make([]*MockPubRecv, 0)
 	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
@@ -478,7 +478,7 @@ func TestProducerServerPublishSend_Fail(t *testing.T) {
 	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
 	msg := &pb.Message{Body: []byte("pub send fail")}
 
-	proSrv.Connect(ctx, cf)
+	proSrv.Connect(ctx, cf) //nolint errcheck
 	stream := &MockProducerPublishServerStream{}
 	stream.Receives = make([]*MockPubRecv, 0)
 	stream.Receives = append(stream.Receives, &MockPubRecv{Message: msg})
@@ -507,7 +507,7 @@ func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
 	empty := &pb.Empty{}
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	connectResp, err := conSrv.Disconnect(ctx, empty)
 
 	GetClientIdentifier = oldGetClientIdentifier
@@ -526,7 +526,7 @@ func TestServerDisconnect_FailNoMap(t *testing.T) {
 
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 
 	oldGetClientIdentifier := GetClientIdentifier
 	GetClientIdentifier = func(context.Context) (string, error) {
@@ -549,7 +549,7 @@ func TestConsumerServerDisconnect_Success(t *testing.T) {
 
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	connectResp, err := conSrv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -565,7 +565,7 @@ func TestProducerServerDisconnect_Success(t *testing.T) {
 
 	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 
-	proSrv.Connect(ctx, cf)
+	proSrv.Connect(ctx, cf) //nolint errcheck
 	connectResp, err := proSrv.Disconnect(ctx, empty)
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -616,7 +616,7 @@ func TestConsumerServerConsume(t *testing.T) {
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	mockp.On("Ack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(nil)
 	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
 
@@ -653,7 +653,7 @@ func TestConsumerServerConsume_Nack(t *testing.T) {
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(nil)
 	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
 
@@ -690,7 +690,7 @@ func TestConsumerServerConsume_Retry(t *testing.T) {
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	mockp.On("Retry", mock.AnythingOfType("*context.Context"), source, mock.Anything, mock.Anything).Return(nil)
 	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
 
@@ -711,7 +711,7 @@ func TestConsumerServerConsume_BadOption(t *testing.T) {
 
 	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
 	stream.On("Recv").Return(cnsm, nil).Once()
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
 
@@ -746,7 +746,7 @@ func TestConsumerServerConsume_AckErr(t *testing.T) {
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
 	mockp.On("Ack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(&pb.Error{Message: "ackerr"})
 	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	assert.NotNil(t, err)
 
@@ -769,7 +769,7 @@ func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	stream.On("Recv").Return(cnsm, nil).Twice()
 	stream.On("Recv").Return(nil, io.EOF).After(100 * time.Millisecond)
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), mock.Anything, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
-	conSrv.Connect(ctx, cf)
+	conSrv.Connect(ctx, cf) //nolint errcheck
 	err := conSrv.Consume(stream)
 	fmt.Println("err:", err)
 	assert.Equal(t, err, io.EOF)

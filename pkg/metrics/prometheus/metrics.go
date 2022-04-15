@@ -45,7 +45,7 @@ func init() {
 
 	promConf := met.DefaultConfig("")
 	promConf.EnableHostname = false
-	met.NewGlobal(promConf, Stats.Sink)
+	met.NewGlobal(promConf, Stats.Sink) //nolint errcheck
 }
 
 // Serve Create a new HTTP server and Serve metrics requests

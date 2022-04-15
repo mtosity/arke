@@ -87,19 +87,19 @@ func NewProvider(providerType string) (Provider, error) {
 }
 
 func GetProvider(providerType string) (Provider, error) {
-	prov, registered := registeredProviders.Get(providerType)
+	_, registered := registeredProviders.Get(providerType)
 
 	if !registered {
 		util.Logger.Debugf("Provider %s not found in cache, creating new provider\n", providerType)
-		prov, newProvErr := NewProvider(providerType)
-		if prov != nil {
-			registeredProviders.Add(providerType, prov)
+		newProv, newProvErr := NewProvider(providerType)
+		if newProv != nil {
+			registeredProviders.Add(providerType, newProv)
 		}
 		if newProvErr != nil {
 			return nil, newProvErr
 		}
 	}
-	prov, _ = registeredProviders.Get(providerType)
+	prov, _ := registeredProviders.Get(providerType)
 
 	return prov.(Provider), nil
 }

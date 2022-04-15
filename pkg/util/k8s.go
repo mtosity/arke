@@ -88,7 +88,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 				continue
 			}
 
-			newReplicaCount := currentReplicaCount
+			newReplicaCount := currentReplicaCount //nolint ineffassign
 			switch event.Type {
 			case watch.Modified:
 				newReplicaCount = hpa.Status.CurrentReplicas

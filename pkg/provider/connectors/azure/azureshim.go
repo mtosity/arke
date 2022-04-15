@@ -244,14 +244,14 @@ func (as *azureSubscription) Receive(ctx context.Context, messages chan azureMes
 			return fmt.Errorf("%s", err)
 		}
 		return nil
-	}()
+	}() //nolint errcheck
 
-	as.subscription.Receive(ctx, servicebus.HandlerFunc(func(ctx context.Context, msg *servicebus.Message) error {
+	err := as.subscription.Receive(ctx, servicebus.HandlerFunc(func(ctx context.Context, msg *servicebus.Message) error {
 		amsg := &azureMessage{sbMsg: msg}
 		messages <- amsg
 		return nil
 	}))
-	return nil
+	return err
 }
 
 func (as *azureSubscription) Name() string {

@@ -145,7 +145,7 @@ func main() {
 	// so if we're not HTTP/1, assume gRPC.
 	grpcListener := mx.Match(cmux.Any())
 
-	go s.Serve(grpcListener)
+	go s.Serve(grpcListener) // nolint errcheck
 	// To emit prometeus metrics for arke
 	go metrics.Serve(&httpListener)
 

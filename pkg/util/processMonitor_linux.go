@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package util
@@ -44,9 +45,11 @@ func MonitorProcessStats() {
 		ps.gatherTime = time.Now()
 
 		rusage := &syscall.Rusage{}
-		syscall.Getrusage(syscall.RUSAGE_SELF, rusage)
-		ps.utime = rusage.Utime.Nano() / int64(time.Millisecond) / 10
-		ps.stime = rusage.Stime.Nano() / int64(time.Millisecond) / 10
+		rusageErr := syscall.Getrusage(syscall.RUSAGE_SELF, rusage)
+		if rusageErr == nil {
+			ps.utime = rusage.Utime.Nano() / int64(time.Millisecond) / 10
+			ps.stime = rusage.Stime.Nano() / int64(time.Millisecond) / 10
+		}
 
 		// Determine memory usage
 		var mem runtime.MemStats

@@ -372,7 +372,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 
-	exchangeType := "topic"
+	var exchangeType string
 	switch aType {
 	case pb.Address_TOPIC:
 		exchangeType = "topic"
@@ -600,7 +600,7 @@ func (bd *BrokerDetails) deleteBindingByKeyFromSource(source *pb.Source, propKey
 	return nil
 }
 
-func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) error {
+func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) {
 	bindings := bd.getBindingKeysForSource(source)
 	for _, binding := range bindings {
 		bindingExpected := false
@@ -619,7 +619,6 @@ func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) e
 			}
 		}
 	}
-	return nil
 }
 
 func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
@@ -709,7 +708,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	defer amqpChannel.Close()
 
 	if source.GetPrefetchCount() > 0 {
-		amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
+		err := amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
+		// if SetPrefetch fails, we need to get out because this could
+		// setup a firehose for a client who isn't expecting it
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
 	}
 
 	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
@@ -1052,7 +1056,8 @@ func (bd *BrokerDetails) connectionWatcher() {
 				bd.state = provider.DISCONNECTED
 				sleepRandomReconnect()
 				bd.Unlock()
-				bd.connect()
+				// Ignore this error because we will reconnect in 30 seconds
+				bd.connect() //nolint errcheck
 				continue
 			}
 			bd.Unlock()
@@ -1061,7 +1066,8 @@ func (bd *BrokerDetails) connectionWatcher() {
 			// this is to help deal with race condition where we're not listening on the bd.ErrorChannel
 			// when there is an error on the connection
 			if bd.Connection.IsClosed() {
-				bd.connect()
+				// Ignore this error because we will reconnect in 30 seconds
+				bd.connect() //nolint errcheck
 			}
 			continue
 		}

@@ -365,7 +365,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	if prov == nil {
 		ftlError := errors.New(findErr.Message)
 		msgResp := &pb.MessageResponse{Success: false, Error: findErr}
-		stream.Send(msgResp)
+		stream.Send(msgResp) //nolint errcheck
 		return ftlError
 	}
 
@@ -376,7 +376,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	if err != nil {
 		ciError := &pb.Error{Message: err.Error(), IsFatal: true}
 		msgResp := &pb.MessageResponse{Success: false, Error: ciError}
-		stream.Send(msgResp)
+		stream.Send(msgResp) //nolint errcheck
 		return err
 	}
 
@@ -496,7 +496,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 		resp := &pb.MessageResponse{Success: false, Error: errMsg}
 
 		// we don't care if the send fails here
-		stream.Send(resp)
+		stream.Send(resp) //nolint errcheck
 	}
 
 	return returnError
@@ -685,7 +685,8 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 				// set the time right before sending the response
 				hs.Status.Time = NewTimestampPB()
 				hlth.Resp = hs
-				stream.Send(hlth)
+				// We dont' care if this send fails
+				stream.Send(hlth) //nolint errcheck
 			} else if status := msg.GetStatus(); status != nil {
 				// TODO: we are going to do nothing for now, but we need to determine
 				// if there are any actual scenarios for us caring about a status response
@@ -707,7 +708,8 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 			hs.Status.Code = code
 			hs.Status.Time = NewTimestampPB()
 			hlth.Resp = hs
-			stream.Send(hlth)
+			// We don't care of this send fails
+			stream.Send(hlth) //nolint errcheck
 		case <-ctx.Done():
 			done = true
 		}
