@@ -1343,6 +1343,7 @@ func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
 }
 
 func TestConsumeNoAckReconnectConsume(t *testing.T) {
+	t.Skip("This test is flaky. Skipping for now.")
 	expectedMsgBodyUUID := util.GenUUID()
 
 	// Set up the consumer
