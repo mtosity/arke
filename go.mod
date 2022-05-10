@@ -14,7 +14,7 @@ require (
 	sassoftware.io/convoy/arke/api v0.0.0-20211213191304-b79d5663ed51
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
-	sassoftware.io/viya/zlog v0.1.14
+	sassoftware.io/viya/zlog v0.1.16
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.5
