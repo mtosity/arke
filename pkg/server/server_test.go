@@ -239,6 +239,19 @@ func (prov *MockProvider) Retry(ctx *context.Context, origSource *pb.Source, msg
 	return err
 }
 
+// DeadLetter a message
+func (prov *MockProvider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
+	args := prov.Called(ctx, origSource, msgid)
+
+	var err *pb.Error
+	errArg := args.Get(0)
+	if errArg != nil {
+		err := errArg.(*pb.Error)
+		return err
+	}
+	return err
+}
+
 // Connect connect to broker
 func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
 	args := prov.Called(ctx, cf, tlsSkipVerify)
@@ -305,6 +318,8 @@ func (prov *MockProvider) WaitForConnect(ctx *context.Context) bool {
 func (prov *MockProvider) SupportedSourceOptions() map[string]bool {
 	opts := make(map[string]bool)
 	opts["option1"] = true
+	opts["DeadLetterAddress"] = true
+	opts["DeadLetterSubject"] = true
 	return opts
 }
 
@@ -651,6 +666,81 @@ func TestConsumerServerConsume_Nack(t *testing.T) {
 
 	// We are returning an error after 500 ms as a simple way of exiting the subscribe
 	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
+	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(nil)
+	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
+	conSrv.Connect(ctx, cf) //nolint errcheck
+	err := conSrv.Consume(stream)
+	assert.NotNil(t, err)
+
+	mockp.AssertExpectations(t)
+	stream.AssertExpectations(t)
+}
+
+func TestConsumerServerConsume_DLQ(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	sourceOptions := make(map[string]string)
+	sourceOptions["DeadLetterAddress"] = "dlq"
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions}
+	stream := &MockConsumerConsumeServerStream{}
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+
+	messages := make([]*pb.Message, 0)
+
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("one")})
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("two")})
+
+	mockp.MockMessages = messages
+
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Recv").Return(cnsm, nil).Once()
+	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1", Nack: true}}}
+	stream.On("Recv").Return(cnsm, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("stop")).Once().After(500 * time.Millisecond)
+
+	// We are returning an error after 500 ms as a simple way of exiting the subscribe
+	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
+	mockp.On("DeadLetter", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(nil)
+	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
+	conSrv.Connect(ctx, cf) //nolint errcheck
+	err := conSrv.Consume(stream)
+	assert.NotNil(t, err)
+
+	mockp.AssertExpectations(t)
+	stream.AssertExpectations(t)
+}
+
+func TestConsumerServerConsume_DLQFail(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	mockp.On("Connect", mock.AnythingOfType("*context.Context"), mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	sourceOptions := make(map[string]string)
+	sourceOptions["DeadLetterAddress"] = "dlq"
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions}
+	stream := &MockConsumerConsumeServerStream{}
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+
+	messages := make([]*pb.Message, 0)
+
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("one")})
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("two")})
+
+	mockp.MockMessages = messages
+
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Once()
+	stream.On("Recv").Return(cnsm, nil).Once()
+	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1", Nack: true}}}
+	stream.On("Recv").Return(cnsm, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("stop")).Once().After(500 * time.Millisecond)
+
+	// We are returning an error after 500 ms as a simple way of exiting the subscribe
+	mockp.On("Subscribe", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"}).After(250 * time.Millisecond)
+	mockp.On("DeadLetter", mock.AnythingOfType("*context.Context"), source, mock.Anything).Return(&pb.Error{Message: "breaking"})
 	mockp.On("Nack", mock.AnythingOfType("*context.Context"), mock.Anything).Return(nil)
 	mockp.On("WaitForConnect", mock.AnythingOfType("*context.Context")).Return(false)
 	conSrv.Connect(ctx, cf) //nolint errcheck

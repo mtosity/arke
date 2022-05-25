@@ -76,6 +76,9 @@ test: generate ## Executes unit tests
 	LOG_FORMAT=term go test -timeout 30s --coverprofile coverage.out ./pkg/... -cover -v
 	go tool cover -html=coverage.out -o coverage.html
 
+lint: ## Run golangci-lint tool
+	golangci-lint run --timeout=30m --disable-all --enable=deadcode --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=structcheck --enable=typecheck --enable=unused --enable=varcheck --enable=revive --enable=gocritic  --allow-parallel-runners
+
 compose: linux ## Builds and runs docker image(s) for integration tests
 	cp build/linux/arke tests/integration/
 	cd tests/integration; \

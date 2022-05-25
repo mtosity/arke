@@ -5,6 +5,7 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/stretchr/testify/mock"
 )
 
 // amqp091ConnectionShim Shim so we can do unit testing
@@ -279,6 +280,9 @@ func (msg *amqp091Message) Ack() error {
 	switch msg.delivery.(type) { //nolint gocritic
 	case amqp.Delivery:
 		return msg.delivery.(amqp.Delivery).Ack(false)
+	case *mock.Mock:
+		args := msg.delivery.(*mock.Mock).Called()
+		return args.Error(0)
 	}
 	return nil
 }
@@ -289,6 +293,9 @@ func (msg *amqp091Message) Nack(requeue bool) error {
 	switch msg.delivery.(type) { //nolint gocritic
 	case amqp.Delivery:
 		return msg.delivery.(amqp.Delivery).Nack(false, requeue)
+	case *mock.Mock:
+		args := msg.delivery.(*mock.Mock).Called(false, requeue)
+		return args.Error(0)
 	}
 	return nil
 }

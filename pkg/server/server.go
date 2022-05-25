@@ -337,7 +337,14 @@ consumeLoop:
 					} else if ackmsg.GetNack() && ackmsg.GetRequeueDelay() > 0 { // delayed retry
 						ackerr = prov.Retry(&ctx, source, ackmsg.GetUuid(), ackmsg.GetRequeueDelay())
 					} else if ackmsg.GetNack() { // Nack
-						ackerr = prov.Nack(&ctx, ackmsg.GetUuid())
+						// dead letter if enabled, else Nack
+						opts := source.GetOptions()
+						if _, ok := opts["DeadLetterAddress"]; ok {
+							ackerr = prov.DeadLetter(&ctx, source, ackmsg.GetUuid())
+						}
+						if _, ok := opts["DeadLetterAddress"]; !ok || ackerr != nil {
+							ackerr = prov.Nack(&ctx, ackmsg.GetUuid())
+						}
 					} else { // Ack
 						ackerr = prov.Ack(&ctx, ackmsg.GetUuid())
 					}

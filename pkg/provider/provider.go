@@ -18,6 +18,7 @@ type Provider interface {
 	Ack(*context.Context, string) *pb.Error
 	Nack(*context.Context, string) *pb.Error
 	Retry(*context.Context, *pb.Source, string, int32) *pb.Error
+	DeadLetter(*context.Context, *pb.Source, string) *pb.Error
 	Connect(*context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
 	Disconnect(*context.Context)
 	SupportedSourceOptions() map[string]bool

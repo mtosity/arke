@@ -324,13 +324,33 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
 			_ = rm.Nack(true)
 		} else {
-			_ = rm.Nack(false)
+			_ = rm.Ack() // We ack the message to prevent it from requeueing or dead lettering
 		}
 		util.Logger.DebugI("debug.retrymessage", bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
 		util.Logger.DebugI("debug.retrynomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
+	}
+
+	return nil
+}
+
+// DeadLetter routes the message to a dead letter Address because all retries have failed
+func (prov *amqp091provider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		rm := rmu.(amqp091Message)
+		util.Logger.Debugf("DeadLetter message with id [%s].", msgid)
+		_ = rm.Nack(false) // Requeue set to false will cause the message to DeadLetter
+		bd.activeMessages.Delete(msgid)
+	} else {
+		util.Logger.Debugf("DeadLetter message with id [%s] failed, message not found in active messages.", msgid)
+		return &pb.Error{Message: fmt.Sprintf("DeadLetter message with id [%s] failed, message not found in active messages.", msgid)}
 	}
 
 	return nil
@@ -368,6 +388,67 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 	return nil
 
+}
+
+func (prov *amqp091provider) setupDeadLetter(ctx *context.Context, origSource *pb.Source) *pb.Error {
+	opts := origSource.GetOptions()
+	if _, ok := opts["DeadLetterAddress"]; !ok {
+		return nil
+	}
+
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	amqpChannel, err := bd.Connection.NewChannel()
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+	defer amqpChannel.Close()
+
+	// setup exchange/queue/binding
+	subjects := make([]string, 0)
+	sourceName := fmt.Sprintf("%s.dlq", origSource.GetName())
+	subject := origSource.GetName()
+	if dls, ok := opts["DeadLetterSubject"]; ok {
+		subject = dls
+	}
+
+	subjects = append(subjects, subject)
+
+	source := &pb.Source{
+		Name: sourceName,
+		Address: &pb.Address{
+			Subjects: subjects,
+			Type:     pb.Address_TOPIC,
+			Name:     opts["DeadLetterAddress"],
+		},
+	}
+
+	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	err = prov.declareQueue(source, bd, amqpChannel, true)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	if amqpChannel.IsClosed() {
+		amqpChannel, err = bd.Connection.NewChannel()
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
+	}
+
+	err = prov.declareBinding(source, bd, amqpChannel, true)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	return nil
 }
 
 func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
@@ -744,6 +825,8 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			return &pb.Error{Message: err.Error()}
 		}
 	}
+
+	prov.setupDeadLetter(ctx, source)
 
 	messages, err := amqpChannel.Consume(
 		source.GetName(),      // queue name

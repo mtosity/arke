@@ -284,6 +284,12 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 	return nil
 }
 
+// DeadLetter routes the message to a dead letter Address because all retries have failed
+func (prov *azureprovider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
+	// TODO: we have a ticket to implement this for Azure
+	return nil
+}
+
 func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
 
 	if source.GetAddress().GetName() == "" {
