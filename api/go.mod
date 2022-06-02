@@ -1,6 +1,6 @@
 module sassoftware.io/convoy/arke/api
 
-go 1.17
+go 1.18
 
 require (
 	google.golang.org/grpc v1.43.0

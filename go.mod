@@ -1,6 +1,6 @@
 module sassoftware.io/convoy/arke
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Azure/azure-amqp-common-go/v3 v3.2.1
