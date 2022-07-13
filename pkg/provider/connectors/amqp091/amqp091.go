@@ -426,16 +426,15 @@ func (prov *amqp091provider) setupDeadLetter(ctx *context.Context, origSource *p
 		},
 	}
 
-	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
+	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
+	if amqpChannel.IsClosed() {
+		amqpChannel, err = bd.Connection.NewChannel()
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
 	}
 
-	err = prov.declareQueue(source, bd, amqpChannel, true)
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
-	}
-
+	_ = prov.declareQueue(source, bd, amqpChannel, true)
 	if amqpChannel.IsClosed() {
 		amqpChannel, err = bd.Connection.NewChannel()
 		if err != nil {

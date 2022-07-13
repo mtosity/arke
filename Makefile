@@ -1,9 +1,30 @@
 
 OUT_FILE=arke
-HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
-HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
-HAVE_PROTOC_JAVA:=$(shell which protoc-gen-grpc-java.exe 2>/dev/null)
 GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
+
+HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
+PROTOC=:
+ifneq ("$(HAVE_PROTOC)","")
+    PROTOC=protoc
+else
+    $(info No protoc command found, skipping generate task.)
+endif
+
+HAVE_PROTOC_DOC:=$(shell which protoc-gen-doc 2>/dev/null)
+PROTOCDOC=:
+ifneq ("$(HAVE_PROTOC_DOC)","")
+    PROTOCDOC=protoc
+else
+    $(info No protoc-gen-doc command found, skipping generate task.)
+endif
+
+HAVE_PROTOC_JAVA:=$(shell which protoc-gen-grpc-java.exe 2>/dev/null)
+PROTOCJAVA=:
+ifneq ("$(HAVE_PROTOC_JAVA)","")
+    PROTOCJAVA=protoc
+else
+    $(info No protoc-gen-grpc-java.exe command found, skipping generate task.)
+endif
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -12,6 +33,8 @@ endif
 ifeq ($(UNAME_S),Darwin)
 	proto_libs = /opt/homebrew/include
 endif
+
+ci: clean linux-nogen
 
 all: clean setup generate linux # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
@@ -24,31 +47,21 @@ setup: ## Makes build directories and installs vendor dependencies
 	mkdir -p build/osx
 	mkdir -p build/windows
 
-generate: generate-proto generate-doc
+generate: generate-proto generate-doc ## Generates all files
 
 generate-proto: ## Generates protobufs
-    ifneq ("$(HAVE_PROTOC)","")
-	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --go_out=api --go_opt=paths=source_relative --go-grpc_out=api --go-grpc_opt=paths=source_relative api/protobuf-spec/arke.proto
-    else
-        $(info No protoc command found, skipping generate task.)
-    endif
+	$(PROTOC) -I$(proto_libs) --proto_path=api/protobuf-spec --go_out=api --go_opt=paths=source_relative --go-grpc_out=api --go-grpc_opt=paths=source_relative api/protobuf-spec/arke.proto
 
 generate-proto-java: ## Generates protobufs for java
-    ifneq ("$(HAVE_PROTOC_JAVA)","")
-	protoc -I$(proto_libs) --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
-	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
-    else
-        $(info No protoc-gen-grpc-java command found, skipping generate task.)
-    endif
+	$(PROTOCJAVA) -I$(proto_libs) --plugin=protoc-gen-grpc-java=$(HAVE_PROTOC_JAVA) --proto_path=api/protobuf-spec --grpc-java_out=api/java api/protobuf-spec/*.proto
+	$(PROTOCJAVA) -I$(proto_libs) --proto_path=api/protobuf-spec --java_out=api/java api/protobuf-spec/*.proto
 
 generate-doc: ## Generates protobuf docs
-    ifneq ("$(HAVE_PROTOC_DOC)","")
-	protoc -I$(proto_libs) --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
-    else
-        $(info No protoc doc command found, skipping generate doc task.)
-    endif
+	$(PROTOCDOC) -I$(proto_libs) --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
 
-linux: setup generate ## Builds binary for linux_amd64 (lax)
+linux: linux-nogen generate ## Builds binary for linux_amd64 (lax)
+
+linux-nogen: setup ## Builds binary for linux_amd64 (lax)
 	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
 	$(MAKE) -C test/test_producer linux
 	$(MAKE) -C test/test_consumer linux
@@ -72,7 +85,9 @@ windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	$(MAKE) -C test/simple_producer windows
 	$(MAKE) -C test/healthz windows
 
-test: generate ## Executes unit tests
+test: generate lint test-nogen ## Executes unit tests
+
+test-nogen: ## Executes unit tests without protoc generation
 	LOG_FORMAT=term go test -timeout 30s --coverprofile coverage.out ./pkg/... -cover -v
 	go tool cover -html=coverage.out -o coverage.html
 
