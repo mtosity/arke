@@ -787,15 +787,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	}
 	defer amqpChannel.Close()
 
-	if source.GetPrefetchCount() > 0 {
-		err := amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
-		// if SetPrefetch fails, we need to get out because this could
-		// setup a firehose for a client who isn't expecting it
-		if err != nil {
-			return &pb.Error{Message: err.Error()}
-		}
-	}
-
 	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -826,6 +817,15 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 	}
 
 	prov.setupDeadLetter(ctx, source)
+
+	if source.GetPrefetchCount() > 0 {
+		err := amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
+		// if SetPrefetch fails, we need to get out because this could
+		// setup a firehose for a client who isn't expecting it
+		if err != nil {
+			return &pb.Error{Message: err.Error()}
+		}
+	}
 
 	messages, err := amqpChannel.Consume(
 		source.GetName(),      // queue name
