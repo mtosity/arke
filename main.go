@@ -149,6 +149,8 @@ func main() {
 	// To emit prometeus metrics for arke
 	go metrics.Serve(&httpListener)
 
+	go util.FreeMem()
+
 	if err := mx.Serve(); err != nil {
 		switch err.(type) { //nolint gocritic
 		case *net.OpError:

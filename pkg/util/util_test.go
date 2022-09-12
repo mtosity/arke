@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -99,4 +100,36 @@ func Test_TestProcessStats(t *testing.T) {
 		}
 		// might not be able to calculate cpu usage yet
 	}
+}
+
+func Test_GetConfig(t *testing.T) {
+	testVar := "TEST_ENV_VAR"
+	defer os.Unsetenv(testVar)
+
+	// Default value int
+	intVal := GetConfig(testVar, 11)
+	assert.Equal(t, 11, intVal)
+
+	// Default value bool
+	boolVal := GetConfig(testVar, true)
+	assert.Equal(t, true, boolVal)
+
+	// Default value string
+	strVal := GetConfig(testVar, "test")
+	assert.Equal(t, "test", strVal)
+
+	// Env var int
+	os.Setenv(testVar, "10")
+	intVal = GetConfig(testVar, 11)
+	assert.Equal(t, 10, intVal)
+
+	// Env var bool
+	os.Setenv(testVar, "true")
+	boolVal = GetConfig(testVar, false)
+	assert.Equal(t, true, boolVal)
+
+	// Env var string
+	os.Setenv(testVar, "foo")
+	strVal = GetConfig(testVar, "bar")
+	assert.Equal(t, "foo", strVal)
 }

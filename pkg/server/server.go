@@ -558,9 +558,18 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 		util.Logger.Debugf("Client %s called Connect more than once.", clientIdentifier)
 		return &pb.ConnectResponse{Success: true, Error: nil}, nil
 	}
-	errMsg := prov.Connect(&ctx, cf, tlsSkipVerify)
-	success := true
+	var errMsg *pb.Error
 	var err error
+	maxRetries := util.GetConfig("MAX_RECONNECT_RETRIES", 5)
+	maxSleep := util.GetConfig("MAX_RECONNECT_DELAY", 5000) // Default 5s
+	for connectTry := 1; connectTry <= maxRetries.(int); connectTry++ {
+		errMsg = prov.Connect(&ctx, cf, tlsSkipVerify)
+		if errMsg == nil || errMsg.GetMessage() == "" {
+			break
+		}
+		util.SleepRandom(1000, maxSleep.(int))
+	}
+	success := true
 	if errMsg != nil && errMsg.GetMessage() != "" {
 		success = false
 		err = errors.New(errMsg.GetMessage())

@@ -5,6 +5,10 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"math/rand"
+	"os"
+	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -103,4 +107,46 @@ type cpuProcStat struct {
 
 func NewTimestampPB() *timestamppb.Timestamp {
 	return timestamppb.New(time.Now())
+}
+
+func SleepRandom(min int, max int) {
+	rand.Seed(time.Now().UnixNano())
+	splay := time.Duration(rand.Intn(max-min)+min) * time.Millisecond
+	time.Sleep(splay)
+}
+
+func GetConfig(key string, def interface{}) interface{} {
+	val := os.Getenv(key)
+	// Can't find the env var, return default value
+	if val == "" {
+		return def
+	}
+	// We assume the environment variable is the same type
+	// as the default value passed in.
+	switch def.(type) {
+	case bool:
+		boolVal, err := strconv.ParseBool(val)
+		if err == nil {
+			return boolVal
+		}
+	case int:
+		intVal, err := strconv.Atoi(val)
+		if err == nil {
+			return intVal
+		}
+	case string:
+		return val
+	}
+	// If we don't have a case for the type or if we have
+	// an error parsing, then return the default value
+	return def
+}
+
+func FreeMem() {
+	for {
+		timer := time.NewTimer(5 * time.Minute)
+
+		<-timer.C
+		debug.FreeOSMemory()
+	}
 }

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +23,7 @@ import (
 )
 
 const providerName string = "amqp091"
+const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 
 var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires"}
 
@@ -37,6 +37,7 @@ var GetClientIdentifier = util.GetClientIdentifier
 
 type amqp091provider struct {
 	provider.Provider
+	tlsConfig   *tls.Config
 	connections *util.ConcurrentMap
 }
 
@@ -109,6 +110,18 @@ func connectionCleaner() {
 func NewAMQP091Provider() provider.Provider {
 	connections := util.NewConcurrentMap()
 	prov := &amqp091provider{connections: connections}
+
+	caBundlePath := os.Getenv(trustedCerts)
+	prov.tlsConfig = &tls.Config{}
+
+	if caBundlePath != "" {
+		caBundle, err := os.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
+		if err == nil {
+			prov.tlsConfig.RootCAs = x509.NewCertPool()
+			prov.tlsConfig.RootCAs.AppendCertsFromPEM(caBundle)
+		}
+	}
+
 	// go prov.monitor()
 	return prov
 }
@@ -130,6 +143,7 @@ func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetai
 	}
 
 	if bd := prov.getBrokerDetailsByIdentifier(clientIdentifier); bd != nil {
+		bd.tlsConfig = prov.tlsConfig
 		return bd, nil
 	}
 
@@ -356,6 +370,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		ErrorChannel:     make(chan amqp091Error),
 		activeMessages:   activeMessages,
 		tlsSkipVerify:    tlsSkipVerify,
+		tlsConfig:        prov.tlsConfig,
 		produced:         0,
 		consumed:         0,
 		ActiveStreams:    0,
@@ -1086,10 +1101,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 }
 
 func sleepRandomReconnect() {
-
-	rand.Seed(time.Now().UnixNano())
-	splay := time.Duration(rand.Intn(provider.ReconnectDelay-500)+500) * time.Millisecond
-	time.Sleep(splay)
+	util.SleepRandom(500, provider.ReconnectDelay)
 }
 
 // connectionWatcher Called at the end of BrokerDetails.connect(), we monitor the bd.ErrorChannel and try to reconnect
@@ -1188,20 +1200,17 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	}
 
 	var connStr string
-	var tlsConfig = &tls.Config{}
+	var tlsConfig = bd.tlsConfig
 
 	// force TLS and also skip verification if true
 	if bd.tlsEnabled && bd.tlsSkipVerify { //nolint gocritic
 		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 		tlsConfig.InsecureSkipVerify = true
-
-	} else if bd.tlsEnabled && string(cf.GetCaCertificate()) != "" { // force verification if CA certificate is sent
-		util.Logger.Debugf("%s connecting with TLS and provided certificate: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
-		tlsConfig.RootCAs = x509.NewCertPool()
-		tlsConfig.RootCAs.AppendCertsFromPEM(cf.GetCaCertificate())
-
 	} else if bd.tlsEnabled { // Regular TLS with cert verification against system certs
-		if caBundlePath := getCaBundlePath(); caBundlePath != "" {
+		if tlsConfig.RootCAs != nil {
+			util.Logger.Debugf("%s connecting with TLS using system certs: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
+		} else if caBundlePath := getCaBundlePath(); caBundlePath != "" {
+			util.Logger.Debugf("%s connecting with TLS using certs from %s: %s:%d", bd.ClientIdentifier, caBundlePath, cf.GetHost(), cf.GetPort())
 			caBundle, err := os.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
 				return false, fmt.Errorf("could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
@@ -1209,8 +1218,6 @@ func (bd *BrokerDetails) connect() (bool, error) {
 			tlsConfig.RootCAs = x509.NewCertPool()
 			tlsConfig.RootCAs.AppendCertsFromPEM(caBundle)
 		}
-		util.Logger.Debugf("%s connecting with TLS using system certs: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
-
 	} else { // no tls
 		util.Logger.Debugf("%s connecting without TLS: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 	}
@@ -1218,7 +1225,6 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	connStr = fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme, cf.GetCredentials().GetUsername(),
 		cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 
-	bd.tlsConfig = tlsConfig
 	conn = NewAmqpConn091(connStr, bd.ClientIdentifier, tlsConfig)
 	err = conn.Connect()
 
