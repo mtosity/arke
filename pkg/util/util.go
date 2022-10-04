@@ -15,7 +15,7 @@ import (
 var clientMap = NewConcurrentMap()
 var cpuHistory = make([]float64, 24) // 2 minutes worth of cpu usage
 var memHistory = make([]int, 24)
-var maxMemory = float64(0)
+var maxMemory = float64(0) //nolint
 
 func SetClientIdentifier(ctx context.Context, name string) (string, error) {
 	clientAddr, err := GetClientAddr(ctx)

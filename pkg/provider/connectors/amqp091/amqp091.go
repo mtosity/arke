@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -290,23 +289,9 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
 		}
 
-		if amqpChannel.IsClosed() {
-			amqpChannel, err = bd.Connection.NewChannel()
-			if err != nil {
-				return &pb.Error{Message: err.Error()}
-			}
-		}
-
 		declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
-		}
-
-		if amqpChannel.IsClosed() {
-			amqpChannel, err = bd.Connection.NewChannel()
-			if err != nil {
-				return &pb.Error{Message: err.Error()}
-			}
 		}
 
 		start := time.Now()
@@ -427,20 +412,8 @@ func (prov *amqp091provider) setupDeadLetter(ctx *context.Context, origSource *p
 	}
 
 	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
-	if amqpChannel.IsClosed() {
-		amqpChannel, err = bd.Connection.NewChannel()
-		if err != nil {
-			return &pb.Error{Message: err.Error()}
-		}
-	}
 
 	_ = prov.declareQueue(source, bd, amqpChannel, true)
-	if amqpChannel.IsClosed() {
-		amqpChannel, err = bd.Connection.NewChannel()
-		if err != nil {
-			return &pb.Error{Message: err.Error()}
-		}
-	}
 
 	err = prov.declareBinding(source, bd, amqpChannel, true)
 	if err != nil {
@@ -781,6 +754,10 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	bd.updateLastPubSubEvent()
 
+	if bd.Connection.IsClosed() {
+		return &pb.Error{Message: "connection to broker is closed"}
+	}
+
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -797,23 +774,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
-	if amqpChannel.IsClosed() {
-		amqpChannel, err = bd.Connection.NewChannel()
-		if err != nil {
-			return &pb.Error{Message: err.Error()}
-		}
-	}
-
 	err = prov.declareBinding(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
-	}
-
-	if amqpChannel.IsClosed() {
-		amqpChannel, err = bd.Connection.NewChannel()
-		if err != nil {
-			return &pb.Error{Message: err.Error()}
-		}
 	}
 
 	prov.setupDeadLetter(ctx, source)
@@ -975,6 +938,10 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 	bd.updateLastPubSubEvent()
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
+
+	if bd.Connection.IsClosed() {
+		return &pb.Error{Message: "connection to broker is closed"}
+	}
 
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
@@ -1148,6 +1115,9 @@ func (bd *BrokerDetails) connectionWatcher() {
 			// this is to help deal with race condition where we're not listening on the bd.ErrorChannel
 			// when there is an error on the connection
 			if bd.Connection.IsClosed() {
+				bd.Lock()
+				bd.state = provider.DISCONNECTED
+				bd.Unlock()
 				// Ignore this error because we will reconnect in 30 seconds
 				bd.connect() //nolint errcheck
 			}
@@ -1232,7 +1202,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	} else if bd.tlsEnabled { // Regular TLS with cert verification against system certs
 		if caBundlePath := getCaBundlePath(); caBundlePath != "" {
-			caBundle, err := ioutil.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
+			caBundle, err := os.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
 			if err != nil {
 				return false, fmt.Errorf("could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
 			}

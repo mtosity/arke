@@ -2,10 +2,12 @@ package amqp091
 
 import (
 	"crypto/tls"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
+	"sassoftware.io/convoy/arke/pkg/util"
 )
 
 // amqp091ConnectionShim Shim so we can do unit testing
@@ -29,6 +31,7 @@ type amqp091ChannelShim interface {
 	QueueBind(string, string, string, amqp091Table) error
 	Consume(string, bool, bool) (<-chan amqp091Message, error)
 	NotifyCancel(chan string) chan string
+	ensureChannel() error
 }
 
 // amqp091Connection A connection to the broker
@@ -38,12 +41,16 @@ type amqp091Connection struct {
 	connStr          string
 	tlsCfg           *tls.Config
 	clientIdentifier string
+	channelLock      sync.Mutex
 }
 
 // amqp091Channel A channel
 type amqp091Channel struct {
 	amqp091ChannelShim
-	channel *amqp.Channel
+	channel     *amqp.Channel
+	connection  *amqp091Connection
+	channelLock sync.Mutex
+	prefetch    int
 }
 
 // amqp091Error Error
@@ -91,11 +98,13 @@ func (ac *amqp091Connection) Connect() error {
 
 // NewChannel Create a new channel on the connection
 func (ac *amqp091Connection) NewChannel() (amqp091ChannelShim, error) {
+	ac.channelLock.Lock()
+	defer ac.channelLock.Unlock()
 	ch, err := ac.connection.Channel()
 	if err != nil {
 		return nil, err
 	}
-	ach := &amqp091Channel{channel: ch}
+	ach := &amqp091Channel{channel: ch, connection: ac}
 	return ach, nil
 }
 
@@ -152,39 +161,80 @@ func (ch *amqp091Channel) IsClosed() bool {
 	return ch.channel.IsClosed()
 }
 
+func (ch *amqp091Channel) ensureChannel() error {
+	ch.channelLock.Lock()
+	defer ch.channelLock.Unlock()
+	if ch.channel.IsClosed() {
+		newCh, err := ch.connection.NewChannel()
+		if err != nil {
+			util.Logger.DebugI("debug.ensurechannelerror", ch.connection.clientIdentifier, err)
+			return err
+		}
+		ch.channel = newCh.(*amqp091Channel).channel
+	}
+
+	if ch.prefetch > 0 {
+		return ch.channel.Qos(ch.prefetch, 0, false)
+	}
+
+	return nil
+}
+
 // ExchangeDeclare Declare a new exchange
 func (ch *amqp091Channel) ExchangeDeclare(addressName, exchangeType string, durable, autoDelete bool) error {
+	err := ch.ensureChannel()
+	if err != nil {
+		return err
+	}
 
 	return ch.channel.ExchangeDeclare(addressName, exchangeType, durable, autoDelete, false, false, nil)
 }
 
 // ExchangeBind Bind an exchange to another exchange
 func (ch *amqp091Channel) ExchangeBind(addressName, subject, parentName string) error {
+	err := ch.ensureChannel()
+	if err != nil {
+		return err
+	}
+
 	return ch.channel.ExchangeBind(addressName, subject, parentName, false, nil)
 }
 
 // QueueDeclare Create a queue
 func (ch *amqp091Channel) QueueDeclare(name string, durable, autoDelete, exclusive bool, args amqp091Table) error {
-	_, err := ch.channel.QueueDeclare(name, durable, autoDelete, exclusive, false, toAmqpTable(args))
+	err := ch.ensureChannel()
+	if err != nil {
+		return err
+	}
+
+	_, err = ch.channel.QueueDeclare(name, durable, autoDelete, exclusive, false, toAmqpTable(args))
 	return err
 }
 
 // SetPrefetch Sets quality of service on the channel
 func (ch *amqp091Channel) SetPrefetch(prefetchCount int) error {
-	if prefetchCount > 0 {
-		return ch.channel.Qos(prefetchCount, 0, false)
-	}
-	return nil
+	ch.prefetch = prefetchCount
+
+	return ch.ensureChannel()
 }
 
 // QueueBind Binds an queue to an exchange with subject/arguments
 func (ch *amqp091Channel) QueueBind(name, subject, destination string, args amqp091Table) error {
-	// true
+	err := ch.ensureChannel()
+	if err != nil {
+		return err
+	}
+
 	return ch.channel.QueueBind(name, subject, destination, true, toAmqpTable(args))
 }
 
 // Consume Consume messages from a queue
 func (ch *amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-chan amqp091Message, error) {
+	err := ch.ensureChannel()
+	if err != nil {
+		return nil, err
+	}
+
 	delChan, err := ch.channel.Consume(subject, "", autoAck, exclusive, false, false, nil)
 
 	if err != nil {
@@ -203,6 +253,11 @@ func (ch *amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-ch
 
 // Publish Publish a message to an exchange
 func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Message) error {
+	err := ch.ensureChannel()
+	if err != nil {
+		return err
+	}
+
 	return ch.channel.Publish(addressName, subject, false, false, toAmqpMessage(&msg))
 }
 

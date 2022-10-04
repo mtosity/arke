@@ -124,7 +124,7 @@ func main() {
 	if certFile != "" && certKey != "" {
 		certificate, err := tls.LoadX509KeyPair(certFile, certKey)
 		if err != nil {
-			log.Panic(fmt.Sprintf("Could not load TLS cert and key: %v", err))
+			log.Panicf("Could not load TLS cert and key: %v", err)
 		}
 
 		config := &tls.Config{

@@ -461,7 +461,6 @@ func Test_Ack(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -469,6 +468,7 @@ func Test_Ack(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -544,7 +544,6 @@ func Test_Nack(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -552,6 +551,7 @@ func Test_Nack(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -626,7 +626,6 @@ func Test_Retry(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -635,6 +634,7 @@ func Test_Retry(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -708,7 +708,6 @@ func Test_RetryFailure(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -717,6 +716,7 @@ func Test_RetryFailure(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -793,7 +793,6 @@ func Test_DLQ(t *testing.T) {
 	cancels := make(chan string)
 	cmock.On("NotifyCancel").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", "addressname", "topic", false, false).Return(nil).Once()
 	cmock.On("ExchangeDeclare", "dla", "topic", false, false).Return(nil).Once()
 	cmock.On("QueueDeclare", "queuename", false, false, false, args).Return(nil).Once()
@@ -804,6 +803,7 @@ func Test_DLQ(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -1000,7 +1000,6 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	cmock.On("SetPrefetch", 4).Return(nil)
 	cmock.On("Close").Return(nil)
-	cmock.On("IsClosed").Return(false)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
 	cmock.On("ExchangeDeclare", parent.GetName(), "direct", parent.GetDurable(), parent.GetAutoDelete()).Return(nil).Once()
 	cmock.On("ExchangeDeclare", "dla", "topic", false, false).Return(nil).Once()
@@ -1019,6 +1018,7 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -1096,6 +1096,7 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -1243,6 +1244,7 @@ func Test_Publish(t *testing.T) {
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -1299,6 +1301,7 @@ func Test_Publish_Error(t *testing.T) {
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
@@ -1361,6 +1364,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(errors.New("declareerr")).Once()
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)

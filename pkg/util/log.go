@@ -62,6 +62,7 @@ info.scaled={0} HPA scaled up from {1} to {2}. Asking clients to GOAWAY
 debug.healthnotify=Health notification code {0} sent to {1}
 warn.hpamonitorpanic=HPA monitor error: {0}
 info.nohpa=No HPA found
+debug.ensurechannelerror=Error ensuring channel on connection for {0}: {1}
 `
 
 // Logger default logger
