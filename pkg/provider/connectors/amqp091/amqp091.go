@@ -1241,6 +1241,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	bd.knownExchanges = util.NewConcurrentMap()
 	bd.knownQueues = util.NewConcurrentMap()
 	bd.knownBindings = util.NewConcurrentMap()
+	bd.activeMessages = util.NewConcurrentMap()
 
 	util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
 
