@@ -3,9 +3,11 @@ package util
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,4 +134,28 @@ func Test_GetConfig(t *testing.T) {
 	os.Setenv(testVar, "foo")
 	strVal = GetConfig(testVar, "bar")
 	assert.Equal(t, "foo", strVal)
+}
+
+func Test_GetMemLimit(t *testing.T) {
+	errReader := func() (io.Reader, error) {
+		return nil, fmt.Errorf("file not found")
+	}
+
+	maxMemReader = errReader
+	limitMemReader = errReader
+	limit := GetMemoryLimit()
+	assert.Equal(t, int64(0), limit)
+
+	maxMemReader = func() (io.Reader, error) {
+		return strings.NewReader("524288000"), nil
+	}
+	limit = GetMemoryLimit()
+	assert.Equal(t, int64(471859200), limit)
+
+	maxMemReader = errReader
+	limitMemReader = func() (io.Reader, error) {
+		return strings.NewReader("1048576000"), nil
+	}
+	limit = GetMemoryLimit()
+	assert.Equal(t, int64(943718400), limit)
 }

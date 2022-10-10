@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"time"
 
@@ -36,6 +37,13 @@ var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
 
 func main() {
+	// If we have a memory limit, set the runntime
+	// soft memory limit to help prevent OOM Kills
+	memLimit := util.GetMemoryLimit()
+	if memLimit > 0 {
+		debug.SetMemoryLimit(memLimit)
+	}
+
 	// Set up cpu and memory profiling if passed in as args
 	flag.Parse()
 	if *cpuprofile != "" {
@@ -148,8 +156,6 @@ func main() {
 	go s.Serve(grpcListener) // nolint errcheck
 	// To emit prometeus metrics for arke
 	go metrics.Serve(&httpListener)
-
-	go util.FreeMem()
 
 	if err := mx.Serve(); err != nil {
 		switch err.(type) { //nolint gocritic

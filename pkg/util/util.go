@@ -5,9 +5,9 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -20,6 +20,15 @@ var clientMap = NewConcurrentMap()
 var cpuHistory = make([]float64, 24) // 2 minutes worth of cpu usage
 var memHistory = make([]int, 24)
 var maxMemory = float64(0) //nolint
+
+var (
+	maxMemReader = func() (io.Reader, error) {
+		return os.Open("/sys/fs/cgroup/memory.max")
+	}
+	limitMemReader = func() (io.Reader, error) {
+		return os.Open("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	}
+)
 
 func SetClientIdentifier(ctx context.Context, name string) (string, error) {
 	clientAddr, err := GetClientAddr(ctx)
@@ -142,11 +151,26 @@ func GetConfig(key string, def interface{}) interface{} {
 	return def
 }
 
-func FreeMem() {
-	for {
-		timer := time.NewTimer(5 * time.Minute)
+func GetMemoryLimit() int64 {
+	var memFile []byte
+	var memLimit int64 = 0
 
-		<-timer.C
-		debug.FreeOSMemory()
+	memReader, err := maxMemReader()
+	if err == nil {
+		memFile, err = io.ReadAll(memReader)
 	}
+	if err != nil {
+		var limitReader io.Reader
+		limitReader, err = limitMemReader()
+		if err == nil {
+			memFile, err = io.ReadAll(limitReader)
+		}
+	}
+	if err == nil {
+		memBytes, pErr := strconv.ParseFloat(string(memFile), 64)
+		if pErr == nil {
+			memLimit = int64(memBytes * 0.9)
+		}
+	}
+	return memLimit
 }
