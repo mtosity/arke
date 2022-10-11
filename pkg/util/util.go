@@ -153,7 +153,7 @@ func GetConfig(key string, def interface{}) interface{} {
 
 func GetMemoryLimit() int64 {
 	var memFile []byte
-	var memLimit int64 = 0
+	var memLimit int64
 
 	memReader, err := maxMemReader()
 	if err == nil {

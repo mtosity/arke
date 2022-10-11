@@ -92,7 +92,7 @@ test-nogen: ## Executes unit tests without protoc generation
 	go tool cover -html=coverage.out -o coverage.html
 
 lint: ## Run golangci-lint tool
-	golangci-lint run --timeout=30m --disable-all --enable=deadcode --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=structcheck --enable=typecheck --enable=unused --enable=varcheck --enable=revive --enable=gocritic  --allow-parallel-runners
+	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=deadcode --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=structcheck --enable=typecheck --enable=unused --enable=varcheck --enable=revive --enable=gocritic  --allow-parallel-runners
 
 compose: linux ## Builds and runs docker image(s) for integration tests
 	cp build/linux/arke tests/integration/
