@@ -36,7 +36,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
 
-func main() {
+func run() {
 	// If we have a memory limit, set the runntime
 	// soft memory limit to help prevent OOM Kills
 	memLimit := util.GetMemoryLimit()
@@ -164,4 +164,8 @@ func main() {
 		}
 		util.Logger.FatalI("error.failedserve", err.Error())
 	}
+}
+
+func main() {
+	run()
 }

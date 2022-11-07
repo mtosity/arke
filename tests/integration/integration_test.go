@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	servicebus "github.com/Azure/azure-service-bus-go"
+	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	"github.com/stretchr/testify/assert"
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/util"
@@ -35,23 +35,25 @@ func cleanupAzure() {
 			connStr := fmt.Sprintf("Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s",
 				connConfig.Host, connConfig.GetCredentials().GetUsername(),
 				connConfig.GetCredentials().GetPassword())
-			ns, err := servicebus.NewNamespace(servicebus.NamespaceWithConnectionString(connStr))
+			adminClient, err := azadmin.NewClientFromConnectionString(connStr, nil)
 			if err != nil {
-				// eat the error
-				fmt.Printf("Could not clean up azure namespace")
-				return
+				panic("could not to connect to azure for cleanup")
 			}
 			ctx := context.Background()
-			tm := ns.NewTopicManager()
-			topics, err := tm.List(ctx)
-			if err != nil {
-				fmt.Printf("Could not clean up azure namespace")
-				return
+			pager := adminClient.NewListTopicsPager(nil)
+			for pager.More() {
+				page, err := pager.NextPage(ctx)
+				if err != nil {
+					fmt.Println("Error listing topics:", err)
+					return
+				}
+				for _, topic := range page.Topics {
+					_, err := adminClient.DeleteTopic(ctx, topic.TopicName, nil)
+					if err != nil {
+						fmt.Printf("Error deleting topic %s: %s", topic.TopicName, err)
+					}
+				}
 			}
-			for _, topic := range topics {
-				tm.Delete(ctx, topic.Name)
-			}
-
 		}
 	}
 }
@@ -122,15 +124,18 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 			fmt.Println(err)
 			return err
 		}
-		r, _ := stream.Recv()
-		if !r.GetSuccess() {
+		r, err := stream.Recv()
+		if err != nil && err == io.EOF {
+			return nil
+		}
+		if r != nil && !r.GetSuccess() {
 			return errors.New(r.GetError().GetMessage())
 		}
 	}
 	return nil
 }
 
-//TODO: pass in a message handler to control ack/nack
+// TODO: pass in a message handler to control ack/nack
 func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler, t *testing.T) error { //nolint
 
 	defer c.Disconnect(ctx, &pb.Empty{})
@@ -271,7 +276,6 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -288,7 +292,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -323,7 +327,6 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -359,7 +362,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
@@ -394,7 +397,6 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -418,7 +420,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, retryHandler, t)
 	<-clientConnected
 
@@ -452,7 +454,6 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -468,7 +469,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -501,7 +502,6 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer conn.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPFWC")
@@ -546,7 +546,6 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -570,7 +569,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
@@ -628,7 +627,6 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -652,7 +650,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 
 	<-clientConnected
@@ -708,7 +706,6 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -726,7 +723,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -738,7 +735,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()
 	defer c2.Disconnect(ctx2, &pb.Empty{})
-	//defer consumerConnection2.Close()
+
 	go consumeMessages(consumerConnection2, c2, ctx2, messages, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
 
@@ -778,7 +775,6 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -795,7 +791,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -829,7 +825,6 @@ func TestHeaders_Consume(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -860,7 +855,7 @@ func TestHeaders_Consume(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -893,6 +888,7 @@ func TestHeaders_Consume(t *testing.T) {
 	assert.Equal(t, headers, received[0].Headers)
 	assert.NotNil(t, received[0].GetAddress())
 }
+
 func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	t.Skip("This test is flaky. Skipping for now.")
 	producerConnection := connect()
@@ -900,7 +896,6 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 	messages2 := make(chan *pb.Message)
@@ -920,7 +915,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -931,7 +926,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()
 	defer c2.Disconnect(ctx2, &pb.Empty{})
-	//defer consumerConnection2.Close()
+
 	go consumeMessages(consumerConnection2, c2, ctx2, messages2, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
 
@@ -971,13 +966,13 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	assert.Equal(t, 0, len(messageUUIDs2))
 	c2.Disconnect(ctx2, &pb.Empty{})
 }
+
 func TestConsumeMultiSubject(t *testing.T) {
 	producerConnection := connect()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -996,7 +991,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -1036,13 +1031,13 @@ func TestConsumeMultiSubject(t *testing.T) {
 	}
 	assert.Equal(t, 2*produceCount, msgCount)
 }
+
 func TestProduceMultiSubject_FAIL(t *testing.T) {
 	producerConnection := connect()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	// Publish with 2 subject bindings
 	subjects := make([]string, 0)
@@ -1068,7 +1063,6 @@ func TestParentExchange_Consume(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	subjects := make([]string, 0)
 	parentSubjects := make([]string, 0)
@@ -1131,6 +1125,7 @@ func TestParentExchange_Consume(t *testing.T) {
 	}
 	assert.Equal(t, produceCount, msgCount)
 }
+
 func TestAddressType_FAIL(t *testing.T) {
 	// Create a ParentAddress with name test.parent
 	// Create an Address with name test.child and Parent ParentAddress
@@ -1179,7 +1174,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	//defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
@@ -1210,7 +1205,6 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 
 func TestSourceTwice(t *testing.T) {
 	consumerConnection := connect()
-	//defer consumerConnection.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
@@ -1281,7 +1275,6 @@ func TestConsumerQuickResub(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -1298,7 +1291,7 @@ func TestConsumerQuickResub(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	// defer c.Disconnect(ctx, &pb.Empty{})
-	//defer consumerConnection.Close()
+
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	c.Disconnect(ctx, &pb.Empty{})
 
@@ -1335,11 +1328,6 @@ func TestConsumerQuickResub(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
-}
-
-func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
-	cleanupAzure()
-	assert.True(t, true)
 }
 
 func TestConsumeNoAckReconnectConsume(t *testing.T) {
@@ -1455,7 +1443,6 @@ func TestConsumeDeleteBinding(t *testing.T) {
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
-	//defer producerConnection.Close()
 
 	messages := make(chan *pb.Message)
 
@@ -1523,4 +1510,9 @@ func TestConsumeDeleteBinding(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
+	cleanupAzure()
+	assert.True(t, true)
 }

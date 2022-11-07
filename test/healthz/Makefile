@@ -10,8 +10,10 @@ dep-version: ## Shows the dep version information
 linux: ## Builds binary for linux_amd64 (lax)
 	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o ../../build/linux/${OUT_FILE}
 
-osx: ## Builds binary for darwin_amd64 (osx)
-	${BUILD_ENV} GOARCH=amd64 GOOS=darwin go build -o ../../build/osx/${OUT_FILE}
+osx: darwin
+
+darwin: ## Builds binary for darwin_amd64 (osx)
+	${BUILD_ENV} GOARCH=arm64 GOOS=darwin go build -o ../../build/darwin/${OUT_FILE}
 
 windows: ## Builds binary for windows_amd64 (wx6)
 	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o ../../build/windows/${OUT_FILE}
