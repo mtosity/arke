@@ -727,9 +727,9 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 	}
 
 	subjects := source.GetAddress().GetSubjects()
-	if len(subjects) == 0 {
+	if len(subjects) == 0 && len(matchHeadersList) > 0 {
 		// If subjects aren't included in the address, fake an empty one so
-		// we ensure we bind even if there are no filters
+		// we ensure we bind unless we have no Filters
 		subjects = append(subjects, "")
 	}
 
