@@ -620,6 +620,10 @@ func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]i
 		return results, bodyErr
 	}
 
+	if resp.StatusCode == 204 {
+		return results, nil
+	}
+
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
 		return results, marshErr
 	}
@@ -661,7 +665,7 @@ func (bd *BrokerDetails) deleteBindingByKeyFromSource(source *pb.Source, propKey
 	_, err := bd.doManagementRequest("DELETE", urn)
 
 	if err != nil {
-		util.Logger.Debugf("Error deletting binding %s from %s: %s", propKey, queue, err.Error())
+		util.Logger.Debugf("Error deleting binding %s from %s: %s", propKey, queue, err.Error())
 		return err
 	}
 

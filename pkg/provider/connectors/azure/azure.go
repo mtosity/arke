@@ -291,7 +291,21 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 
 // DeadLetter routes the message to a dead letter Address because all retries have failed
 func (prov *azureprovider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
-	// TODO: we have a ticket to implement this for Azure
+	bd, err := prov.getBrokerDetails(*ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		rm := rmu.(azureMessageShim)
+		util.Logger.Debugf("DeadLetter message with id [%s].", msgid)
+		_ = rm.DeadLetter(*ctx) // Requeue set to false will cause the message to DeadLetter
+		bd.activeMessages.Delete(msgid)
+	} else {
+		util.Logger.Debugf("DeadLetter message with id [%s] failed, message not found in active messages.", msgid)
+		return &pb.Error{Message: fmt.Sprintf("DeadLetter message with id [%s] failed, message not found in active messages.", msgid)}
+	}
+
 	return nil
 }
 
@@ -310,11 +324,19 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 		return &pb.Error{Message: "client disconnected"}
 	}
 
+	newCtx, cancel := context.WithCancel(*ctx)
+	defer cancel()
+
 	bd.updateLastPubSubEvent()
 
 	topicName, topicErr := declareExchange(source.GetAddress(), bd)
 	if topicErr != nil {
 		return &pb.Error{Message: topicErr.Error()}
+	}
+
+	deadLetterError := prov.setupDeadLetter(newCtx, source)
+	if deadLetterError != nil {
+		return &pb.Error{Message: deadLetterError.Error()}
 	}
 
 	subName, suberr := declareSubscription(source, bd, topicName)
@@ -333,22 +355,17 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	// TODO: Need to handle lock expiration, the max we can set is 5 minutes
 	// and we have some handlers that run for much longer.
 	go func(msgChan chan azureMessageShim) {
-		err := bd.azure.ReceiveMessages(*ctx, topicName, subName, int(source.PrefetchCount), msgChan)
+		err := bd.azure.ReceiveMessages(newCtx, topicName, subName, int(source.PrefetchCount), msgChan)
 		if err != nil {
 			return
 		}
-
-		// err = receiver.ReceiveMessages(*ctx, msgChan)
-		// if err != nil {
-		// 	util.Logger.Debugf("error on receive: %s", err)
-		// 	// close(msgChan)
-		// }
-
 		close(msgChan)
 	}(messages)
 
 	for {
 		select {
+		case <-newCtx.Done():
+			return nil
 		case stop, ok := <-stopChannel:
 			if !ok || stop {
 				// channel is closed, so stop
@@ -477,6 +494,48 @@ func durationTo8601(dur time.Duration) string {
 	return fmt.Sprintf("PT%dM%dS", minutes, seconds)
 }
 
+func (prov *azureprovider) setupDeadLetter(ctx context.Context, origSource *pb.Source) error {
+
+	opts := origSource.GetOptions()
+	if _, ok := opts["DeadLetterAddress"]; !ok {
+		return nil
+	}
+
+	bd, err := prov.getBrokerDetails(ctx)
+	if err != nil {
+		return err
+	}
+
+	dlqAddress := &pb.Address{
+		Subjects: origSource.Address.GetSubjects(),
+		Type:     pb.Address_TOPIC,
+		Name:     opts["DeadLetterAddress"],
+	}
+
+	topicName, err := declareExchange(dlqAddress, bd)
+	if err != nil {
+		return err
+	}
+
+	// setup exchange/queue/binding
+	// sourceName := fmt.Sprintf("%s.dlq", origSource.GetName())
+
+	// FYI: we cannot change the subject of messages with DL in azure
+	source := &pb.Source{
+		Name:    origSource.GetName(),
+		Address: dlqAddress,
+		// Options: make(map[string]string),
+	}
+
+	_, err = declareSubscription(source, bd, topicName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string) (string, error) {
 
 	subOpts := &azadmin.CreateSubscriptionOptions{}
@@ -491,7 +550,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 				return "", errors.New("value for MessageTTL option must be a quoted integer")
 			}
 
-			ttlString := durationTo8601(time.Duration(val))
+			ttlString := durationTo8601(time.Duration(val) * time.Second)
 			subOpts.Properties.DefaultMessageTimeToLive = &ttlString
 		case "Expires":
 			val, err := strconv.Atoi(value)
@@ -502,21 +561,11 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 			subOpts.Properties.AutoDeleteOnIdle = &expString
 			needDelete = 0
 		case "DeadLetterAddress":
-			// // TODO: declare topic
-			// // TODO: declare subscription
-			// // topicEntity, err := bd.topicManager.Get(*ctx, value)
-			// // if err != nil {
-			// // 	return nil, fmt.Errorf("%s is an invalid DeadLetterAddress", value)
-			// // }
-			// dlt, err := bd.azure.NewTopic(ctx, value)
-			// if err != nil {
-			// 	return nil, fmt.Errorf("%s is an invalid DeadLetterAddress", value)
-			// }
+			deadLetter := true
+			subOpts.Properties.DeadLetteringOnMessageExpiration = &deadLetter
 
-			// smOpts = append(smOpts, servicebus.SubscriptionWithDeadLetteringOnMessageExpiration())
-			// smOpts = append(smOpts, servicebus.SubscriptionWithForwardDeadLetteredMessagesTo(dlt.GetEntity()))
-			// // We can't use an auto-delete policy and a Forward DLQ policy, not permited.
-			// needDelete = 0
+			forwardTopicName := bd.azure.GenerateForwardToName(value)
+			subOpts.Properties.ForwardDeadLetteredMessagesTo = &forwardTopicName
 		case "DeadLetterSubject":
 			// args["x-dead-letter-routing-key"] = value
 		default:
@@ -553,7 +602,6 @@ func sourceNameToSubName(name string) string {
 }
 
 func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicName string, subOpts *azadmin.CreateSubscriptionOptions) (string, error) {
-
 	// create subscription
 	subName := sourceNameToSubName(source.GetName())
 
@@ -568,9 +616,11 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 	routingAndFilterRuleName := "RoutingAndFilterRule"
 	routingAndFilterRuleExists := false
 
+	sqlFilter := &azadmin.SQLFilter{}
+
 	existingRules, err := bd.azure.ListRules(topicName, subName)
 	if err != nil {
-		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier)
+		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier, err.Error())
 	}
 	for _, rule := range existingRules {
 		if rule.Name == "$Default" {
@@ -579,6 +629,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 			continue
 		} else if rule.Name == routingAndFilterRuleName {
 			routingAndFilterRuleExists = true
+			sqlFilter = rule.Filter.(*azadmin.SQLFilter)
 		}
 	}
 
@@ -635,20 +686,24 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 	tmpRuleName := routingAndFilterRuleName + ".tmp"
 	// we need to recreate the RoutingAndFilterRule rule if it exists, but we need to prevent message loss
 	// so we:
-	// If rule exists: add temp rule, delete RoutingAndFilterRule, create new RoutingAndFilterRule, delete temp rule
+	// If rule exists and does not match what we expect: add temp rule, delete RoutingAndFilterRule, create new RoutingAndFilterRule, delete temp rule
 	// If rule does not exist, just create the rule
 	if actualRule != "" {
 		if routingAndFilterRuleExists {
-			// create a temporary rule
-			// delete the existing rule
-			err = bd.azure.CreateRule(ctx, topicName, subName, tmpRuleName, actualRule)
-			if err != nil {
-				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
-			}
-			err = bd.azure.DeleteRule(ctx, topicName, subName, routingAndFilterRuleName)
-			if err != nil {
-				if !strings.Contains(err.Error(), "404 Not Found") {
-					util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+			if sqlFilter.Expression != actualRule {
+				// create a temporary rule
+				// delete the existing rule
+				err = bd.azure.CreateRule(ctx, topicName, subName, tmpRuleName, actualRule)
+				if err != nil {
+					if !strings.Contains(err.Error(), "409 Conflict") {
+						util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
+					}
+				}
+				err = bd.azure.DeleteRule(ctx, topicName, subName, routingAndFilterRuleName)
+				if err != nil {
+					if !strings.Contains(err.Error(), "404 Not Found") {
+						util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+					}
 				}
 			}
 		}
@@ -656,13 +711,17 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 		// create the 'real' new rule
 		err = bd.azure.CreateRule(ctx, topicName, subName, routingAndFilterRuleName, actualRule)
 		if err != nil {
-			util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
+			if !strings.Contains(err.Error(), "409 Conflict") {
+				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
+			}
 		}
 		// delete the temporary rule
 		if routingAndFilterRuleExists {
 			err = bd.azure.DeleteRule(ctx, topicName, subName, tmpRuleName)
 			if err != nil {
-				util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+				if !strings.Contains(err.Error(), "404 Not Found") {
+					util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+				}
 			}
 		}
 	}

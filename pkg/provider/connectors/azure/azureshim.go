@@ -60,6 +60,8 @@ type azureMessageShim interface {
 	Schedule(context.Context, time.Time) error
 	Send(context.Context) error
 	SetSender(azureSenderShim)
+
+	DeadLetter(context.Context) error
 }
 
 // azureMessage message
@@ -162,7 +164,7 @@ func (ac *azureClient) CreateSubscription(ctx context.Context, topicName, subscr
 		_, err := ac.adminClient.CreateSubscription(ctx, topicName, subscriptionName, opts)
 		if err != nil {
 			// don't return an error if we get a 409 (entity already exists)
-			if strings.Contains(err.Error(), "error code: 409") {
+			if strings.Contains(err.Error(), "ERROR CODE: 409") {
 				return nil
 			}
 			util.Logger.Debugf("error creating subscription: %s", err)
@@ -252,6 +254,13 @@ func (am *azureMessage) Ack(ctx context.Context) error {
 // Nack mark the message as failed and allow it to be consumed again
 func (am *azureMessage) Nack(ctx context.Context) error {
 	return am.azReceiver.AbandonMessage(ctx, am.receivedMessage, nil)
+}
+
+// DeadLetter send the message to the dead letter subscription
+func (am *azureMessage) DeadLetter(ctx context.Context) error {
+	reason := "client request"
+	opts := &azservicebus.DeadLetterOptions{Reason: &reason}
+	return am.azReceiver.DeadLetterMessage(ctx, am.receivedMessage, opts)
 }
 
 // SetProperties set message properties
