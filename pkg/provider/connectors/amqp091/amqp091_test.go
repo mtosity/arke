@@ -488,7 +488,9 @@ func Test_Ack(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "#")
+	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	stop := make(chan bool)
@@ -579,7 +581,9 @@ func Test_Nack(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	subjects := make([]string, 0)
+	subjects = append(subjects, "#")
+	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -1071,6 +1075,111 @@ func Test_Subscribe_Options(t *testing.T) {
 	delMock.AssertExpectations(t)
 	cmock.AssertExpectations(t)
 	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 3)
+}
+
+func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	cmock := &amqpChannelMock{}
+	msgs := make(chan amqp091Message)
+	defer close(msgs)
+	delMock := mock.Mock{}
+	go func(dMock *mock.Mock) {
+		mm := amqp091Message{}
+		mm.ContentType = "application/json"
+		mm.ContentEncoding = "text"
+		mm.Headers = make(amqp091Table)
+		mm.Headers["something"] = "somethingelse"
+		mm.DeliveryTag = 1
+		dMock.On("Ack").Return(nil)
+		mm.SetDelivery(dMock)
+
+		msgs <- mm
+	}(&delMock)
+
+	subjects := make([]string, 0)
+	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
+	filters := make([]*pb.Filter, 0)
+
+	src := &pb.Source{Name: "srcname",
+		Address:       address,
+		Filters:       filters,
+		Durable:       true,
+		Exclusive:     true,
+		AutoDelete:    false,
+		PrefetchCount: 4}
+
+	cmock.On("SetPrefetch", 4).Return(nil)
+	cmock.On("Close").Return(nil)
+	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
+	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), amqp091Table{}).Return(nil)
+	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
+	cancels := make(chan string)
+	cmock.On("NotifyCancel").Return(cancels)
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(&ctx, cc, false)
+	assert.Nil(t, err)
+	var msg *pb.Message
+
+	mc := make(chan *pb.Message)
+	defer close(mc)
+
+	stop := make(chan bool)
+	stopClosed := false
+	defer func(stop chan bool, stopClosed *bool) {
+		if *stopClosed == false {
+			stop <- true
+		}
+	}(stop, &stopClosed)
+
+	go func(stop chan bool) {
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		assert.Nil(t, suberr)
+	}(stop)
+
+	msg = <-mc
+
+	err = prov.Ack(&ctx, msg.GetUuid())
+	assert.NotNil(t, msg)
+	assert.Nil(t, err)
+	assert.NotNil(t, msg.GetAddress())
+	assert.Equal(t, msg.GetAddress(), src.GetAddress())
+	assert.Equal(t, msg.GetAddress().GetSubjects(), subjects)
+
+	stop <- true
+	stopClosed = true
+	time.Sleep(100 * time.Millisecond)
+
+	delMock.AssertExpectations(t)
+	cmock.AssertExpectations(t)
+	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 1)
+	// With not subjects and no filters we should NOT
+	// call QueueBind
+	cmock.AssertNumberOfCalls(t, "QueueBind", 0)
 }
 
 func Test_Subscribe_UnsupportedOptions(t *testing.T) {
