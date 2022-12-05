@@ -177,7 +177,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 
 	stop := false
 
-	for start := time.Now(); time.Since(start) < 15*time.Second; {
+	for start := time.Now(); time.Since(start) < 30*time.Second; {
 		resp, _ := stream.Recv()
 		if resp.GetMsg() != nil {
 			go func(stop *bool) {
@@ -272,6 +272,7 @@ func connect() *grpc.ClientConn {
 
 func TestProduceSingleConsumeSingle(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -284,6 +285,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -322,6 +324,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 
 func TestProduceSingleConsumeRetry(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 6
 	produceMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
@@ -354,6 +357,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	}
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCR")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -392,6 +396,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 
 func TestProduceSingleConsumeNack(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	produceMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
@@ -412,6 +417,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	}
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -450,6 +456,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 
 func TestProduceManyConsumeMany(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 30
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -461,6 +468,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCM")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -499,6 +507,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 func TestProduceFailsWithoutConnect(t *testing.T) {
 	conn := connect()
+	defer conn.Close()
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
 	defer c.Disconnect(ctx, &pb.Empty{})
@@ -520,6 +529,7 @@ func TestProduceFailsWithoutConnect(t *testing.T) {
 
 func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
+	defer conn.Close()
 	c := pb.NewConsumerClient(conn)
 	ctx := context.Background()
 	//defer conn.Close()
@@ -531,6 +541,7 @@ func TestConsumerDisconnectOKWithoutConnect(t *testing.T) {
 
 func TestProducerDisconnectOKWithoutConnect(t *testing.T) {
 	conn := connect()
+	defer conn.Close()
 	c := pb.NewProducerClient(conn)
 	ctx := context.Background()
 	//defer conn.Close()
@@ -542,6 +553,7 @@ func TestProducerDisconnectOKWithoutConnect(t *testing.T) {
 
 func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -553,6 +565,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAll")
@@ -623,6 +636,7 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 
 func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 2
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -634,6 +648,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	source := &pb.Source{Name: "sas.test.proxy.TPCFMAny", PrefetchCount: 5}
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPCFMAny")
@@ -702,6 +717,7 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -715,6 +731,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCTN")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -771,6 +788,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -783,6 +801,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
@@ -821,6 +840,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 
 func TestHeaders_Consume(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -833,6 +853,7 @@ func TestHeaders_Consume(t *testing.T) {
 	// consume before we produce
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	headers := make(map[string]string)
 	headers["header-one"] = "one"
 	headers["content-type"] = "text/json"
@@ -892,6 +913,7 @@ func TestHeaders_Consume(t *testing.T) {
 func TestProduceManyConsumeManyExclusive(t *testing.T) {
 	t.Skip("This test is flaky. Skipping for now.")
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 20
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -906,6 +928,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 
 	// register 2 consumers so we hopeully consume twice
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPMCME")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -969,6 +992,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 
 func TestConsumeMultiSubject(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -980,6 +1004,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 
 	// Subscribe with 2 subject bindings
 	subjects := make([]string, 0)
@@ -1034,6 +1059,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 
 func TestProduceMultiSubject_FAIL(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1059,6 +1085,7 @@ func TestParentExchange_Consume(t *testing.T) {
 	// Produce messages to test.parent
 
 	producerConnection := connect()
+	defer producerConnection.Close()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1080,6 +1107,7 @@ func TestParentExchange_Consume(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 
 	// Subscribe to the child Address
 	source := &pb.Source{Name: "sas.test.proxy.TPE.Consumer", Address: child, PrefetchCount: 5}
@@ -1133,6 +1161,7 @@ func TestAddressType_FAIL(t *testing.T) {
 	// Produce messages to test.parent
 
 	producerConnection := connect()
+	defer producerConnection.Close()
 	produceCount := 5
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1154,6 +1183,7 @@ func TestAddressType_FAIL(t *testing.T) {
 
 func TestHeadersNoConsumeSubject(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 30
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1166,6 +1196,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 	clientConnected := make(chan bool)
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -1205,6 +1236,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 
 func TestSourceTwice(t *testing.T) {
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.THNSS")
@@ -1237,6 +1269,7 @@ func TestSourceTwice(t *testing.T) {
 
 func TestNoConnectionShareSameClientName(t *testing.T) {
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	cc2 := connect()
 	defer consumerConnection.Close()
 	defer cc2.Close()
@@ -1271,6 +1304,7 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 // Send messages
 func TestConsumerQuickResub(t *testing.T) {
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 30
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1283,6 +1317,7 @@ func TestConsumerQuickResub(t *testing.T) {
 	sourceName := fmt.Sprintf("sas.test.proxy.TCQR.Consumer.%d", time.Now().UnixNano())
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TCQR")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
@@ -1343,6 +1378,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	// Make sure it's the correct one
 
 	consumerConnection := connect()
+	defer consumerConnection.Close()
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TCNARC")
@@ -1372,6 +1408,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 
 	// After we send the consume message, produce a single message
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1439,6 +1476,7 @@ func TestConsumeDeleteBinding(t *testing.T) {
 	// publish another message with the removed binding from consumer 1
 	// ensure we only get the one message from the consumer 2 bindings
 	producerConnection := connect()
+	defer producerConnection.Close()
 	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
@@ -1451,6 +1489,8 @@ func TestConsumeDeleteBinding(t *testing.T) {
 
 	// set up consumer 1 and subscribe with 2 subjects, then disconnect
 	consumerConnection := connect()
+	defer consumerConnection.Close()
+	defer consumerConnection.Close()
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TCDB.1")
 	subjects = append(subjects, "sas.test.proxy.TCDB.2")
@@ -1513,6 +1553,84 @@ func TestConsumeDeleteBinding(t *testing.T) {
 }
 
 func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
-	cleanupAzure()
-	assert.True(t, true)
+	if _, ok := os.LookupEnv("SKIP_CLEANUP"); !ok {
+		cleanupAzure()
+		assert.True(t, true)
+	}
+}
+
+func TestDeadLettering(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+
+	messages1 := make(chan *pb.Message)
+
+	done1 := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection1 := connect()
+	deadLetterExchange := "sas.dlq"
+	deadLetterSubject := "deadlettersubject"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TDL")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TDL.Consumer", Address: address, PrefetchCount: 1}
+	source.Options = make(map[string]string)
+	source.Options["DeadLetterAddress"] = deadLetterExchange
+	source.Options["DeadLetterSubject"] = deadLetterSubject
+	source.Options["MessageTTL"] = "5"
+
+	// connect a consumer and then disconnect then disconnect
+	c1 := pb.NewConsumerClient(consumerConnection1)
+	ctx := context.Background()
+	go consumeMessages(consumerConnection1, c1, ctx, messages1, done1, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+	time.Sleep(5 * time.Second)
+	c1.Disconnect(ctx, &pb.Empty{})
+	consumerConnection1.Close()
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+	// produce message, wait for it to DLQ, then consume it from the DLQ
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+	pc.Disconnect(pctx, &pb.Empty{})
+	producerConnection.Close()
+
+	// sleep for a few seconds to ensure that we dead letter due to message expiration
+	time.Sleep(10 * time.Second)
+
+	done2 := make(chan bool)
+	messages2 := make(chan *pb.Message)
+	clientConnected2 := make(chan bool)
+	consumerConnection2 := connect()
+	// connect a consumer to the DLQ and consume
+	c2 := pb.NewConsumerClient(consumerConnection2)
+	ctx = context.Background()
+	defer func() {
+		c2.Disconnect(ctx, &pb.Empty{})
+		consumerConnection2.Close()
+	}()
+
+	source.Address.Name = deadLetterExchange
+	source.Options = make(map[string]string)
+	source.Name = "sas.test.proxy.TDL.Consumer.dlq"
+	subjects = append(subjects, "deadlettersubject")
+	source.Address.Subjects = subjects
+	go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
+	<-clientConnected2
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 30*time.Second; {
+		select {
+		case <-messages2:
+			msgCount++
+		case <-time.After(10 * time.Second):
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
 }

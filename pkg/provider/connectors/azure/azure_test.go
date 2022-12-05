@@ -175,6 +175,11 @@ func (m *azureMsgMock) Ack(context.Context) error {
 	return args.Error(0)
 }
 
+func (m *azureMsgMock) DeadLetter(context.Context) error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 func (m *azureMsgMock) Nack(context.Context) error {
 	args := m.Called()
 	return args.Error(0)
@@ -326,7 +331,8 @@ func Test_Nack_NoMsg(t *testing.T) {
 
 func Test_Ack(t *testing.T) {
 	prov := NewAzureProvider()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	oldGetClientIdentifier := GetClientIdentifier
 	GetClientIdentifier = func(context.Context) (string, error) {
@@ -334,7 +340,7 @@ func Test_Ack(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -370,7 +376,7 @@ func Test_Ack(t *testing.T) {
 	).Return(nil).Once()
 
 	amock.On("Connect").Return(nil)
-	amock.On("CreateTopic", ctx, "topicName").Return(nil).Once()
+	amock.On("CreateTopic", mock.Anything, "topicName").Return(nil).Once()
 
 	oldNewAzureClient := NewAZClient
 
@@ -416,7 +422,7 @@ func Test_Ack_AckErr(t *testing.T) {
 
 	amock := &azureClientMock{}
 	amock.Receives = make([]*azureMsgMock, 0)
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -451,7 +457,7 @@ func Test_Ack_AckErr(t *testing.T) {
 	).Return(nil).Once()
 
 	amock.On("Connect").Return(nil)
-	amock.On("CreateTopic", ctx, "topicName").Return(nil).Once()
+	amock.On("CreateTopic", mock.Anything, "topicName").Return(nil).Once()
 
 	oldNewAzureClient := NewAZClient
 
@@ -497,7 +503,7 @@ func Test_Nack(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -555,6 +561,114 @@ func Test_Nack(t *testing.T) {
 	amock.AssertExpectations(t)
 }
 
+func Test_DeadLetter(t *testing.T) {
+	prov := NewAzureProvider()
+	ctx := context.Background()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &azureClientMock{}
+	amock.On("ReceiveMessages", mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("int"),
+		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+
+	amock.Receives = make([]*azureMsgMock, 0)
+	nmsg := &azureMsgMock{}
+	props := make(map[string]interface{})
+	props["header1"] = "value"
+	nmsg.On("SetData").Return(nil)
+	nmsg.On("Properties").Return(props)
+	nmsg.On("ContentType").Return("json")
+	nmsg.On("Data").Return("hello")
+	nmsg.On("DeadLetter").Return(nil)
+
+	amock.Receives = append(amock.Receives, nmsg)
+	amock.On("CreateSubscription").Return(nil)
+
+	rules := make([]azadmin.RuleProperties, 0)
+	amock.On("ListRules").Return(rules, nil)
+
+	amock.On("Connect").Return(nil)
+	amock.On("CreateTopic", ctx, "topicName").Return(nil)
+
+	oldNewAzureClient := NewAZClient
+
+	NewAZClient = func(string, string, string) azureClientShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAZClient = oldNewAzureClient
+	}()
+
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(&ctx, cc, false)
+	assert.Nil(t, err)
+
+	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+	stop := make(chan bool)
+	go func() {
+		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+	time.Sleep(100 * time.Millisecond)
+	err = prov.DeadLetter(&ctx, src, msg.GetUuid())
+	assert.NotNil(t, msg)
+	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
+}
+
+func Test_DeadLetterNoMsg(t *testing.T) {
+	prov := NewAzureProvider()
+	ctx := context.Background()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &azureClientMock{}
+	amock.Receives = make([]*azureMsgMock, 0)
+	nmsg := &azureMsgMock{}
+
+	amock.On("Connect").Return(nil)
+
+	oldNewAzureClient := NewAZClient
+
+	NewAZClient = func(string, string, string) azureClientShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAZClient = oldNewAzureClient
+	}()
+
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(&ctx, cc, false)
+	assert.Nil(t, err)
+
+	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
+
+	msg := pb.Message{}
+	err = prov.DeadLetter(&ctx, src, msg.GetUuid())
+	assert.Contains(t, err.GetMessage(), "message not found in active messages")
+
+	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
+}
+
 func Test_Nack_NackError(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
@@ -565,7 +679,7 @@ func Test_Nack_NackError(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -634,7 +748,7 @@ func Test_Retry(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -715,7 +829,7 @@ func Test_Retry_ScheduleFail(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -796,7 +910,7 @@ func Test_Retry_errorCreateTopic(t *testing.T) {
 	}
 
 	amock := &azureClientMock{}
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -1336,7 +1450,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	amock := &azureClientMock{}
 	msgMock := &azureMsgMock{}
 
-	amock.On("ReceiveMessages", ctx,
+	amock.On("ReceiveMessages", mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
@@ -1354,7 +1468,8 @@ func Test_Subscribe_Options(t *testing.T) {
 	amock.Receives = append(amock.Receives, nmsg)
 
 	amock.On("CreateSubscription").Return(nil)
-	amock.On("GenerateForwardToName").Return("sb://namespace/topic")
+	amock.On("GenerateForwardToName").Return("sb://namespace/topic").Once()
+	amock.On("GenerateForwardToName").Return(fmt.Sprintf("sb://namespace/%s", expectedQueueArgs["x-dead-letter-exchange"])).Once()
 
 	// smMock.On("Create").Return(nil)
 	// smMockParent.On("Create").Return(nil)
@@ -1378,7 +1493,17 @@ func Test_Subscribe_Options(t *testing.T) {
 		`(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2') AND (("key1" = 'value1' OR "key2" = 'value2') OR ("key3" = 'value3' OR "key4" = 'value4'))`,
 	).Return(nil).Once()
 
+	// dlq rule should be same as for original subscription
+	amock.On("CreateRule",
+		ctx,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule",
+		"(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2')",
+	).Return(nil).Once()
+
 	amock.On("Connect").Return(nil)
+	amock.On("CreateTopic", ctx, "dla").Return(nil)
 	amock.On("CreateTopic", ctx, "topicName").Return(nil)
 	amock.On("CreateTopic", ctx, "parent").Return(nil)
 
@@ -1445,7 +1570,9 @@ func Test_declareSubscriptionWithOptions(t *testing.T) {
 	rules = append(rules, defaultRule)
 	ruleName := "RoutingAndFilterRule"
 	routingRule := azadmin.RuleProperties{
-		Name: ruleName,
+		Name:   ruleName,
+		Filter: &azadmin.SQLFilter{},
+		Action: &azadmin.SQLAction{},
 	}
 	rules = append(rules, routingRule)
 

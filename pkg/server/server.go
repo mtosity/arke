@@ -246,8 +246,12 @@ consumeLoop:
 				isSubscribing = true
 
 				go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *chan bool, returnErr *error) {
+					newCtx, cancel := context.WithCancel(*ctx)
+					defer cancel()
 					for {
 						select {
+						case <-newCtx.Done():
+							return
 						case stop, ok := <-stopChan:
 							if !ok || stop {
 								return
@@ -276,6 +280,8 @@ consumeLoop:
 				}(messageChannel, prov, &ctx, stopChan, &stopForLoop, &returnError)
 
 				go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *chan bool, returnErr *error) {
+					newCtx, cancel := context.WithCancel(*ctx)
+					defer cancel()
 					subscribeAttempts := 0
 					for {
 						defer func() {
@@ -288,6 +294,8 @@ consumeLoop:
 						// If subscribe ever stops because of a broker error, restart it if the client still exists
 						// unless the stream was closed
 						select {
+						case <-newCtx.Done():
+							return
 						case stop, ok := <-stopChan:
 							if !ok || stop {
 								return
@@ -303,9 +311,9 @@ consumeLoop:
 								*returnErr = fmt.Errorf("stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
 								return
 							}
-							err := prov.Subscribe(ctx, source, mc, stopChan)
+							err := prov.Subscribe(&newCtx, source, mc, stopChan)
 							if err != nil {
-								if clientExists(*ctx) {
+								if clientExists(newCtx) {
 									util.Logger.InfoI("info.subscribefailbutclientexists", clientIdentifier, err.Message)
 									connected := prov.WaitForConnect(ctx)
 									if connected {
