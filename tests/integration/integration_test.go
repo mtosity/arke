@@ -1634,3 +1634,89 @@ func TestDeadLettering(t *testing.T) {
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
+
+func TestDeadLetteringReject(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+
+	messages1 := make(chan *pb.Message)
+
+	done1 := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	// reject handler
+	rejectHandler := func(msg *pb.Message) (int, error) {
+		delay := 0
+		err := fmt.Errorf("Reject message!")
+
+		return delay, err
+	}
+
+	consumerConnection1 := connect()
+	deadLetterExchange := "sas.dlq"
+	deadLetterSubject := "deadlettersubject"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TDL")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TDL.Consumer", Address: address, PrefetchCount: 1}
+	source.Options = make(map[string]string)
+	source.Options["DeadLetterAddress"] = deadLetterExchange
+	source.Options["DeadLetterSubject"] = deadLetterSubject
+	source.Options["MessageTTL"] = "5"
+
+	// connect a consumer and then disconnect then disconnect
+	c1 := pb.NewConsumerClient(consumerConnection1)
+	ctx := context.Background()
+	go consumeMessages(consumerConnection1, c1, ctx, messages1, done1, clientConnected, source, rejectHandler, t)
+	<-clientConnected
+	time.Sleep(5 * time.Second)
+	defer func() {
+		c1.Disconnect(ctx, &pb.Empty{})
+		consumerConnection1.Close()
+	}()
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+	// produce message, wait for it to DLQ, then consume it from the DLQ
+	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+	pc.Disconnect(pctx, &pb.Empty{})
+	producerConnection.Close()
+
+	done2 := make(chan bool)
+	messages2 := make(chan *pb.Message)
+	clientConnected2 := make(chan bool)
+	consumerConnection2 := connect()
+	// connect a consumer to the DLQ and consume
+	c2 := pb.NewConsumerClient(consumerConnection2)
+	ctx = context.Background()
+	defer func() {
+		c2.Disconnect(ctx, &pb.Empty{})
+		consumerConnection2.Close()
+	}()
+
+	source.Address.Name = deadLetterExchange
+	source.Options = make(map[string]string)
+	source.Name = "sas.test.proxy.TDL.Consumer.dlq"
+	subjects = append(subjects, "deadlettersubject")
+	source.Address.Subjects = subjects
+	go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
+	<-clientConnected2
+
+	msgCount := 0
+
+	for start := time.Now(); time.Since(start) < 30*time.Second; {
+		select {
+		case <-messages2:
+			msgCount++
+		case <-time.After(10 * time.Second):
+		}
+		if msgCount == expectedMessageCount {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
