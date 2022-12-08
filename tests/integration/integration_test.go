@@ -411,7 +411,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	//retry handler
 	retryHandler := func(msg *pb.Message) (int, error) {
 		delay := 0
-		var err error
+		err := errors.New("nack test")
 
 		return delay, err
 	}
