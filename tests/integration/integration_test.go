@@ -1349,7 +1349,7 @@ func TestConsumerQuickResub(t *testing.T) {
 	msgCount := 0
 
 	breakLoop := false
-	for start := time.Now(); time.Since(start) < 1*time.Second; {
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
@@ -1631,6 +1631,9 @@ func TestDeadLettering(t *testing.T) {
 			msgCount++
 		case <-time.After(10 * time.Second):
 		}
+		if msgCount == expectedMessageCount {
+			break
+		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
@@ -1715,6 +1718,145 @@ func TestDeadLetteringReject(t *testing.T) {
 		case <-time.After(10 * time.Second):
 		}
 		if msgCount == expectedMessageCount {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestNoSubjectNoBinding(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 0
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	// No subject should result in no binding between Address and Source,
+	// therefore it should produce no messages
+	subjects := make([]string, 0)
+	consumeAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	subjects = append(subjects, "sas.test.proxy.TPSCS")
+	produceAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: consumeAddress, PrefetchCount: 1}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: produceAddress}
+
+	err := produceMessages(producerConnection, pc, pctx, 1, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestNoSubjectWithFilters(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	source := &pb.Source{Name: "sas.test.proxy.TPCFMAll", PrefetchCount: 5}
+	subjects := make([]string, 0)
+	consumerAddress := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
+	subjects = append(subjects, "sas.test.proxy.TPCFMAll")
+	producerAddress := &pb.Address{Name: "sastest.headers", Subjects: subjects, Type: pb.Address_FILTER}
+	filter := &pb.Filter{Type: pb.Filter_ALL}
+	matches := make([]*pb.Match, 0)
+	matches = append(matches, &pb.Match{Name: "HeaderToMatchAll", Value: "MyFancyValue"})
+	matches = append(matches, &pb.Match{Name: "AnotherHeaderToMatchAll", Value: "MyFancyValue"})
+	filter.Matches = matches
+	source.Filters = make([]*pb.Filter, 0)
+	source.Filters = append(source.Filters, filter)
+	source.Address = consumerAddress
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+
+	<-clientConnected
+
+	headers1 := make(map[string]string)
+	headers2 := make(map[string]string)
+	headers3 := make(map[string]string)
+	headers1["HeaderToMatchAll"] = "MyFancyValue"
+	headers2["HeaderToMatchAll"] = "MyNotFancyValue"
+	headers3["HeaderToNotMatchAll"] = "MyFancyValue"
+	headers4 := make(map[string]string)
+	headers4["HeaderToMatchAll"] = "MyFancyValue"        // for consumed message
+	headers4["AnotherHeaderToMatchAll"] = "MyFancyValue" // for consumed message
+
+	message := &pb.Message{Body: []byte("mybody1"), Address: producerAddress, Headers: headers1}
+
+	err := produceMessages(producerConnection, pc, pctx, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody2"), Address: producerAddress, Headers: headers2}
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody3"), Address: producerAddress, Headers: headers3}
+	err = produceMessages(producerConnection, pc, pctx, 1, message)
+	assert.Nil(t, err)
+
+	message = &pb.Message{Body: []byte("mybody4"), Address: producerAddress, Headers: headers4}
+	err = produceMessages(producerConnection, pc, pctx, 1, message) // this message is the one that gets consumed
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 1*time.Second; {
+		select {
+		case msg := <-messages:
+			assert.Equal(t, msg.GetBody(), []byte("mybody4"))
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(1 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
 			break
 		}
 	}
