@@ -270,6 +270,13 @@ func connect() *grpc.ClientConn {
 	return conn
 }
 
+func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
+	if _, ok := os.LookupEnv("SKIP_CLEANUP"); !ok {
+		cleanupAzure()
+		assert.True(t, true)
+	}
+}
+
 func TestProduceSingleConsumeSingle(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()
@@ -1239,9 +1246,9 @@ func TestSourceTwice(t *testing.T) {
 	defer consumerConnection.Close()
 
 	subjects := make([]string, 0)
-	subjects = append(subjects, "sas.test.proxy.THNSS")
+	subjects = append(subjects, "sas.test.proxy.TST")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.THNSS.Consumer", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TST.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1295,74 +1302,6 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 	// an error, Arke should ignore the second Connect() call
 	_, err2 = c2.Connect(ctx2, connConfig)
 	assert.Nil(t, err2)
-}
-
-// To simulate a client and slow azure admin actions
-// Connect a consumer
-// Disconnect it soon after subscribe
-// Resubscribe but with just address and source names (no filters or subjects)
-// Send messages
-func TestConsumerQuickResub(t *testing.T) {
-	producerConnection := connect()
-	defer producerConnection.Close()
-	expectedMessageCount := 30
-	pc := pb.NewProducerClient(producerConnection)
-	pctx := context.Background()
-	defer pc.Disconnect(pctx, &pb.Empty{})
-
-	messages := make(chan *pb.Message)
-
-	done := make(chan bool)
-	clientConnected := make(chan bool)
-	sourceName := fmt.Sprintf("sas.test.proxy.TCQR.Consumer.%d", time.Now().UnixNano())
-
-	consumerConnection := connect()
-	defer consumerConnection.Close()
-	subjects := make([]string, 0)
-	subjects = append(subjects, "sas.test.proxy.TCQR")
-	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: sourceName, Address: address, PrefetchCount: 5}
-	c := pb.NewConsumerClient(consumerConnection)
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	// defer c.Disconnect(ctx, &pb.Empty{})
-
-	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
-	c.Disconnect(ctx, &pb.Empty{})
-
-	time.Sleep(1 * time.Second)
-	consumerConnection = connect()
-	emptySubjects := make([]string, 0)
-	// subjects = append(subjects, "sas.test.proxy.TCQR")
-	addressNoSubs := &pb.Address{Name: "amq.topic", Subjects: emptySubjects, Type: pb.Address_TOPIC}
-	source = &pb.Source{Name: sourceName, Address: addressNoSubs, PrefetchCount: 5}
-	c = pb.NewConsumerClient(consumerConnection)
-	defer c.Disconnect(ctx, &pb.Empty{})
-
-	<-clientConnected
-
-	message := &pb.Message{Body: []byte("mymessage"), Address: address}
-
-	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
-	assert.Nil(t, err)
-
-	msgCount := 0
-
-	breakLoop := false
-	for start := time.Now(); time.Since(start) < 2*time.Second; {
-		select {
-		case <-messages:
-			msgCount++
-		case <-done:
-			breakLoop = true
-		case <-time.After(1 * time.Second):
-			breakLoop = true
-		}
-		if breakLoop {
-			break
-		}
-	}
-	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
 func TestConsumeNoAckReconnectConsume(t *testing.T) {
@@ -1550,13 +1489,6 @@ func TestConsumeDeleteBinding(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
-}
-
-func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
-	if _, ok := os.LookupEnv("SKIP_CLEANUP"); !ok {
-		cleanupAzure()
-		assert.True(t, true)
-	}
 }
 
 func TestDeadLettering(t *testing.T) {

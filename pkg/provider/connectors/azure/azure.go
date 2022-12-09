@@ -133,7 +133,7 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(azureMessageShim)
-		util.Logger.Debugf("Acking message %s", msgid)
+		util.Logger.Debugf("Client %s acking message %s", bd.ClientIdentifier, msgid)
 		err = rm.Ack(*ctx)
 
 		elapsed := time.Since(rm.ClientSentTime()).Microseconds()
@@ -285,6 +285,7 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 	}
 
 	prov.connections.Add(bd.ClientIdentifier, &bd)
+	util.Logger.InfoI("info.clientconnect", bd.ClientIdentifier, cf.GetHost())
 
 	return nil
 }
