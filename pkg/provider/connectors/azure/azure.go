@@ -170,7 +170,8 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(azureMessageShim)
-		err = rm.Nack(*ctx)
+
+		err := rm.Nack(*ctx, false)
 		if err != nil {
 			util.Logger.WarnI("error.nack", err.Error())
 
@@ -210,7 +211,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		err = bd.azure.CreateTopic(*ctx, origSource.Address.GetName())
 		if err != nil {
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead [%v]", msgid, err.Error())
-			_ = rm.Nack(*ctx)
+			_ = rm.Nack(*ctx, true)
 			return &pb.Error{Message: fmt.Sprintf("Failed to publish retry message [%s]. Create topic failed. Requeueing instead", msgid)}
 		}
 
@@ -227,7 +228,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 
 		sender, err := bd.createOrGetSenderForAddress(origSource.GetAddress().GetName())
 		if err != nil {
-			_ = rm.Nack(*ctx)
+			_ = rm.Nack(*ctx, true)
 			return &pb.Error{Message: fmt.Sprintf("Failed to schedule retry message [%s], requeueing instead", msgid)}
 		}
 		msgToSend := NewAzureMsgWithSender(sender)
@@ -238,7 +239,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		sErr := msgToSend.Schedule(*ctx, scheduleTime)
 		if sErr != nil {
 			util.Logger.Debugf("Failed to schedule retry message [%s], requeueing instead [%v]", msgid, sErr.Error())
-			_ = rm.Nack(*ctx)
+			_ = rm.Nack(*ctx, true)
 			return &pb.Error{Message: fmt.Sprintf("Failed to schedule retry message [%s], requeueing instead", msgid)}
 		}
 
@@ -335,9 +336,14 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 		return &pb.Error{Message: topicErr.Error()}
 	}
 
-	deadLetterError := prov.setupDeadLetter(newCtx, source)
-	if deadLetterError != nil {
-		return &pb.Error{Message: deadLetterError.Error()}
+	opts := source.GetOptions()
+	deadLetterEnabled := false
+	if _, ok := opts["DeadLetterAddress"]; ok {
+		deadLetterEnabled = true
+		deadLetterError := prov.setupDeadLetter(newCtx, source)
+		if deadLetterError != nil {
+			return &pb.Error{Message: deadLetterError.Error()}
+		}
 	}
 
 	subName, suberr := declareSubscription(source, bd, topicName)
@@ -356,7 +362,7 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	// TODO: Need to handle lock expiration, the max we can set is 5 minutes
 	// and we have some handlers that run for much longer.
 	go func(msgChan chan azureMessageShim) {
-		err := bd.azure.ReceiveMessages(newCtx, topicName, subName, int(source.PrefetchCount), msgChan)
+		err := bd.azure.ReceiveMessages(newCtx, topicName, subName, int(source.PrefetchCount), msgChan, deadLetterEnabled)
 		if err != nil {
 			return
 		}

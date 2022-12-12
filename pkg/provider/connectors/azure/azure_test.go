@@ -111,8 +111,8 @@ func (m *azureSenderMock) SendMessage(context.Context, *azservicebus.Message) er
 
 // RECEIVER
 
-func (m *azureClientMock) ReceiveMessages(ctx context.Context, topicName, subscriptionName string, prefetch int, messageChannel chan azureMessageShim) error {
-	args := m.Called(ctx, topicName, subscriptionName, prefetch, messageChannel)
+func (m *azureClientMock) ReceiveMessages(ctx context.Context, topicName, subscriptionName string, prefetch int, messageChannel chan azureMessageShim, deadLetterEnabled bool) error {
+	args := m.Called(ctx, topicName, subscriptionName, prefetch, messageChannel, deadLetterEnabled)
 
 	for _, msg := range m.Receives {
 		messageChannel <- msg
@@ -180,8 +180,8 @@ func (m *azureMsgMock) DeadLetter(context.Context) error {
 	return args.Error(0)
 }
 
-func (m *azureMsgMock) Nack(context.Context) error {
-	args := m.Called()
+func (m *azureMsgMock) Nack(ctx context.Context, deadLetterEnabled bool) error {
+	args := m.Called(ctx, deadLetterEnabled)
 	return args.Error(0)
 }
 
@@ -344,13 +344,13 @@ func Test_Ack(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
@@ -409,6 +409,7 @@ func Test_Ack(t *testing.T) {
 	assert.Nil(t, err)
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Ack_AckErr(t *testing.T) {
@@ -426,12 +427,12 @@ func Test_Ack_AckErr(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
@@ -491,6 +492,7 @@ func Test_Ack_AckErr(t *testing.T) {
 	assert.Equal(t, err.GetMessage(), "AckError")
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Nack(t *testing.T) {
@@ -507,17 +509,17 @@ func Test_Nack(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
+	nmsg.On("Nack", mock.Anything, false).Return(nil)
 
 	amock.Receives = append(amock.Receives, nmsg)
 	amock.On("CreateSubscription").Return(nil)
@@ -559,6 +561,7 @@ func Test_Nack(t *testing.T) {
 	assert.Nil(t, err)
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_DeadLetter(t *testing.T) {
@@ -575,13 +578,13 @@ func Test_DeadLetter(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
@@ -683,17 +686,17 @@ func Test_Nack_NackError(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(errors.New("NackError"))
+	nmsg.On("Nack", mock.Anything, false).Return(errors.New("NackError"))
 
 	amock.Receives = append(amock.Receives, nmsg)
 	amock.On("CreateSubscription").Return(nil)
@@ -736,6 +739,7 @@ func Test_Nack_NackError(t *testing.T) {
 	assert.Equal(t, err.GetMessage(), "NackError")
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Retry(t *testing.T) {
@@ -752,17 +756,17 @@ func Test_Retry(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
+
 	nmsg.On("ID").Return("1234")
 	nmsg.On("DeliveryCount").Return(0)
 	nmsg.On("Ack").Return(nil)
@@ -817,6 +821,7 @@ func Test_Retry(t *testing.T) {
 	assert.Nil(t, err)
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Retry_ScheduleFail(t *testing.T) {
@@ -833,20 +838,19 @@ func Test_Retry_ScheduleFail(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
+	nmsg.On("Nack", mock.Anything, true).Return(nil)
 	nmsg.On("ID").Return("1234")
 	nmsg.On("DeliveryCount").Return(0)
-	nmsg.On("Ack").Return(nil)
 	nmsg.On("Schedule").Return(errors.New("Failed to schedule message"))
 
 	amock.Receives = append(amock.Receives, nmsg)
@@ -898,6 +902,7 @@ func Test_Retry_ScheduleFail(t *testing.T) {
 	assert.Contains(t, err.GetMessage(), fmt.Sprintf("Failed to schedule retry message [%s], requeueing instead", msg.GetUuid()))
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Retry_errorCreateTopic(t *testing.T) {
@@ -914,21 +919,19 @@ func Test_Retry_errorCreateTopic(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
 	nmsg.On("Properties").Return(props)
 	nmsg.On("ContentType").Return("json")
 	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
+	nmsg.On("Nack", mock.Anything, true).Return(nil)
 	nmsg.On("ID").Return("1234")
 	nmsg.On("DeliveryCount").Return(0)
-	nmsg.On("Ack").Return(nil)
-	nmsg.On("Schedule").Return(nil)
 
 	amock.Receives = append(amock.Receives, nmsg)
 
@@ -980,6 +983,7 @@ func Test_Retry_errorCreateTopic(t *testing.T) {
 	assert.Contains(t, err.GetMessage(), fmt.Sprintf("Failed to publish retry message [%s]. Create topic failed. Requeueing instead", msg.GetUuid()))
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Retry_NoMsgWithUUID(t *testing.T) {
@@ -997,15 +1001,6 @@ func Test_Retry_NoMsgWithUUID(t *testing.T) {
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
-	nmsg.On("Properties").Return(props)
-	nmsg.On("ContentType").Return("json")
-	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
-	nmsg.On("ID").Return("1234")
-	nmsg.On("DeliveryCount").Return(0)
-	nmsg.On("Ack").Return(nil)
-	nmsg.On("Schedule").Return(nil)
 
 	amock.Receives = append(amock.Receives, nmsg)
 
@@ -1042,6 +1037,7 @@ func Test_Retry_NoMsgWithUUID(t *testing.T) {
 	assert.Equal(t, "No message with uuid 12345", err.GetMessage())
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Retry_CreateSenderFail(t *testing.T) {
@@ -1059,15 +1055,6 @@ func Test_Retry_CreateSenderFail(t *testing.T) {
 	nmsg := &azureMsgMock{}
 	props := make(map[string]interface{})
 	props["header1"] = "value"
-	nmsg.On("SetData").Return(nil)
-	nmsg.On("Properties").Return(props)
-	nmsg.On("ContentType").Return("json")
-	nmsg.On("Data").Return("hello")
-	nmsg.On("Nack").Return(nil)
-	nmsg.On("ID").Return("1234")
-	nmsg.On("DeliveryCount").Return(0)
-	nmsg.On("Ack").Return(nil)
-	nmsg.On("Schedule").Return(nil)
 
 	amock.Receives = append(amock.Receives, nmsg)
 
@@ -1104,6 +1091,7 @@ func Test_Retry_CreateSenderFail(t *testing.T) {
 	assert.Equal(t, "No message with uuid 12345", err.GetMessage())
 
 	amock.AssertExpectations(t)
+	nmsg.AssertExpectations(t)
 }
 
 func Test_Ack_NoConnect(t *testing.T) {
@@ -1251,7 +1239,6 @@ func Test_WaitForConnect(t *testing.T) {
 	assert.True(t, connected)
 
 	amock.AssertExpectations(t)
-
 }
 
 func Test_Publish(t *testing.T) {
@@ -1454,7 +1441,8 @@ func Test_Subscribe_Options(t *testing.T) {
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("chan azure.azureMessageShim")).Return(nil)
+		mock.AnythingOfType("chan azure.azureMessageShim"),
+		mock.AnythingOfType("bool")).Return(nil)
 
 	amock.Receives = make([]*azureMsgMock, 0)
 	nmsg := &azureMsgMock{}

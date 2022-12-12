@@ -17,7 +17,7 @@ type azureClientShim interface {
 	Connect() error
 	NewSender(string) (azureSenderShim, error)
 	// NewReceiver(string, string, int) (azureReceiverShim, error)
-	ReceiveMessages(context.Context, string, string, int, chan azureMessageShim) error
+	ReceiveMessages(context.Context, string, string, int, chan azureMessageShim, bool) error
 	CreateSubscription(context.Context, string, string, *azadmin.CreateSubscriptionOptions) error
 	CreateTopic(context.Context, string) error
 	CreateRule(context.Context, string, string, string, string) error
@@ -36,7 +36,7 @@ type azureSenderShim interface {
 // azureMessageShim interface for messages
 type azureMessageShim interface {
 	Ack(context.Context) error
-	Nack(context.Context) error
+	Nack(context.Context, bool) error
 
 	ID() string
 
@@ -67,12 +67,12 @@ type azureMessageShim interface {
 // azureMessage message
 type azureMessage struct {
 	azureMessageShim
-	receivedMessage *azservicebus.ReceivedMessage
-	sendingMessage  *azservicebus.Message
-	clientSentTime  time.Time
-	sender          azureSenderShim
-	azReceiver      *azservicebus.Receiver
-	// receiver        azureReceiverShim
+	receivedMessage   *azservicebus.ReceivedMessage
+	sendingMessage    *azservicebus.Message
+	clientSentTime    time.Time
+	sender            azureSenderShim
+	azReceiver        *azservicebus.Receiver
+	deadLetterEnabled bool // true if DeadLetter is enabled for the subscription this was consumed from
 }
 
 // azureClient namespace
@@ -219,7 +219,7 @@ func (as *azureSender) SendMessage(ctx context.Context, message *azservicebus.Me
 	return as.sender.SendMessage(ctx, message, nil)
 }
 
-func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscriptionName string, prefetch int, messages chan azureMessageShim) error {
+func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscriptionName string, prefetch int, messages chan azureMessageShim, deadLetterEnabled bool) error {
 	// opts := &azservicebus.ReceiveMessagesOptions{ReceiveMode: azservicebus.ReceiveModePeekLock}
 	opts := &azservicebus.ReceiverOptions{}
 	receiver, err := ac.client.NewReceiverForSubscription(topicName, subscriptionName, opts)
@@ -241,6 +241,7 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 			message := &azureMessage{}
 			message.azReceiver = receiver
 			message.receivedMessage = msg
+			message.deadLetterEnabled = deadLetterEnabled
 			messages <- message
 		}
 	}
@@ -252,8 +253,18 @@ func (am *azureMessage) Ack(ctx context.Context) error {
 }
 
 // Nack mark the message as failed and allow it to be consumed again
-func (am *azureMessage) Nack(ctx context.Context) error {
-	return am.azReceiver.AbandonMessage(ctx, am.receivedMessage, nil)
+func (am *azureMessage) Nack(ctx context.Context, requeue bool) error {
+	// if we are to requeue, AbandonMessage will requeue
+	// if we are not to requeue and dead lettering is enabled, dead letter
+	// if we are not to requeue and dead lettering is not enabled, ack the message
+	if requeue {
+		util.Logger.Debugf("nack is requeueing message %s", am.ID())
+		return am.azReceiver.AbandonMessage(ctx, am.receivedMessage, nil)
+	} else if am.deadLetterEnabled {
+		util.Logger.Debugf("nack is dead lettering message %s", am.ID())
+		return am.DeadLetter(ctx)
+	}
+	return am.Ack(ctx)
 }
 
 // DeadLetter send the message to the dead letter subscription

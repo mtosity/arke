@@ -1676,9 +1676,9 @@ func TestNoSubjectNoBinding(t *testing.T) {
 	// therefore it should produce no messages
 	subjects := make([]string, 0)
 	consumeAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	subjects = append(subjects, "sas.test.proxy.TPSCS")
+	subjects = append(subjects, "sas.test.proxy.TNSNB")
 	produceAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: consumeAddress, PrefetchCount: 1}
+	source := &pb.Source{Name: "sas.test.proxy.TNSNB.Consumer", Address: consumeAddress, PrefetchCount: 1}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
