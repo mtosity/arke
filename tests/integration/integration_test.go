@@ -1676,9 +1676,9 @@ func TestNoSubjectNoBinding(t *testing.T) {
 	// therefore it should produce no messages
 	subjects := make([]string, 0)
 	consumeAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	subjects = append(subjects, "sas.test.proxy.TPSCS")
+	subjects = append(subjects, "sas.test.proxy.TNSNB")
 	produceAddress := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCS.Consumer", Address: consumeAddress, PrefetchCount: 1}
+	source := &pb.Source{Name: "sas.test.proxy.TNSNB.Consumer", Address: consumeAddress, PrefetchCount: 1}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -1793,4 +1793,69 @@ func TestNoSubjectWithFilters(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestSubscribeAckNackInvalidID(t *testing.T) {
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TAIID")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.TAIID", Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	connConfig := connectConfig()
+	authResp, connErr := c.Connect(ctx, connConfig)
+	if connErr != nil {
+		log.Panicf("could not authenticate: %v", connErr)
+	}
+	if !authResp.GetSuccess() {
+		log.Panicf("could not authenticate: %v", authResp.GetError().GetMessage())
+	}
+
+	stream, err := c.Consume(ctx)
+	if err != nil {
+		log.Panicf("could not subscribe: %v", err)
+	}
+
+	m := &pb.Consume{}
+	m.Msg = &pb.Consume_Src{Src: source}
+	err = stream.SendMsg(m)
+	assert.Nil(t, err)
+	defer stream.CloseSend()
+
+	// Ack
+	ret := &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Nack: false, RequeueDelay: int32(5), Uuid: "54321"}}}
+	err = stream.Send(ret)
+	assert.Nil(t, err)
+
+	msg, err := stream.Recv()
+	assert.Nil(t, err)
+	assert.Equal(t, "No message with uuid 54321", msg.GetConsumedResponse().GetError().GetMessage())
+	assert.False(t, msg.GetConsumedResponse().GetSuccess())
+
+	// Nack with retry
+	ret = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Nack: true, RequeueDelay: int32(5), Uuid: "54321"}}}
+	err = stream.Send(ret)
+	assert.Nil(t, err)
+
+	msg, err = stream.Recv()
+	assert.Nil(t, err)
+	assert.Equal(t, "No message with uuid 54321", msg.GetConsumedResponse().GetError().GetMessage())
+	assert.False(t, msg.GetConsumedResponse().GetSuccess())
+
+	// Nack with retry
+	ret = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Nack: true, RequeueDelay: int32(0), Uuid: "54321"}}}
+	err = stream.Send(ret)
+	assert.Nil(t, err)
+
+	msg, err = stream.Recv()
+	assert.Nil(t, err)
+	assert.Equal(t, "No message with uuid 54321", msg.GetConsumedResponse().GetError().GetMessage())
+	assert.False(t, msg.GetConsumedResponse().GetSuccess())
 }
