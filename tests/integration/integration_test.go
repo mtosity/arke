@@ -1276,7 +1276,6 @@ func TestSourceTwice(t *testing.T) {
 
 func TestNoConnectionShareSameClientName(t *testing.T) {
 	consumerConnection := connect()
-	defer consumerConnection.Close()
 	cc2 := connect()
 	defer consumerConnection.Close()
 	defer cc2.Close()
