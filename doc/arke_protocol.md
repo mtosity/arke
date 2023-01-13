@@ -3,43 +3,41 @@
 
 ## Table of Contents
 
-- [arke.proto](#arke.proto)
-    - [Address](#arke.Address)
-    - [ConnectResponse](#arke.ConnectResponse)
-    - [ConnectionConfiguration](#arke.ConnectionConfiguration)
-    - [Consume](#arke.Consume)
-    - [ConsumeResponse](#arke.ConsumeResponse)
-    - [Credentials](#arke.Credentials)
-    - [Empty](#arke.Empty)
-    - [Error](#arke.Error)
-    - [Filter](#arke.Filter)
-    - [Health](#arke.Health)
-    - [HealthCheck](#arke.HealthCheck)
-    - [HealthStatus](#arke.HealthStatus)
-    - [Match](#arke.Match)
-    - [Message](#arke.Message)
-    - [Message.HeadersEntry](#arke.Message.HeadersEntry)
-    - [MessageConsumed](#arke.MessageConsumed)
-    - [MessageConsumedResponse](#arke.MessageConsumedResponse)
-    - [MessageResponse](#arke.MessageResponse)
-    - [Source](#arke.Source)
-    - [Source.OptionsEntry](#arke.Source.OptionsEntry)
+- [arke.proto](#arke-proto)
+    - [Address](#arke-Address)
+    - [ConnectResponse](#arke-ConnectResponse)
+    - [ConnectionConfiguration](#arke-ConnectionConfiguration)
+    - [Consume](#arke-Consume)
+    - [ConsumeResponse](#arke-ConsumeResponse)
+    - [Credentials](#arke-Credentials)
+    - [Empty](#arke-Empty)
+    - [Error](#arke-Error)
+    - [Filter](#arke-Filter)
+    - [Health](#arke-Health)
+    - [HealthCheck](#arke-HealthCheck)
+    - [HealthStatus](#arke-HealthStatus)
+    - [Match](#arke-Match)
+    - [Message](#arke-Message)
+    - [Message.HeadersEntry](#arke-Message-HeadersEntry)
+    - [MessageConsumed](#arke-MessageConsumed)
+    - [MessageConsumedResponse](#arke-MessageConsumedResponse)
+    - [MessageResponse](#arke-MessageResponse)
+    - [Source](#arke-Source)
+    - [Source.OptionsEntry](#arke-Source-OptionsEntry)
   
-    - [Address.TargetType](#arke.Address.TargetType)
-    - [Filter.MatchType](#arke.Filter.MatchType)
-    - [HealthStatus.Code](#arke.HealthStatus.Code)
+    - [Address.TargetType](#arke-Address-TargetType)
+    - [Filter.MatchType](#arke-Filter-MatchType)
+    - [HealthStatus.Code](#arke-HealthStatus-Code)
   
+    - [Consumer](#arke-Consumer)
+    - [Healthz](#arke-Healthz)
+    - [Producer](#arke-Producer)
   
-    - [Consumer](#arke.Consumer)
-    - [Healthz](#arke.Healthz)
-    - [Producer](#arke.Producer)
-  
-
 - [Scalar Value Types](#scalar-value-types)
 
 
 
-<a name="arke.proto"></a>
+<a name="arke-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## arke.proto
@@ -48,7 +46,7 @@ Arke message broker proxy messages.
 This file outlines the gRPC interface for the Arke proxy.
 
 
-<a name="arke.Address"></a>
+<a name="arke-Address"></a>
 
 ### Address
 Represents the publishing destination for a message.
@@ -58,17 +56,17 @@ Represents the publishing destination for a message.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The name of this destination address. |
 | subjects | [string](#string) | repeated | The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish. |
-| type | [Address.TargetType](#arke.Address.TargetType) |  | Target type, default is TOPIC. |
+| type | [Address.TargetType](#arke-Address-TargetType) |  | Target type, default is TOPIC. |
 | durable | [bool](#bool) |  | Should the address be durable. |
 | auto_delete | [bool](#bool) |  | Should the address automatically delete. |
-| parent_address | [Address](#arke.Address) |  | A parent Address. Usage includes Address to Address binding. |
+| parent_address | [Address](#arke-Address) |  | A parent Address. Usage includes Address to Address binding. |
 
 
 
 
 
 
-<a name="arke.ConnectResponse"></a>
+<a name="arke-ConnectResponse"></a>
 
 ### ConnectResponse
 Represents the connection response
@@ -77,14 +75,14 @@ Represents the connection response
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | success | [bool](#bool) |  | Indicates whether the connection was successful. |
-| error | [Error](#arke.Error) |  | Error if the connection failed. |
+| error | [Error](#arke-Error) |  | Error if the connection failed. |
 
 
 
 
 
 
-<a name="arke.ConnectionConfiguration"></a>
+<a name="arke-ConnectionConfiguration"></a>
 
 ### ConnectionConfiguration
 Represents the broker connection information. This is passed
@@ -99,17 +97,18 @@ RabbitMQ and Kafka.
 | port | [int32](#int32) |  | Broker port. |
 | provider | [string](#string) |  | Provider type, currently only ampq091. |
 | tenant | [string](#string) |  | Tenant name for this connection. Tenant is not required |
-| credentials | [Credentials](#arke.Credentials) |  | Authentication credentials. |
+| credentials | [Credentials](#arke-Credentials) |  | Authentication credentials. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
 | tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
 | client_name | [string](#string) |  | The name of the client connecting. |
+| admin_port | [int32](#int32) |  | The administrative port for the provider (eg. RabbitMQ management port) for any actions needing to be performed by the provider (eg. modifying bindings for RabbitMQ) |
 
 
 
 
 
 
-<a name="arke.Consume"></a>
+<a name="arke-Consume"></a>
 
 ### Consume
 Sent on the Consume stream from the client to either start consuming messages or to ack/nack messages
@@ -117,15 +116,15 @@ Sent on the Consume stream from the client to either start consuming messages or
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| src | [Source](#arke.Source) |  |  |
-| ack | [MessageConsumed](#arke.MessageConsumed) |  |  |
+| src | [Source](#arke-Source) |  |  |
+| ack | [MessageConsumed](#arke-MessageConsumed) |  |  |
 
 
 
 
 
 
-<a name="arke.ConsumeResponse"></a>
+<a name="arke-ConsumeResponse"></a>
 
 ### ConsumeResponse
 Response to a Consume message. Either a Message or a MessageConsumedResponse
@@ -133,16 +132,16 @@ Response to a Consume message. Either a Message or a MessageConsumedResponse
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| msg | [Message](#arke.Message) |  |  |
-| consumed_response | [MessageConsumedResponse](#arke.MessageConsumedResponse) |  |  |
-| error | [Error](#arke.Error) |  |  |
+| msg | [Message](#arke-Message) |  |  |
+| consumed_response | [MessageConsumedResponse](#arke-MessageConsumedResponse) |  |  |
+| error | [Error](#arke-Error) |  |  |
 
 
 
 
 
 
-<a name="arke.Credentials"></a>
+<a name="arke-Credentials"></a>
 
 ### Credentials
 Represents the broker authentication information.
@@ -158,7 +157,7 @@ Represents the broker authentication information.
 
 
 
-<a name="arke.Empty"></a>
+<a name="arke-Empty"></a>
 
 ### Empty
 No parameters or return value.
@@ -168,7 +167,7 @@ No parameters or return value.
 
 
 
-<a name="arke.Error"></a>
+<a name="arke-Error"></a>
 
 ### Error
 Represents a generic error message.
@@ -185,7 +184,7 @@ Represents a generic error message.
 
 
 
-<a name="arke.Filter"></a>
+<a name="arke-Filter"></a>
 
 ### Filter
 Represents a filter for Message.headers. The Filter will prevent a consumer
@@ -194,15 +193,15 @@ from consuming all messages from a Source.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| matches | [Match](#arke.Match) | repeated | One or more filter Matches. |
-| type | [Filter.MatchType](#arke.Filter.MatchType) |  | The MatchType for this filter. Default is ALL. |
+| matches | [Match](#arke-Match) | repeated | One or more filter Matches. |
+| type | [Filter.MatchType](#arke-Filter-MatchType) |  | The MatchType for this filter. Default is ALL. |
 
 
 
 
 
 
-<a name="arke.Health"></a>
+<a name="arke-Health"></a>
 
 ### Health
 Message used to communicate or request health to/from the server and client
@@ -210,15 +209,15 @@ Message used to communicate or request health to/from the server and client
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| check | [HealthCheck](#arke.HealthCheck) |  |  |
-| status | [HealthStatus](#arke.HealthStatus) |  |  |
+| check | [HealthCheck](#arke-HealthCheck) |  |  |
+| status | [HealthStatus](#arke-HealthStatus) |  |  |
 
 
 
 
 
 
-<a name="arke.HealthCheck"></a>
+<a name="arke-HealthCheck"></a>
 
 ### HealthCheck
 Message requesting the health of the other end of the stream. Essentially a ping.
@@ -233,7 +232,7 @@ Message requesting the health of the other end of the stream. Essentially a ping
 
 
 
-<a name="arke.HealthStatus"></a>
+<a name="arke-HealthStatus"></a>
 
 ### HealthStatus
 Message containing the response to a health check request
@@ -242,15 +241,15 @@ Message containing the response to a health check request
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | uuid | [string](#string) |  | UUID of the HealthCheck message being responded to |
-| time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
-| code | [HealthStatus.Code](#arke.HealthStatus.Code) |  |  |
+| time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  |  |
+| code | [HealthStatus.Code](#arke-HealthStatus-Code) |  |  |
 
 
 
 
 
 
-<a name="arke.Match"></a>
+<a name="arke-Match"></a>
 
 ### Match
 Represents the key/value match for Message.headers. Currently only an
@@ -267,7 +266,7 @@ exact match is supported.
 
 
 
-<a name="arke.Message"></a>
+<a name="arke-Message"></a>
 
 ### Message
 Represents a message that is being produced or consumed. The
@@ -278,18 +277,18 @@ the consumer process.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | uuid | [string](#string) |  | The proxy sets this UUID when the message is consumed. It should be returned when a message is Ack/Nack&#39;ed. |
-| headers | [Message.HeadersEntry](#arke.Message.HeadersEntry) | repeated | The message headers. |
+| headers | [Message.HeadersEntry](#arke-Message-HeadersEntry) | repeated | The message headers. |
 | body | [bytes](#bytes) |  | The message body. |
-| address | [Address](#arke.Address) |  | The distination for a published message. |
+| address | [Address](#arke-Address) |  | The distination for a published message. |
 | persistent | [bool](#bool) |  | Indicates whether to persist the message. |
-| error | [Error](#arke.Error) |  | Error message if consuming failed. |
+| error | [Error](#arke-Error) |  | Error message if consuming failed. |
 
 
 
 
 
 
-<a name="arke.Message.HeadersEntry"></a>
+<a name="arke-Message-HeadersEntry"></a>
 
 ### Message.HeadersEntry
 
@@ -305,7 +304,7 @@ the consumer process.
 
 
 
-<a name="arke.MessageConsumed"></a>
+<a name="arke-MessageConsumed"></a>
 
 ### MessageConsumed
 Message used to ack or nack a message UUID
@@ -322,7 +321,7 @@ Message used to ack or nack a message UUID
 
 
 
-<a name="arke.MessageConsumedResponse"></a>
+<a name="arke-MessageConsumedResponse"></a>
 
 ### MessageConsumedResponse
 Response to a MessageConsumed message
@@ -332,14 +331,14 @@ Response to a MessageConsumed message
 | ----- | ---- | ----- | ----------- |
 | uuid | [string](#string) |  | Message UUID of the arke.Message |
 | success | [bool](#bool) |  | Was the ack or nack successful. |
-| error | [Error](#arke.Error) |  | Error if the MessageConsumed failed |
+| error | [Error](#arke-Error) |  | Error if the MessageConsumed failed |
 
 
 
 
 
 
-<a name="arke.MessageResponse"></a>
+<a name="arke-MessageResponse"></a>
 
 ### MessageResponse
 Represents the response from publishing a message.
@@ -348,14 +347,14 @@ Represents the response from publishing a message.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | success | [bool](#bool) |  | Indicates whether the message was published successfully. |
-| error | [Error](#arke.Error) |  | Error if publishing failed. |
+| error | [Error](#arke-Error) |  | Error if publishing failed. |
 
 
 
 
 
 
-<a name="arke.Source"></a>
+<a name="arke-Source"></a>
 
 ### Source
 Represents the source for consumer subscriptions.
@@ -364,20 +363,20 @@ Represents the source for consumer subscriptions.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The name of this source. |
-| address | [Address](#arke.Address) |  | The Address associated with this source. |
+| address | [Address](#arke-Address) |  | The Address associated with this source. |
 | durable | [bool](#bool) |  | Should this Source be durable. |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
-| options | [Source.OptionsEntry](#arke.Source.OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
+| options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
-| filters | [Filter](#arke.Filter) | repeated | Filters for this Source. |
+| filters | [Filter](#arke-Filter) | repeated | Filters for this Source. |
 
 
 
 
 
 
-<a name="arke.Source.OptionsEntry"></a>
+<a name="arke-Source-OptionsEntry"></a>
 
 ### Source.OptionsEntry
 
@@ -395,7 +394,7 @@ Represents the source for consumer subscriptions.
  
 
 
-<a name="arke.Address.TargetType"></a>
+<a name="arke-Address-TargetType"></a>
 
 ### Address.TargetType
 
@@ -408,7 +407,7 @@ Represents the source for consumer subscriptions.
 
 
 
-<a name="arke.Filter.MatchType"></a>
+<a name="arke-Filter-MatchType"></a>
 
 ### Filter.MatchType
 
@@ -420,7 +419,7 @@ Represents the source for consumer subscriptions.
 
 
 
-<a name="arke.HealthStatus.Code"></a>
+<a name="arke-HealthStatus-Code"></a>
 
 ### HealthStatus.Code
 
@@ -437,38 +436,38 @@ Represents the source for consumer subscriptions.
  
 
 
-<a name="arke.Consumer"></a>
+<a name="arke-Consumer"></a>
 
 ### Consumer
 Service for consuming messages
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
-| Consume | [Consume](#arke.Consume) stream | [ConsumeResponse](#arke.ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
-| Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |
+| Connect | [ConnectionConfiguration](#arke-ConnectionConfiguration) | [ConnectResponse](#arke-ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
+| Consume | [Consume](#arke-Consume) stream | [ConsumeResponse](#arke-ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
+| Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
 
-<a name="arke.Healthz"></a>
+<a name="arke-Healthz"></a>
 
 ### Healthz
 Service for health checks and communication
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| Check | [Health](#arke.Health) stream | [Health](#arke.Health) stream |  |
+| Check | [Health](#arke-Health) stream | [Health](#arke-Health) stream |  |
 
 
-<a name="arke.Producer"></a>
+<a name="arke-Producer"></a>
 
 ### Producer
 Service for producing messages
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| Connect | [ConnectionConfiguration](#arke.ConnectionConfiguration) | [ConnectResponse](#arke.ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
-| Publish | [Message](#arke.Message) stream | [MessageResponse](#arke.MessageResponse) stream | Send messages to the message broker. |
-| Disconnect | [Empty](#arke.Empty) | [Empty](#arke.Empty) | Disconnect from the proxy and the message broker. |
+| Connect | [ConnectionConfiguration](#arke-ConnectionConfiguration) | [ConnectResponse](#arke-ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
+| Publish | [Message](#arke-Message) stream | [MessageResponse](#arke-MessageResponse) stream | Send messages to the message broker. |
+| Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
  
 
@@ -476,21 +475,21 @@ Service for producing messages
 
 ## Scalar Value Types
 
-| .proto Type | Notes | C++ Type | Java Type | Python Type |
-| ----------- | ----- | -------- | --------- | ----------- |
-| <a name="double" /> double |  | double | double | float |
-| <a name="float" /> float |  | float | float | float |
-| <a name="int32" /> int32 | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead. | int32 | int | int |
-| <a name="int64" /> int64 | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead. | int64 | long | int/long |
-| <a name="uint32" /> uint32 | Uses variable-length encoding. | uint32 | int | int/long |
-| <a name="uint64" /> uint64 | Uses variable-length encoding. | uint64 | long | int/long |
-| <a name="sint32" /> sint32 | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s. | int32 | int | int |
-| <a name="sint64" /> sint64 | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s. | int64 | long | int/long |
-| <a name="fixed32" /> fixed32 | Always four bytes. More efficient than uint32 if values are often greater than 2^28. | uint32 | int | int |
-| <a name="fixed64" /> fixed64 | Always eight bytes. More efficient than uint64 if values are often greater than 2^56. | uint64 | long | int/long |
-| <a name="sfixed32" /> sfixed32 | Always four bytes. | int32 | int | int |
-| <a name="sfixed64" /> sfixed64 | Always eight bytes. | int64 | long | int/long |
-| <a name="bool" /> bool |  | bool | boolean | boolean |
-| <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode |
-| <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str |
+| .proto Type | Notes | C++ | Java | Python | Go | C# | PHP | Ruby |
+| ----------- | ----- | --- | ---- | ------ | -- | -- | --- | ---- |
+| <a name="double" /> double |  | double | double | float | float64 | double | float | Float |
+| <a name="float" /> float |  | float | float | float | float32 | float | float | Float |
+| <a name="int32" /> int32 | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead. | int32 | int | int | int32 | int | integer | Bignum or Fixnum (as required) |
+| <a name="int64" /> int64 | Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead. | int64 | long | int/long | int64 | long | integer/string | Bignum |
+| <a name="uint32" /> uint32 | Uses variable-length encoding. | uint32 | int | int/long | uint32 | uint | integer | Bignum or Fixnum (as required) |
+| <a name="uint64" /> uint64 | Uses variable-length encoding. | uint64 | long | int/long | uint64 | ulong | integer/string | Bignum or Fixnum (as required) |
+| <a name="sint32" /> sint32 | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s. | int32 | int | int | int32 | int | integer | Bignum or Fixnum (as required) |
+| <a name="sint64" /> sint64 | Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s. | int64 | long | int/long | int64 | long | integer/string | Bignum |
+| <a name="fixed32" /> fixed32 | Always four bytes. More efficient than uint32 if values are often greater than 2^28. | uint32 | int | int | uint32 | uint | integer | Bignum or Fixnum (as required) |
+| <a name="fixed64" /> fixed64 | Always eight bytes. More efficient than uint64 if values are often greater than 2^56. | uint64 | long | int/long | uint64 | ulong | integer/string | Bignum |
+| <a name="sfixed32" /> sfixed32 | Always four bytes. | int32 | int | int | int32 | int | integer | Bignum or Fixnum (as required) |
+| <a name="sfixed64" /> sfixed64 | Always eight bytes. | int64 | long | int/long | int64 | long | integer/string | Bignum |
+| <a name="bool" /> bool |  | bool | boolean | boolean | bool | bool | boolean | TrueClass/FalseClass |
+| <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode | string | string | string | String (UTF-8) |
+| <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str | []byte | ByteString | string | String (ASCII-8BIT) |
 

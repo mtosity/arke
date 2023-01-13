@@ -594,10 +594,14 @@ func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]i
 	if bd.tlsEnabled {
 		proto = "https"
 	}
-	port := bd.connectionConfig.Port + 10000
+
+	adminPort := bd.connectionConfig.GetAdminPort()
+	if adminPort == 0 {
+		adminPort = bd.connectionConfig.Port + 10000
+	}
 	host := bd.connectionConfig.Host
 
-	rurl := fmt.Sprintf("%s://%s:%d%s", proto, host, port, urn)
+	rurl := fmt.Sprintf("%s://%s:%d%s", proto, host, adminPort, urn)
 	req, _ := http.NewRequest(method, rurl, nil)
 	req.SetBasicAuth(bd.connectionConfig.GetCredentials().GetUsername(), bd.connectionConfig.GetCredentials().GetPassword())
 	req.Header.Add("Accept", "application/json")

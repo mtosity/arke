@@ -77,6 +77,7 @@ replace (
 	github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.7
 	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.0
+	sassoftware.io/convoy/arke/api => ./api
 	golang.org/x/text v0.3.0 => golang.org/x/text v0.3.8
 	golang.org/x/text v0.3.2 => golang.org/x/text v0.3.8
 	golang.org/x/text v0.3.7 => golang.org/x/text v0.3.8

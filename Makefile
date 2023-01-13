@@ -96,6 +96,13 @@ darwin: setup generate ## Builds binary for darwin_amd64 (osx)
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
 	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE}
 
+build: $(UNAME_S) ## Builds binary for current platform
+
+run:
+	./build/$(UNAME_S)/${OUT_FILE} &
+stop:
+	pkill -2 -f build/$(UNAME_S)/${OUT_FILE}
+
 test: generate lint test-nogen ## Executes unit tests
 
 test-nogen: ## Executes unit tests without protoc generation
@@ -105,14 +112,14 @@ test-nogen: ## Executes unit tests without protoc generation
 # integration test related
 
 build_test_c:
-	${BUILD_ENV} GOARCH=$(UNAME_ARCH) GOOS=$(UNAME_S) go test -c ./ -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
+	${BUILD_ENV} go test -c ./ -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
 
 pre_stop_test_c:
-	pkill -2 -f build/$(UNAME_S)/arke.test || true
+	killall -2 arke.test || true
 	sleep 2
 
 stop_test_c:
-	pkill -2 -f build/$(UNAME_S)/arke.test || true
+	killall -2 arke.test || true
 	sleep 2
 
 run_test_c:
@@ -147,11 +154,11 @@ compose_down: ## Removes integration tests Docker resources
 		docker-compose down
 
 integration_test: ## Runs integration tests
-	echo "\033[0;36mNo providerTLS\033[0m"
+	echo -e "\033[0;36mNo providerTLS\033[0m"
 	go test -count=1 -v -tags=integration ./tests/integration/
 
 integration_test_tls: ## Runs integration tests with TLS enabled
-	echo "\033[0;31mProvider TLS enabled\033[0m"
+	echo -e "\033[0;31mProvider TLS enabled\033[0m"
 	PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./tests/integration/
 
 integration_test_tls_send_ca: ## Runs integraiton tests with TLS enabled by sending TLS certs

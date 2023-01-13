@@ -27,6 +27,12 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 	if err != nil {
 		log.Fatalf("Could not convert '%s' to int", rawport)
 	}
+
+	rawAdminPort := getenv("SAS_BROKER_ADMIN_PORT", "0")
+	adminPort, err := strconv.ParseInt(rawAdminPort, 10, 32)
+	if err != nil {
+		log.Fatalf("Could not convert '%s' to int", rawAdminPort)
+	}
 	username := getenv("SAS_BROKER_USERNAME", "guest")
 	password := getenv(brokerP, "guest")
 	brokerType := getenv("SAS_BROKER_TYPE", "amqp091")
@@ -46,6 +52,7 @@ func ConnectionConfigurationFromEnv() pb.ConnectionConfiguration {
 		Provider:      brokerType,
 		Tenant:        tenant,
 		CaCertificate: caCertificate,
+		AdminPort:     int32(adminPort),
 	}
 	return connConf //nolint
 }
