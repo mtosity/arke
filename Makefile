@@ -137,7 +137,7 @@ integration_azure: ## Runs integration tests for Azure Service bus
 	source env-azure && go test -count=1 -v -tags=integration ./tests/integration/
 
 lint: ## Run golangci-lint tool
-	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=deadcode --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=structcheck --enable=typecheck --enable=unused --enable=varcheck --enable=revive --enable=gocritic  --allow-parallel-runners
+	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=typecheck --enable=unused --enable=revive --enable=gocritic  --allow-parallel-runners
 
 compose: #linux ## Builds and runs docker image(s) for integration tests
 	$(RUN_COMPOSE) || (cd tests/integration && \

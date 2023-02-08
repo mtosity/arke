@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"sync"
 	"time"
+        "context"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
@@ -258,7 +259,9 @@ func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Messag
 		return err
 	}
 
-	return ch.channel.Publish(addressName, subject, false, false, toAmqpMessage(&msg))
+        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+	return ch.channel.PublishWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
 }
 
 // NotifyCancel be notified of deleted queues
