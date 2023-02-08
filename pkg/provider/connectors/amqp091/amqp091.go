@@ -62,6 +62,7 @@ type BrokerDetails struct {
 	lastPubSubEvent  time.Time
 	tlsConfig        *tls.Config
 	tlsEnabled       bool
+	shutdownChan     chan bool
 }
 
 func init() {
@@ -376,6 +377,7 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 		ActiveStreams:    0,
 		clientDisconnect: false,
 		lastPubSubEvent:  time.Now(),
+		shutdownChan:     make(chan bool, 1),
 	}
 
 	_, bdErr := bd.connect()
@@ -942,12 +944,15 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 		}
 	}()
 
+	bd.clientDisconnect = true
+	util.Logger.InfoI("info.clientdisconnect", bd.ClientIdentifier)
+	bd.shutdownChan <- true // shut down the connectionWatcher
+	// close the client if it is still connected
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
-		util.Logger.InfoI("info.clientdisconnect", bd.ClientIdentifier)
-		bd.clientDisconnect = true
 		bd.Connection.Close()
 	}
 	prov.connections.Delete(clientIdentifier)
+
 	bd = nil
 }
 
@@ -1118,8 +1123,9 @@ func (bd *BrokerDetails) connectionWatcher() {
 
 	for !bd.clientDisconnect {
 		select {
+		case <-bd.shutdownChan:
+			return
 		case err, ok := <-bd.ErrorChannel:
-
 			bd.Lock()
 			if !ok || (err != (amqp091Error{}) && err.Code() != 0) {
 				bd.state = provider.DISCONNECTED
