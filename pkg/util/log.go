@@ -63,6 +63,7 @@ debug.healthnotify=Health notification code {0} sent to {1}
 warn.hpamonitorpanic=HPA monitor error: {0}
 info.nohpa=No HPA found
 debug.ensurechannelerror=Error ensuring channel on connection for {0}: {1}
+warn.azureMinimumExpiresTime=Client {0} Expires header for source {1} is too low ({2}). Defaulting to 5 minutes minimum.
 `
 
 // Logger default logger

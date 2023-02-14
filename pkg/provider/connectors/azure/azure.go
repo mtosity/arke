@@ -547,7 +547,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 
 	subOpts := &azadmin.CreateSubscriptionOptions{}
 	subOpts.Properties = &azadmin.SubscriptionProperties{}
-	needDelete := 1
+	setAutoDeleteTimeout := true
 
 	for option, value := range source.GetOptions() {
 		switch option {
@@ -557,16 +557,24 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 				return "", errors.New("value for MessageTTL option must be a quoted integer")
 			}
 
-			ttlString := durationTo8601(time.Duration(val) * time.Second)
+			ttlString := durationTo8601(time.Duration(val) * time.Millisecond)
 			subOpts.Properties.DefaultMessageTimeToLive = &ttlString
 		case "Expires":
 			val, err := strconv.Atoi(value)
 			if err != nil {
 				return "", errors.New("value for Expires option must be a quoted integer")
 			}
-			expString := durationTo8601(time.Duration(val))
-			subOpts.Properties.AutoDeleteOnIdle = &expString
-			needDelete = 0
+			// 5 minutes is the minimum AutoDeleteOnIdle
+			minimumTime := 5 * 60 * 1000
+			if val > 0 && val < minimumTime {
+				util.Logger.WarnI("warn.azureMinimumExpiresTime", bd.ClientIdentifier, source.GetName(), val)
+				val = minimumTime
+			}
+			if val > 0 {
+				expString := durationTo8601(time.Duration(val) * time.Millisecond)
+				subOpts.Properties.AutoDeleteOnIdle = &expString
+				setAutoDeleteTimeout = false
+			}
 		case "DeadLetterAddress":
 			deadLetter := true
 			subOpts.Properties.DeadLetteringOnMessageExpiration = &deadLetter
@@ -582,7 +590,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 
 	// TODO: We may want to set this on Topics and not Subscriptions
 	// because of DLQ forward issues.
-	if needDelete > 0 {
+	if setAutoDeleteTimeout {
 		// Our default delete timeout will remove an idle queue after 15 days
 		// autoDeleteTimeout := time.Hour * 24 * 15
 		autoDeleteTimeout := "P15D" // ISO8601 for 15 days
