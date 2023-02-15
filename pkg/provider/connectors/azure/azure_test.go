@@ -1379,6 +1379,16 @@ func Test_Publish_Error(t *testing.T) {
 	amock.AssertExpectations(t)
 }
 
+func Test_durationTo8601(t *testing.T) {
+	d := time.Duration(5000 * time.Millisecond)
+	s := durationTo8601(d)
+	assert.Equal(t, "PT0M5S", s)
+
+	d = time.Duration(300000 * time.Millisecond)
+	s = durationTo8601(d)
+	assert.Equal(t, "PT5M0S", s)
+}
+
 func Test_Subscribe_Options(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
