@@ -1,10 +1,10 @@
 package amqp091
 
 import (
+	"context"
 	"crypto/tls"
 	"sync"
 	"time"
-        "context"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
@@ -259,8 +259,8 @@ func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Messag
 		return err
 	}
 
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	return ch.channel.PublishWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
 }
 

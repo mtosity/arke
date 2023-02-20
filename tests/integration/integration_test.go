@@ -1513,7 +1513,7 @@ func TestDeadLettering(t *testing.T) {
 	source.Options = make(map[string]string)
 	source.Options["DeadLetterAddress"] = deadLetterExchange
 	source.Options["DeadLetterSubject"] = deadLetterSubject
-	source.Options["MessageTTL"] = "5"
+	source.Options["MessageTTL"] = "5000"
 
 	// connect a consumer and then disconnect then disconnect
 	c1 := pb.NewConsumerClient(consumerConnection1)
@@ -1600,7 +1600,7 @@ func TestDeadLetteringReject(t *testing.T) {
 	source.Options = make(map[string]string)
 	source.Options["DeadLetterAddress"] = deadLetterExchange
 	source.Options["DeadLetterSubject"] = deadLetterSubject
-	source.Options["MessageTTL"] = "5"
+	source.Options["MessageTTL"] = "5000"
 
 	// connect a consumer and then disconnect then disconnect
 	c1 := pb.NewConsumerClient(consumerConnection1)

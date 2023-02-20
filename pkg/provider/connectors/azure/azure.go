@@ -547,6 +547,8 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 
 	subOpts := &azadmin.CreateSubscriptionOptions{}
 	subOpts.Properties = &azadmin.SubscriptionProperties{}
+	lockDuration := durationTo8601(30 * time.Minute)
+	subOpts.Properties.LockDuration = &lockDuration
 	setAutoDeleteTimeout := true
 
 	for option, value := range source.GetOptions() {
