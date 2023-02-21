@@ -369,8 +369,27 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 		close(msgChan)
 	}(messages)
 
+	// 4 minute ticker for renewing locks because that is less than our LockDuration
+	ticker := time.NewTicker(4 * time.Minute)
 	for {
 		select {
+		case <-ticker.C:
+			inFlightMsgs := bd.activeMessages.GetList()
+
+			for _, msgID := range inFlightMsgs {
+				msgRaw, ok := bd.activeMessages.Get(msgID)
+				if ok {
+					inFlight := msgRaw.(azureMessageShim)
+					// keep locking if the client was sent this message less
+					// than 30 minutes ago
+					if time.Since(inFlight.ClientSentTime()) < 30*time.Minute {
+						lockContext, lockCancel := context.WithTimeout(*ctx, 5*time.Second)
+						util.Logger.Debugf("Renewing lock for %s for message %s", bd.ClientIdentifier, msgID)
+						_ = inFlight.RenewLock(lockContext)
+						lockCancel()
+					}
+				}
+			}
 		case <-newCtx.Done():
 			return nil
 		case stop, ok := <-stopChannel:
@@ -547,7 +566,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 
 	subOpts := &azadmin.CreateSubscriptionOptions{}
 	subOpts.Properties = &azadmin.SubscriptionProperties{}
-	lockDuration := durationTo8601(30 * time.Minute)
+	lockDuration := durationTo8601(5 * time.Minute) // ASB has a 5 minute maximum LockDuration
 	subOpts.Properties.LockDuration = &lockDuration
 	setAutoDeleteTimeout := true
 

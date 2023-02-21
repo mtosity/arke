@@ -62,6 +62,9 @@ type azureMessageShim interface {
 	SetSender(azureSenderShim)
 
 	DeadLetter(context.Context) error
+
+	RenewLock(context.Context) error
+	LockedUntil() time.Time
 }
 
 // azureMessage message
@@ -250,6 +253,15 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 // Ack acknowledges a message and removes it from the broker
 func (am *azureMessage) Ack(ctx context.Context) error {
 	return am.azReceiver.CompleteMessage(ctx, am.receivedMessage, nil)
+}
+
+// RenewLock renews the lock on a message for
+func (am *azureMessage) RenewLock(ctx context.Context) error {
+	return am.azReceiver.RenewMessageLock(ctx, am.receivedMessage, nil)
+}
+
+func (am *azureMessage) LockedUntil() time.Time {
+	return *am.receivedMessage.LockedUntil
 }
 
 // Nack mark the message as failed and allow it to be consumed again
