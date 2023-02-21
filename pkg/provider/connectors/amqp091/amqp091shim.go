@@ -31,7 +31,7 @@ type amqp091ChannelShim interface {
 	QueueDeclare(string, bool, bool, bool, amqp091Table) error
 	QueueBind(string, string, string, amqp091Table) error
 	Consume(string, bool, bool) (<-chan amqp091Message, error)
-	NotifyCancel(chan string) chan string
+	NotifyClose(chan amqp091Error) chan amqp091Error
 	ensureChannel() error
 }
 
@@ -126,13 +126,15 @@ func (ac *amqp091Connection) NotifyClose(rec chan amqp091Error) chan amqp091Erro
 				if amqpErr != nil {
 					err = amqp091Error{*amqpErr}
 				}
+				util.Logger.Debugf("Received notify for client %v : %v", ac.clientIdentifier, err)
 				select {
 				case rec <- err:
-					continue
+					return
 				default:
 					return
 				}
 			case <-rec:
+				util.Logger.Debugf("Received rec notify for client %v", ac.clientIdentifier)
 				// this should theoretically happen only if the subscribe function
 				// sends a message on the rec channel while we are waiting
 				// for actual errors from amqpErrors
@@ -264,9 +266,11 @@ func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Messag
 	return ch.channel.PublishWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
 }
 
-// NotifyCancel be notified of deleted queues
-func (ch *amqp091Channel) NotifyCancel(rec chan string) chan string {
-	amqpErrors := ch.channel.NotifyCancel(make(chan string, cap(rec)))
+// NotifyClose be notified of deleted queues, or channel closures
+func (ch *amqp091Channel) NotifyClose(rec chan amqp091Error) chan amqp091Error {
+	cancelErrors := ch.channel.NotifyCancel(make(chan string, cap(rec)))
+	closeErrors := ch.channel.NotifyClose(make(chan *amqp.Error, cap(rec)))
+
 
 	go func() {
 		defer func() {
@@ -276,14 +280,32 @@ func (ch *amqp091Channel) NotifyCancel(rec chan string) chan string {
 		}()
 		for {
 			select {
-			case amqpErr := <-amqpErrors:
+			case amqpErr := <-cancelErrors:
+				var err amqp091Error
+				if amqpErr != "" {
+					err.error = amqp.Error{Reason: amqpErr}
+				}
+				util.Logger.Debugf("Received channel cancel notify for client %v : %v", ch.connection.clientIdentifier, err)
 				select {
-				case rec <- amqpErr:
-					continue
+				case rec <- err:
+					return
+				default:
+					return
+				}
+			case amqpErr := <-closeErrors:
+				var err amqp091Error
+				if amqpErr != nil {
+					err = amqp091Error{*amqpErr}
+				}
+				util.Logger.Debugf("Received channel close notify for client %v : %v", ch.connection.clientIdentifier, err)
+				select {
+				case rec <- err:
+					return
 				default:
 					return
 				}
 			case <-rec:
+				util.Logger.Debugf("Received channel rec notify for client %v", ch.connection.clientIdentifier)
 				// this should theoretically happen only if the subscribe function
 				// sends a message on the rec channel while we are waiting
 				return

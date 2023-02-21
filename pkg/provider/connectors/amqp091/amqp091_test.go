@@ -99,9 +99,9 @@ func (m *amqpChannelMock) Consume(arg1 string, arg2 bool, arg3 bool) (<-chan amq
 	return mc, args.Error(1)
 }
 
-func (m *amqpChannelMock) NotifyCancel(chan string) chan string {
+func (m *amqpChannelMock) NotifyClose(chan amqp091Error) chan amqp091Error {
 	args := m.Called()
-	return args.Get(0).(chan string)
+	return args.Get(0).(chan amqp091Error)
 }
 
 func (m *amqpChannelMock) IsClosed() bool {
@@ -458,8 +458,8 @@ func Test_Ack(t *testing.T) {
 		msgs <- mm
 	}(&delMock)
 
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -543,8 +543,8 @@ func Test_Nack(t *testing.T) {
 		msgs <- mm
 	}(&delMock)
 
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -627,8 +627,8 @@ func Test_Retry(t *testing.T) {
 		msgs <- mm
 	}(&delMock)
 
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -709,8 +709,8 @@ func Test_RetryFailure(t *testing.T) {
 		msgs <- mm
 	}(&delMock)
 
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -794,8 +794,8 @@ func Test_DLQ(t *testing.T) {
 	argsEmpty := make(amqp091Table)
 	args := make(amqp091Table)
 	args["x-dead-letter-exchange"] = "dla"
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", "addressname", "topic", false, false).Return(nil).Once()
 	cmock.On("ExchangeDeclare", "dla", "topic", false, false).Return(nil).Once()
@@ -1017,8 +1017,8 @@ func Test_Subscribe_Options(t *testing.T) {
 	cmock.On("QueueBind", src.GetName(), "subject2", address.GetName(), expectedMatchHeaders2).Return(nil).Once()
 	cmock.On("QueueBind", "srcname.dlq", "dls", "dla", mock.Anything).Return(nil).Once()
 	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
@@ -1119,8 +1119,8 @@ func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
 	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), amqp091Table{}).Return(nil)
 	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
-	cancels := make(chan string)
-	cmock.On("NotifyCancel").Return(cancels)
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)

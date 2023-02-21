@@ -821,9 +821,6 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		source.GetExclusive(), // exclusive
 	)
 
-	cancelChan := make(chan string)
-	cancelChan = amqpChannel.NotifyCancel(cancelChan)
-
 	if err != nil {
 		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
 		return &pb.Error{Message: err.Error()}
@@ -833,6 +830,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
+	cancelChan := make(chan amqp091Error)
+	cancelChan = amqpChannel.NotifyClose(cancelChan)
+
 	defer func() {
 		// try to send on the channel and if we can't it's
 		// probably not receiving on the other end for some
@@ -866,26 +866,32 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			}
 		case cancelErr, ok := <-cancelChan:
 			if !ok {
+				util.Logger.Debugf("Channel to broker closed during subscribe %v", bd.ClientIdentifier)
 				return &pb.Error{Message: "Channel to broker closed"}
 			}
 
-			if cancelErr != "" {
-				return &pb.Error{Message: fmt.Sprintf("Queue %s deleted", source.Name)}
+			if cancelErr != (amqp091Error{}) {
+				util.Logger.Debugf("Received channel notify for client during subscribe %v : %v", bd.ClientIdentifier, cancelErr)
+				return &pb.Error{Message: cancelErr.Error()}
 			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				util.Logger.Debugf("Received channel state not connected during subscribe %v : %v", bd.ClientIdentifier, bd.state)
 				return nil
 			}
 		case chanErr, ok := <-connErrChan:
 			if !ok {
+				util.Logger.Debugf("Connection to broke closed during subscribe %v", bd.ClientIdentifier)
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
 			if chanErr != (amqp091Error{}) {
+				util.Logger.Debugf("Received connection notify for client during subscribe %v : %v", bd.ClientIdentifier, chanErr)
 				return &pb.Error{Message: chanErr.Error()}
 			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				util.Logger.Debugf("Received connection state not connected during subscribe %v : %v", bd.ClientIdentifier, bd.state)
 				return nil
 			}
 		case msg, ok := <-messages:
@@ -979,6 +985,8 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
+	cancelChan := make(chan amqp091Error)
+	cancelChan = bd.Connection.NotifyClose(cancelChan)
 
 	defer func() {
 		// try to send on the channel and if we can't it's
@@ -995,17 +1003,35 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 	for {
 		select {
+		case cancelErr, ok := <-cancelChan:
+			if !ok {
+				util.Logger.Debugf("Channel to broker closed during publish %v", bd.ClientIdentifier)
+				return &pb.Error{Message: "Channel to broker closed"}
+			}
+
+			if cancelErr != (amqp091Error{}) {
+				util.Logger.Debugf("Received channel notify for client during publish %v : %v", bd.ClientIdentifier, cancelErr)
+				return &pb.Error{Message: cancelErr.Error()}
+			} else if bd.state != provider.CONNECTED {
+				// The connection was closed without an error on the channel, so this was expected.
+				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				util.Logger.Debugf("Received channel state not connected during publish %v : %v", bd.ClientIdentifier, bd.state)
+				return nil
+			}
 		case chanErr, ok := <-connErrChan:
 			if !ok {
+				util.Logger.Debugf("Connection to broker closed during publish %v", bd.ClientIdentifier)
 				return &pb.Error{Message: "Connection to broker closed"}
 			}
 
 			if chanErr != (amqp091Error{}) {
+				util.Logger.Debugf("Received connection notify for client during publish %v : %v", bd.ClientIdentifier, chanErr)
 				retError := &pb.Error{Message: chanErr.Error()}
 				return retError
 			} else if bd.state != provider.CONNECTED {
 				// The connection was closed without an error on the channel, so this was expected.
 				// TODO: Should we check for DISCONNECTED/CONNECTING as well?
+				util.Logger.Debugf("Received connection state not connected during publish %v : %v", bd.ClientIdentifier, bd.state)
 				return nil
 			}
 		case message := <-messageChannel:
