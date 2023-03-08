@@ -147,11 +147,8 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	isSubscribing := false
 
 	stopChan := make(chan bool)
-	stopChanClosed := false
 	defer func() {
-		if !stopChanClosed {
-			close(stopChan)
-		}
+		close(stopChan)
 	}()
 
 	// stopForLoop is used for errors that require the exiting of Consume
@@ -192,8 +189,6 @@ consumeLoop:
 		select {
 		case <-ctx.Done():
 			util.Logger.Debugf("Client %v went away.", clientIdentifier)
-			stopChanClosed = true
-			close(stopChan)
 			break consumeLoop
 		case cnsmRecv := <-recvChan:
 
@@ -245,14 +240,14 @@ consumeLoop:
 
 				isSubscribing = true
 
-				go func(mc <-chan *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *chan bool, returnErr *error) {
-					newCtx, cancel := context.WithCancel(*ctx)
+				go func(mc <-chan *pb.Message, prov provider.Provider, cont *context.Context, stopCh chan bool, stopFor *chan bool, returnErr *error) {
+					newCtx, cancel := context.WithCancel(*cont)
 					defer cancel()
 					for {
 						select {
 						case <-newCtx.Done():
 							return
-						case stop, ok := <-stopChan:
+						case stop, ok := <-stopCh:
 							if !ok || stop {
 								return
 							}
@@ -279,7 +274,7 @@ consumeLoop:
 					}
 				}(messageChannel, prov, &ctx, stopChan, &stopForLoop, &returnError)
 
-				go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stopChan chan bool, stopFor *chan bool, returnErr *error) {
+				go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stopCh chan bool, stopFor *chan bool, returnErr *error) {
 					newCtx, cancel := context.WithCancel(*ctx)
 					defer cancel()
 					subscribeAttempts := 0
@@ -296,7 +291,7 @@ consumeLoop:
 						select {
 						case <-newCtx.Done():
 							return
-						case stop, ok := <-stopChan:
+						case stop, ok := <-stopCh:
 							if !ok || stop {
 								return
 							}
@@ -311,7 +306,7 @@ consumeLoop:
 								*returnErr = fmt.Errorf("stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
 								return
 							}
-							err := prov.Subscribe(&newCtx, source, mc, stopChan)
+							err := prov.Subscribe(&newCtx, source, mc, stopCh)
 							if err != nil {
 								if clientExists(newCtx) {
 									util.Logger.InfoI("info.subscribefailbutclientexists", clientIdentifier, err.Message)
