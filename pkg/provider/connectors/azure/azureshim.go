@@ -74,7 +74,7 @@ type azureMessage struct {
 	sendingMessage    *azservicebus.Message
 	clientSentTime    time.Time
 	sender            azureSenderShim
-	azReceiver        *azservicebus.Receiver
+	receiver          *azureReceiver
 	deadLetterEnabled bool // true if DeadLetter is enabled for the subscription this was consumed from
 }
 
@@ -93,6 +93,12 @@ type azureClient struct {
 type azureSender struct {
 	azureSenderShim
 	sender *azservicebus.Sender
+}
+
+// azureReceiver receiver
+type azureReceiver struct {
+	receiver      *azservicebus.Receiver
+	inFlightCount int
 }
 
 // NewAzureClient create a new namespace object
@@ -222,8 +228,8 @@ func (as *azureSender) SendMessage(ctx context.Context, message *azservicebus.Me
 	return as.sender.SendMessage(ctx, message, nil)
 }
 
+// ReceiveMessages receive messages from a subscription
 func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscriptionName string, prefetch int, messages chan azureMessageShim, deadLetterEnabled bool) error {
-	// opts := &azservicebus.ReceiveMessagesOptions{ReceiveMode: azservicebus.ReceiveModePeekLock}
 	opts := &azservicebus.ReceiverOptions{}
 	receiver, err := ac.client.NewReceiverForSubscription(topicName, subscriptionName, opts)
 	if err != nil {
@@ -231,8 +237,18 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 	}
 	defer receiver.Close(ctx)
 
+	rcvr := &azureReceiver{receiver: receiver, inFlightCount: 0}
 	for {
-		msgs, err := receiver.ReceiveMessages(ctx, prefetch, nil)
+		msgReqCnt := prefetch - rcvr.inFlightCount
+		util.Logger.Debugf("fetching %d", msgReqCnt)
+		if ctx.Err() != nil {
+			return nil // context closed
+		}
+		if msgReqCnt < 1 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		msgs, err := receiver.ReceiveMessages(ctx, msgReqCnt, nil)
 		if err != nil {
 			if ctx.Err() != nil { // context closed
 				return nil
@@ -242,9 +258,10 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 
 		for _, msg := range msgs {
 			message := &azureMessage{}
-			message.azReceiver = receiver
+			message.receiver = rcvr
 			message.receivedMessage = msg
 			message.deadLetterEnabled = deadLetterEnabled
+			message.receiver.inFlightCount++
 			messages <- message
 		}
 	}
@@ -252,12 +269,13 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 
 // Ack acknowledges a message and removes it from the broker
 func (am *azureMessage) Ack(ctx context.Context) error {
-	return am.azReceiver.CompleteMessage(ctx, am.receivedMessage, nil)
+	am.receiver.inFlightCount--
+	return am.receiver.receiver.CompleteMessage(ctx, am.receivedMessage, nil)
 }
 
 // RenewLock renews the lock on a message for
 func (am *azureMessage) RenewLock(ctx context.Context) error {
-	return am.azReceiver.RenewMessageLock(ctx, am.receivedMessage, nil)
+	return am.receiver.receiver.RenewMessageLock(ctx, am.receivedMessage, nil)
 }
 
 func (am *azureMessage) LockedUntil() time.Time {
@@ -270,10 +288,9 @@ func (am *azureMessage) Nack(ctx context.Context, requeue bool) error {
 	// if we are not to requeue and dead lettering is enabled, dead letter
 	// if we are not to requeue and dead lettering is not enabled, ack the message
 	if requeue {
-		util.Logger.Debugf("nack is requeueing message %s", am.ID())
-		return am.azReceiver.AbandonMessage(ctx, am.receivedMessage, nil)
+		am.receiver.inFlightCount--
+		return am.receiver.receiver.AbandonMessage(ctx, am.receivedMessage, nil)
 	} else if am.deadLetterEnabled {
-		util.Logger.Debugf("nack is dead lettering message %s", am.ID())
 		return am.DeadLetter(ctx)
 	}
 	return am.Ack(ctx)
@@ -283,7 +300,8 @@ func (am *azureMessage) Nack(ctx context.Context, requeue bool) error {
 func (am *azureMessage) DeadLetter(ctx context.Context) error {
 	reason := "client request"
 	opts := &azservicebus.DeadLetterOptions{Reason: &reason}
-	return am.azReceiver.DeadLetterMessage(ctx, am.receivedMessage, opts)
+	am.receiver.inFlightCount--
+	return am.receiver.receiver.DeadLetterMessage(ctx, am.receivedMessage, opts)
 }
 
 // SetProperties set message properties

@@ -222,7 +222,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 		rm := rmu.(amqp091Message)
 		err = rm.Nack(false)
 		elapsed := time.Since(rm.ClientSentTime).Microseconds()
-		fmt.Printf("method:nack,client:%s,elapsed:%v,time:%v\n",
+		util.DebugNoFormat("method:nack,client:%s,elapsed:%v,time:%v\n",
 			bd.ClientIdentifier,
 			elapsed,
 			time.Now().UnixNano())

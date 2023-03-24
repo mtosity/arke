@@ -177,7 +177,7 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 
 			bd.activeMessages.Delete(msgid)
 			elapsed := time.Since(rm.ClientSentTime()).Microseconds()
-			fmt.Printf("method:nack,client:%s,elapsed:%v,time:%v\n",
+			util.DebugNoFormat("method:nack,client:%s,elapsed:%v,time:%v\n",
 				bd.ClientIdentifier,
 				elapsed,
 				time.Now().UnixNano())
