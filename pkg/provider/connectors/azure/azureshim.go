@@ -21,6 +21,7 @@ type azureClientShim interface {
 	CreateSubscription(context.Context, string, string, *azadmin.CreateSubscriptionOptions) error
 	CreateTopic(context.Context, string) error
 	CreateRule(context.Context, string, string, string, string) error
+	UpdateRule(context.Context, string, string, string, string) error
 	DeleteRule(context.Context, string, string, string) error
 	ListRules(string, string) ([]azadmin.RuleProperties, error)
 	GenerateForwardToName(string) string
@@ -215,11 +216,19 @@ func (ac *azureClient) DeleteRule(ctx context.Context, topicName, subscriptionNa
 	return err
 }
 
-// PutRule create a rule on a subscription
+// CreateRule create a rule on a subscription
 func (ac *azureClient) CreateRule(ctx context.Context, topicName, subscriptionName, ruleName string, ruleText string) error {
 	filter := &azadmin.SQLFilter{Expression: ruleText}
 	opts := &azadmin.CreateRuleOptions{Name: &ruleName, Filter: filter}
 	_, err := ac.adminClient.CreateRule(ctx, topicName, subscriptionName, opts)
+	return err
+}
+
+// UpdateRule update a rule on a subscription
+func (ac *azureClient) UpdateRule(ctx context.Context, topicName, subscriptionName, ruleName string, ruleText string) error {
+	filter := &azadmin.SQLFilter{Expression: ruleText}
+	opts := azadmin.RuleProperties{Name: ruleName, Filter: filter}
+	_, err := ac.adminClient.UpdateRule(ctx, topicName, subscriptionName, opts)
 	return err
 }
 

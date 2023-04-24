@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -637,38 +638,7 @@ func sourceNameToSubName(name string) string {
 	return fmt.Sprintf("%s-%s", srcPart, subHash)
 }
 
-func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicName string, subOpts *azadmin.CreateSubscriptionOptions) (string, error) {
-	// create subscription
-	subName := sourceNameToSubName(source.GetName())
-
-	ctx := context.Background()
-
-	err := bd.azure.CreateSubscription(ctx, topicName, subName, subOpts)
-
-	if err != nil {
-		return "", err
-	}
-
-	routingAndFilterRuleName := "RoutingAndFilterRule"
-	routingAndFilterRuleExists := false
-
-	sqlFilter := &azadmin.SQLFilter{}
-
-	existingRules, err := bd.azure.ListRules(topicName, subName)
-	if err != nil {
-		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier, err.Error())
-	}
-	for _, rule := range existingRules {
-		if rule.Name == "$Default" {
-			// Ignore any errors, we will try again when we subscribe again
-			bd.azure.DeleteRule(ctx, topicName, subName, rule.Name) //nolint errcheck
-			continue
-		} else if rule.Name == routingAndFilterRuleName {
-			routingAndFilterRuleExists = true
-			sqlFilter = rule.Filter.(*azadmin.SQLFilter)
-		}
-	}
-
+func generateRules(source *pb.Source) []string {
 	var rules []string
 
 	// add rules for routing keys
@@ -677,21 +647,16 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 	var routingRules []string
 	routingKeys := source.GetAddress().GetSubjects()
 	for _, key := range routingKeys {
-		rule := fmt.Sprintf("user.RoutingKey = '%s'", key)
+		rule := fmt.Sprintf("RoutingKey = '%s'", key)
 		if strings.ContainsAny(key, "*#") {
 			key = strings.ReplaceAll(strings.ReplaceAll(key, "#", "%"), "*", "%")
-			rule = fmt.Sprintf("user.RoutingKey like '%s'", key)
+			rule = fmt.Sprintf("RoutingKey like '%s'", key)
 		}
 		routingRules = append(routingRules, rule)
 	}
 
-	if len(routingRules) > 0 {
-		routingRule := fmt.Sprintf("(%s)", strings.Join(routingRules, " OR "))
-		rules = append(rules, routingRule)
-	}
-
+	var filterRules []string
 	if len(source.GetFilters()) > 0 {
-		var filterRules []string
 		// loop through filters, if any, and OR them together
 		for _, filter := range source.GetFilters() {
 			var fRules []string
@@ -712,56 +677,98 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 				filterRules = append(filterRules, fmt.Sprintf("(%s)", strings.Join(fRules, op)))
 			}
 		}
-		if len(filterRules) > 0 {
-			compiledFilterRules := fmt.Sprintf("(%s)", strings.Join(filterRules, " OR "))
+
+	}
+
+	// each routing key should be paired with all the filters since rules are an OR
+	// this will prevent the max rule size issue with services that have lots of
+	// subjects (routing keys)
+	if len(filterRules) > 0 {
+		compiledFilterRules := fmt.Sprintf("(%s)", strings.Join(filterRules, " OR "))
+		if len(routingRules) > 0 {
+			for _, rule := range routingRules {
+				rules = append(rules, fmt.Sprintf("%s AND %s", rule, compiledFilterRules))
+			}
+		} else {
 			rules = append(rules, compiledFilterRules)
 		}
+	} else {
+		rules = routingRules
+	}
+	return rules
+}
+
+func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicName string, subOpts *azadmin.CreateSubscriptionOptions) (string, error) {
+	// create subscription
+	subName := sourceNameToSubName(source.GetName())
+
+	ctx := context.Background()
+
+	err := bd.azure.CreateSubscription(ctx, topicName, subName, subOpts)
+
+	if err != nil {
+		return "", err
 	}
 
-	actualRule := strings.Join(rules, " AND ")
-	tmpRuleName := routingAndFilterRuleName + ".tmp"
-	// we need to recreate the RoutingAndFilterRule rule if it exists, but we need to prevent message loss
-	// so we:
-	// If rule exists and does not match what we expect: add temp rule, delete RoutingAndFilterRule, create new RoutingAndFilterRule, delete temp rule
-	// If rule does not exist, just create the rule
-	if actualRule != "" {
-		if routingAndFilterRuleExists {
-			if sqlFilter.Expression != actualRule {
-				// create a temporary rule
-				// delete the existing rule
-				err = bd.azure.CreateRule(ctx, topicName, subName, tmpRuleName, actualRule)
+	routingAndFilterRuleName := "RoutingAndFilterRule"
+
+	expressions := util.NewConcurrentMap()
+
+	existingRules, err := bd.azure.ListRules(topicName, subName)
+	var existingRuleNames []string
+	if err != nil {
+		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier, err.Error())
+	}
+	for _, rule := range existingRules {
+		if rule.Name == "$Default" {
+			// Ignore any errors, we will try again when we subscribe again
+			bd.azure.DeleteRule(ctx, topicName, subName, rule.Name) //nolint errcheck
+			continue
+		} else if strings.Contains(rule.Name, routingAndFilterRuleName) {
+			// routingAndFilterRuleExists = true
+			sqlFilter := rule.Filter.(*azadmin.SQLFilter)
+			expressions.Add(rule.Name, sqlFilter.Expression)
+		}
+		existingRuleNames = append(existingRuleNames, rule.Name)
+	}
+	sort.Strings(existingRuleNames)
+
+	rules := generateRules(source)
+
+	for i, ruleText := range rules {
+		ruleName := fmt.Sprintf("%s%02d", routingAndFilterRuleName, i)
+		// if the rule already exists
+		if existingRule, ok := expressions.Get(ruleName); ok {
+			// only update the rule if the existing rule text is different than what want it to be
+			if ruleText != existingRule.(string) {
+				err := bd.azure.UpdateRule(ctx, topicName, subName, ruleName, ruleText)
 				if err != nil {
-					if !strings.Contains(err.Error(), "409 Conflict") {
-						util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
-					}
+					return subName, err
 				}
-				err = bd.azure.DeleteRule(ctx, topicName, subName, routingAndFilterRuleName)
+			}
+		} else { // create it if it doesn't exist
+			err := bd.azure.CreateRule(ctx, topicName, subName, ruleName, ruleText)
+			if err != nil {
+				if !strings.Contains(err.Error(), "409 Conflict") {
+					util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, ruleText, err.Error())
+				}
+			}
+		}
+	}
+	if len(rules) < len(existingRuleNames) {
+		for i, _ := range expressions.GetList() {
+
+			if i >= len(rules) {
+				ruleName := fmt.Sprintf("%s%02d", routingAndFilterRuleName, i)
+				err = bd.azure.DeleteRule(ctx, topicName, subName, ruleName)
 				if err != nil {
 					if !strings.Contains(err.Error(), "404 Not Found") {
-						util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
+						util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, ruleName, err.Error())
 					}
 				}
 			}
 		}
-
-		// create the 'real' new rule
-		err = bd.azure.CreateRule(ctx, topicName, subName, routingAndFilterRuleName, actualRule)
-		if err != nil {
-			if !strings.Contains(err.Error(), "409 Conflict") {
-				util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, actualRule, err.Error())
-			}
-		}
-		// delete the temporary rule
-		if routingAndFilterRuleExists {
-			err = bd.azure.DeleteRule(ctx, topicName, subName, tmpRuleName)
-			if err != nil {
-				if !strings.Contains(err.Error(), "404 Not Found") {
-					util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, actualRule, err.Error())
-				}
-			}
-		}
 	}
-	// }
 
 	err = bd.azure.CreateSubscription(ctx, topicName, subName, subOpts)
 

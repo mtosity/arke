@@ -82,12 +82,17 @@ func (m *azureClientMock) ListRules(string, string) ([]azadmin.RuleProperties, e
 	return re, args.Error(1)
 }
 
-func (m *azureClientMock) DeleteRule(context.Context, string, string, string) error {
-	args := m.Called()
+func (m *azureClientMock) DeleteRule(ctx context.Context, topicName, subName, ruleName string) error {
+	args := m.Called(ctx, topicName, subName, ruleName)
 	return args.Error(0)
 }
 
 func (m *azureClientMock) CreateRule(ctx context.Context, topicName, subName, ruleName, ruleText string) error {
+	args := m.Called(ctx, topicName, subName, ruleName, ruleText)
+	return args.Error(0)
+}
+
+func (m *azureClientMock) UpdateRule(ctx context.Context, topicName, subName, ruleName, ruleText string) error {
 	args := m.Called(ctx, topicName, subName, ruleName, ruleText)
 	return args.Error(0)
 }
@@ -365,14 +370,21 @@ func Test_Ack(t *testing.T) {
 	}
 	rules = append(rules, defaultRule)
 	amock.On("ListRules").Return(rules, nil)
-	amock.On("DeleteRule").Return(nil)
+	amock.On("DeleteRule", mock.Anything, "topicName", sourceNameToSubName("subName"), "$Default").Return(nil).Once()
 
 	amock.On("CreateRule",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-		"RoutingAndFilterRule",
-		"(user.RoutingKey = 'one' OR user.RoutingKey = 'two')",
+		"RoutingAndFilterRule00",
+		"RoutingKey = 'one'",
+	).Return(nil).Once()
+	amock.On("CreateRule",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule01",
+		"RoutingKey = 'two'",
 	).Return(nil).Once()
 
 	amock.On("Connect").Return(nil)
@@ -393,7 +405,7 @@ func Test_Ack(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}}
+	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}, Name: "subName"}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	stop := make(chan bool)
@@ -447,14 +459,21 @@ func Test_Ack_AckErr(t *testing.T) {
 	}
 	rules = append(rules, defaultRule)
 	amock.On("ListRules").Return(rules, nil)
-	amock.On("DeleteRule").Return(nil)
+	amock.On("DeleteRule", mock.Anything, "topicName", sourceNameToSubName("subName"), "$Default").Return(nil).Once()
 
 	amock.On("CreateRule",
 		mock.Anything,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-		"RoutingAndFilterRule",
-		"(user.RoutingKey = 'one' OR user.RoutingKey = 'two')",
+		"RoutingAndFilterRule00",
+		"RoutingKey = 'one'",
+	).Return(nil).Once()
+	amock.On("CreateRule",
+		mock.Anything,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule01",
+		"RoutingKey = 'two'",
 	).Return(nil).Once()
 
 	amock.On("Connect").Return(nil)
@@ -475,7 +494,7 @@ func Test_Ack_AckErr(t *testing.T) {
 	err := prov.Connect(&ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}}
+	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}, Name: "subName"}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	stop := make(chan bool)
@@ -1389,6 +1408,72 @@ func Test_durationTo8601(t *testing.T) {
 	assert.Equal(t, "PT5M0S", s)
 }
 
+func Test_generateRules_with_filters(t *testing.T) {
+
+	// prov := NewAzureProvider()
+
+	options := make(map[string]string)
+	options["MessageTTL"] = "100"
+	options["Expires"] = "100"
+	options["DeadLetterAddress"] = "dla"
+	options["DeadLetterSubject"] = "dls"
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1")
+	subjects = append(subjects, "subject2")
+	parent := &pb.Address{Name: "parent", Type: pb.Address_QUEUE}
+	address := &pb.Address{Name: "topicName", Subjects: subjects, ParentAddress: parent, Type: pb.Address_FILTER}
+	matches1 := make([]*pb.Match, 0)
+	matches1 = append(matches1, &pb.Match{Name: "key1", Value: "value1"})
+	matches1 = append(matches1, &pb.Match{Name: "key2", Value: "value2"})
+	matches2 := make([]*pb.Match, 0)
+	matches2 = append(matches2, &pb.Match{Name: "key3", Value: "value3"})
+	matches2 = append(matches2, &pb.Match{Name: "key4", Value: "value4"})
+	filters := make([]*pb.Filter, 0)
+	filters = append(filters, &pb.Filter{Matches: matches1, Type: pb.Filter_ANY})
+	filters = append(filters, &pb.Filter{Matches: matches2, Type: pb.Filter_ANY})
+
+	src := &pb.Source{Name: "srcname",
+		Address:       address,
+		Options:       options,
+		Filters:       filters,
+		Durable:       true,
+		Exclusive:     true,
+		AutoDelete:    true,
+		PrefetchCount: 4}
+
+	rules := generateRules(src)
+
+	fmt.Printf("%s", rules)
+
+	assert.Equal(t, 2, len(rules))
+	assert.Equal(t, "RoutingKey = 'subject1' AND ((\"key1\" = 'value1' OR \"key2\" = 'value2') OR (\"key3\" = 'value3' OR \"key4\" = 'value4'))", rules[0])
+	assert.Equal(t, "RoutingKey = 'subject2' AND ((\"key1\" = 'value1' OR \"key2\" = 'value2') OR (\"key3\" = 'value3' OR \"key4\" = 'value4'))", rules[1])
+}
+
+func Test_generateRules_no_filters(t *testing.T) {
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1")
+	subjects = append(subjects, "subject2")
+	parent := &pb.Address{Name: "parent", Type: pb.Address_QUEUE}
+	address := &pb.Address{Name: "topicName", Subjects: subjects, ParentAddress: parent, Type: pb.Address_FILTER}
+	src := &pb.Source{Name: "srcname",
+		Address:       address,
+		Durable:       true,
+		Exclusive:     true,
+		AutoDelete:    true,
+		PrefetchCount: 4}
+
+	rules := generateRules(src)
+
+	fmt.Printf("%s", rules)
+
+	assert.Equal(t, 2, len(rules))
+	assert.Equal(t, "RoutingKey = 'subject1'", rules[0])
+	assert.Equal(t, "RoutingKey = 'subject2'", rules[1])
+}
+
 func Test_Subscribe_Options(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
@@ -1475,20 +1560,38 @@ func Test_Subscribe_Options(t *testing.T) {
 	amock.On("ListRules").Return(rules, nil)
 	// smMockParent.On("ListRules").Return(rules, nil)
 
+	// dla
 	amock.On("CreateRule",
 		ctx,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-		"RoutingAndFilterRule",
-		"(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2')",
+		"RoutingAndFilterRule00",
+		"RoutingKey = 'subject1'",
 	).Return(nil).Once()
 
 	amock.On("CreateRule",
 		ctx,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-		"RoutingAndFilterRule",
-		`(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2') AND (("key1" = 'value1' OR "key2" = 'value2') OR ("key3" = 'value3' OR "key4" = 'value4'))`,
+		"RoutingAndFilterRule01",
+		"RoutingKey = 'subject2'",
+	).Return(nil).Once()
+
+	// topic
+	amock.On("CreateRule",
+		ctx,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule00",
+		`RoutingKey = 'subject1' AND (("key1" = 'value1' OR "key2" = 'value2') OR ("key3" = 'value3' OR "key4" = 'value4'))`,
+	).Return(nil).Once()
+
+	amock.On("CreateRule",
+		ctx,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule01",
+		`RoutingKey = 'subject2' AND (("key1" = 'value1' OR "key2" = 'value2') OR ("key3" = 'value3' OR "key4" = 'value4'))`,
 	).Return(nil).Once()
 
 	// dlq rule should be same as for original subscription
@@ -1496,8 +1599,15 @@ func Test_Subscribe_Options(t *testing.T) {
 		ctx,
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("string"),
-		"RoutingAndFilterRule",
-		"(user.RoutingKey = 'subject1' OR user.RoutingKey = 'subject2')",
+		"RoutingAndFilterRule00",
+		"RoutingKey = 'subject1'",
+	).Return(nil).Once()
+	amock.On("CreateRule",
+		ctx,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("string"),
+		"RoutingAndFilterRule01",
+		"RoutingKey = 'subject2'",
 	).Return(nil).Once()
 
 	amock.On("Connect").Return(nil)
@@ -1558,7 +1668,6 @@ func Test_declareSubscriptionWithOptions(t *testing.T) {
 	subName := "subName"
 	topicName := "topicName"
 	amock := &azureClientMock{}
-	amock.On("CreateTopic").Return(nil)
 	amock.On("CreateSubscription").Return(nil)
 
 	rules := make([]azadmin.RuleProperties, 0)
@@ -1566,7 +1675,7 @@ func Test_declareSubscriptionWithOptions(t *testing.T) {
 		Name: "$Default",
 	}
 	rules = append(rules, defaultRule)
-	ruleName := "RoutingAndFilterRule"
+	ruleName := "RoutingAndFilterRule00"
 	routingRule := azadmin.RuleProperties{
 		Name:   ruleName,
 		Filter: &azadmin.SQLFilter{},
@@ -1575,13 +1684,11 @@ func Test_declareSubscriptionWithOptions(t *testing.T) {
 	rules = append(rules, routingRule)
 
 	amock.On("ListRules").Return(rules, nil)
-	amock.On("DeleteRule").Return(nil)
+	amock.On("DeleteRule", mock.Anything, "topicName", sourceNameToSubName("subName"), "$Default").Return(nil).Once()
 
-	tmpRuleName := "RoutingAndFilterRule.tmp"
-	actualRule := "(user.RoutingKey like 'subject%hash%star')"
+	actualRule := "RoutingKey like 'subject%hash%star'"
 
-	amock.On("CreateRule", ctx, topicName, sourceNameToSubName(subName), tmpRuleName, actualRule).Return(nil).Once()
-	amock.On("CreateRule", ctx, topicName, sourceNameToSubName(subName), ruleName, actualRule).Return(nil).Once()
+	amock.On("UpdateRule", ctx, topicName, sourceNameToSubName(subName), ruleName, actualRule).Return(nil).Once()
 
 	bd := &BrokerDetails{}
 	bd.azure = amock
@@ -1595,6 +1702,99 @@ func Test_declareSubscriptionWithOptions(t *testing.T) {
 	subOpts := &azadmin.CreateSubscriptionOptions{}
 	_, err := declareSubscriptionWithOptions(source, bd, topicName, subOpts)
 	assert.Nil(t, err)
+	amock.AssertExpectations(t)
+}
+
+func Test_declareSubscriptionWithOptions_removeExtra(t *testing.T) {
+	subName := "subName"
+	topicName := "topicName"
+	amock := &azureClientMock{}
+	amock.On("CreateSubscription").Return(nil)
+
+	actualRule := "RoutingKey like 'subject%hash%star'"
+
+	rules := make([]azadmin.RuleProperties, 0)
+	defaultRule := azadmin.RuleProperties{
+		Name: "$Default",
+	}
+	rules = append(rules, defaultRule)
+	rules = append(rules, azadmin.RuleProperties{
+		Name: "RoutingAndFilterRule00",
+		Filter: &azadmin.SQLFilter{
+			Expression: actualRule,
+		},
+		Action: &azadmin.SQLAction{},
+	})
+	rules = append(rules, azadmin.RuleProperties{
+		Name: "RoutingAndFilterRule01",
+		Filter: &azadmin.SQLFilter{
+			Expression: actualRule,
+		},
+		Action: &azadmin.SQLAction{},
+	})
+
+	amock.On("ListRules").Return(rules, nil)
+	amock.On("DeleteRule", mock.Anything, topicName, sourceNameToSubName(subName), "$Default").Return(nil).Once()
+
+	// amock.On("CreateRule", ctx, topicName, sourceNameToSubName(subName), "RoutingAndFilterRule00", actualRule).Return(nil).Once()
+	amock.On("DeleteRule", mock.Anything, topicName, sourceNameToSubName(subName), "RoutingAndFilterRule01").Return(nil).Once()
+
+	bd := &BrokerDetails{}
+	bd.azure = amock
+	bd.knownTopics = util.NewConcurrentMap()
+	address := &pb.Address{Type: 1}
+	subjects := []string{"subject#hash*star"}
+	address.Subjects = subjects
+	source := &pb.Source{}
+	source.Name = subName
+	source.Address = address
+	subOpts := &azadmin.CreateSubscriptionOptions{}
+	_, err := declareSubscriptionWithOptions(source, bd, topicName, subOpts)
+	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
+}
+
+func Test_declareSubscriptionWithOptions_ruleDoesNotMatch(t *testing.T) {
+	ctx := context.Background()
+	subName := "subName"
+	topicName := "topicName"
+	amock := &azureClientMock{}
+	amock.On("CreateSubscription").Return(nil)
+
+	actualRule := "RoutingKey like 'subject%hash%star'"
+
+	rules := make([]azadmin.RuleProperties, 0)
+	defaultRule := azadmin.RuleProperties{
+		Name: "$Default",
+	}
+	rules = append(rules, defaultRule)
+	rules = append(rules, azadmin.RuleProperties{
+		Name: "RoutingAndFilterRule00",
+		Filter: &azadmin.SQLFilter{
+			Expression: "not the correct rule text",
+		},
+		Action: &azadmin.SQLAction{},
+	})
+	amock.On("ListRules").Return(rules, nil)
+	amock.On("DeleteRule", mock.Anything, topicName, sourceNameToSubName(subName), "$Default").Return(nil).Once()
+
+	amock.On("UpdateRule", ctx, topicName, sourceNameToSubName(subName), "RoutingAndFilterRule00", actualRule).Return(nil).Once()
+
+	bd := &BrokerDetails{}
+	bd.azure = amock
+	bd.knownTopics = util.NewConcurrentMap()
+	address := &pb.Address{Type: 1}
+	subjects := []string{"subject#hash*star"}
+	address.Subjects = subjects
+	source := &pb.Source{}
+	source.Name = subName
+	source.Address = address
+	subOpts := &azadmin.CreateSubscriptionOptions{}
+	_, err := declareSubscriptionWithOptions(source, bd, topicName, subOpts)
+	assert.Nil(t, err)
+
+	amock.AssertExpectations(t)
 }
 
 func Test_declareSubscriptionWithOptions_CreateSubscriptionError(t *testing.T) {
@@ -1636,10 +1836,10 @@ func Test_declareSubscriptionWithOptions_ListRulesError(t *testing.T) {
 	rules := make([]azadmin.RuleProperties, 0)
 	amock.On("ListRules").Return(rules, err)
 
-	amock.On("DeleteRule").Return(nil)
+	amock.On("DeleteRule", mock.Anything, "topicName", sourceNameToSubName("subName"), "$Default").Return(nil).Once()
 
-	ruleName := "RoutingAndFilterRule"
-	actualRule := "(user.RoutingKey like 'subject%hash%star')"
+	ruleName := "RoutingAndFilterRule00"
+	actualRule := "RoutingKey like 'subject%hash%star'"
 
 	amock.On("CreateRule", ctx, topicName, sourceNameToSubName(subName), ruleName, actualRule).Return(nil).Once()
 
