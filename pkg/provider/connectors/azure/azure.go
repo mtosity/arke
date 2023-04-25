@@ -756,7 +756,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 		}
 	}
 	if len(rules) < len(existingRuleNames) {
-		for i, _ := range expressions.GetList() {
+		for i := range expressions.GetList() {
 
 			if i >= len(rules) {
 				ruleName := fmt.Sprintf("%s%02d", routingAndFilterRuleName, i)
