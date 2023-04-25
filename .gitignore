@@ -12,3 +12,4 @@ tests/integration/rabbit
 env-*
 .idea/
 *.diff
+.dccache
