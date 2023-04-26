@@ -249,7 +249,6 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 	rcvr := &azureReceiver{receiver: receiver, inFlightCount: 0}
 	for {
 		msgReqCnt := prefetch - rcvr.inFlightCount
-		util.Logger.Debugf("fetching %d", msgReqCnt)
 		if ctx.Err() != nil {
 			return nil // context closed
 		}
