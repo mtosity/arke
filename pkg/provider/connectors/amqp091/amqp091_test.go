@@ -27,7 +27,7 @@ func init() {
 
 type amqpConnectionMock struct {
 	mock.Mock
-	amqp091ConnectionShim
+	amqp091ConnectionShim //nolint:unused
 	blockConnect time.Duration
 }
 

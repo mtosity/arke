@@ -81,7 +81,7 @@ type azureMessage struct {
 
 // azureClient namespace
 type azureClient struct {
-	azureClientShim
+	azureClientShim //nolint:unused
 	client           *azservicebus.Client
 	adminClient      *azadmin.Client
 	connectionString string
@@ -92,7 +92,7 @@ type azureClient struct {
 
 // azureSender sender
 type azureSender struct {
-	azureSenderShim
+	azureSenderShim //nolint:unused
 	sender *azservicebus.Sender
 }
 

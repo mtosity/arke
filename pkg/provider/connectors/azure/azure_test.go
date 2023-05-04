@@ -21,14 +21,14 @@ func init() {
 
 type azureClientMock struct {
 	mock.Mock
-	azureClientShim
+	azureClientShim //nolint:unused
 	blockConnect time.Duration
 	Receives     []*azureMsgMock
 }
 
 type azureSenderMock struct {
 	mock.Mock
-	azureSenderShim
+	azureSenderShim //nolint:unused
 }
 
 type MockRecv struct {

@@ -37,7 +37,7 @@ type amqp091ChannelShim interface {
 
 // amqp091Connection A connection to the broker
 type amqp091Connection struct {
-	amqp091ConnectionShim
+	amqp091ConnectionShim //nolint:unused
 	connection       *amqp.Connection
 	connStr          string
 	tlsCfg           *tls.Config
@@ -47,7 +47,7 @@ type amqp091Connection struct {
 
 // amqp091Channel A channel
 type amqp091Channel struct {
-	amqp091ChannelShim
+	amqp091ChannelShim //nolint:unused
 	channel     *amqp.Channel
 	connection  *amqp091Connection
 	channelLock sync.Mutex
