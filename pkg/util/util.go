@@ -35,6 +35,7 @@ func SetClientIdentifier(ctx context.Context, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// deepcode ignore InsecureHash: no sensitive data-only hashing for a unique client identifier
 	h := fmt.Sprintf("%x", sha1.Sum([]byte(clientAddr)))[:8]
 	clientIdentifier := fmt.Sprintf("%s-%s", name, h)
 	clientMap.Add(clientAddr, clientIdentifier)

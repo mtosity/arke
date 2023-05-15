@@ -627,6 +627,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 }
 
 func sourceNameToSubName(name string) string {
+	// deepcode ignore InsecureHash: hash and shorten a subscription name
 	subHash := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
 	srcPart := name
 	if len(name) > 25 {
