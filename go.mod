@@ -9,10 +9,10 @@ require (
 	github.com/prometheus/client_golang v1.12.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/soheilhy/cmux v0.1.5
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.3
 	sassoftware.io/convoy/arke/api v0.0.0-20211213191304-b79d5663ed51
 	google.golang.org/grpc v1.43.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.30.0
 	sassoftware.io/viya/zlog v0.1.16
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
@@ -41,7 +41,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -52,10 +52,10 @@ require (
 	github.com/rs/zerolog v1.21.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -75,7 +75,7 @@ require (
 
 // NGMTS-21506: fix for CVE-2020-14040
 replace (
-	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
+	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.0
 	sassoftware.io/convoy/arke/api => ./api
