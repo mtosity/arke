@@ -120,8 +120,9 @@ func NewTimestampPB() *timestamppb.Timestamp {
 }
 
 func SleepRandom(min int, max int) {
-	rand.Seed(time.Now().UnixNano())
-	splay := time.Duration(rand.Intn(max-min)+min) * time.Millisecond
+	rn := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	splay := time.Duration(rn.Intn(max-min)+min) * time.Millisecond
 	time.Sleep(splay)
 }
 
