@@ -1,6 +1,6 @@
 module sassoftware.io/convoy/arke
 
-go 1.19
+go 1.20
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.1.1
