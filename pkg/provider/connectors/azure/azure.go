@@ -255,7 +255,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 }
 
 // Connect connect to rabbitmq
-func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
+func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, _ bool) *pb.Error {
 	clientIdentifier, err := GetClientIdentifier(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -293,7 +293,7 @@ func (prov *azureprovider) Connect(ctx *context.Context, cf *pb.ConnectionConfig
 }
 
 // DeadLetter routes the message to a dead letter Address because all retries have failed
-func (prov *azureprovider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
+func (prov *azureprovider) DeadLetter(ctx *context.Context, _ *pb.Source, msgid string) *pb.Error {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}

@@ -108,7 +108,7 @@ func gatherClientStats() {
 	}
 }
 
-func newArkeGauge(parts []string, help string) prometheus.Gauge {
+func newArkeGauge(parts []string, _ string) prometheus.Gauge {
 	key := strings.Join(parts, "_")
 	g := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: key,
@@ -117,7 +117,7 @@ func newArkeGauge(parts []string, help string) prometheus.Gauge {
 	return g
 }
 
-func newArkeSample(parts []string, help string) prometheus.Summary {
+func newArkeSample(parts []string, _ string) prometheus.Summary {
 	key := strings.Join(parts, "_")
 	g := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: key,
@@ -126,7 +126,7 @@ func newArkeSample(parts []string, help string) prometheus.Summary {
 	return g
 }
 
-func newArkeCounter(parts []string, help string) prometheus.Counter {
+func newArkeCounter(parts []string, _ string) prometheus.Counter {
 	key := strings.Join(parts, "_")
 	g := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: key,

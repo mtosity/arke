@@ -22,8 +22,8 @@ func init() {
 type azureClientMock struct {
 	mock.Mock
 	azureClientShim //nolint:unused
-	blockConnect time.Duration
-	Receives     []*azureMsgMock
+	blockConnect    time.Duration
+	Receives        []*azureMsgMock
 }
 
 type azureSenderMock struct {
@@ -159,11 +159,11 @@ func (m *azureMsgMock) Send(context.Context) error {
 	return args.Error(0)
 }
 
-func (m *azureMsgMock) SetLockToken([16]byte)                           {}
-func (m *azureMsgMock) SetData(data []byte)                             {}
-func (m *azureMsgMock) SetProperties(properties map[string]interface{}) {}
-func (m *azureMsgMock) SetProperty(string, interface{})                 {}
-func (m *azureMsgMock) SetContentType(string)                           {}
+func (m *azureMsgMock) SetLockToken([16]byte)                {}
+func (m *azureMsgMock) SetData([]byte)                       {}
+func (m *azureMsgMock) SetProperties(map[string]interface{}) {}
+func (m *azureMsgMock) SetProperty(string, interface{})      {}
+func (m *azureMsgMock) SetContentType(string)                {}
 
 func (m *azureMsgMock) Properties() map[string]interface{} {
 	args := m.Called()

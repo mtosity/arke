@@ -337,7 +337,7 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 }
 
 // DeadLetter routes the message to a dead letter Address because all retries have failed
-func (prov *amqp091provider) DeadLetter(ctx *context.Context, origSource *pb.Source, msgid string) *pb.Error {
+func (prov *amqp091provider) DeadLetter(ctx *context.Context, _ *pb.Source, msgid string) *pb.Error {
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}

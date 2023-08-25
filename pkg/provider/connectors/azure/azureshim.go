@@ -12,6 +12,8 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
+const STANDARD = "Standard"
+
 // azureClientShim interface for ASB client
 type azureClientShim interface {
 	Connect() error
@@ -81,19 +83,20 @@ type azureMessage struct {
 
 // azureClient namespace
 type azureClient struct {
-	azureClientShim //nolint:unused
+	azureClientShim  //nolint:unused
 	client           *azservicebus.Client
 	adminClient      *azadmin.Client
 	connectionString string
 	host             string
 	username         string
 	password         string
+	tier             string
 }
 
 // azureSender sender
 type azureSender struct {
 	azureSenderShim //nolint:unused
-	sender *azservicebus.Sender
+	sender          *azservicebus.Sender
 }
 
 // azureReceiver receiver
@@ -123,6 +126,9 @@ func (ac *azureClient) Connect() error {
 
 	ac.adminClient = adminClient
 
+	ctx := context.Background()
+	nsResp, _ := adminClient.GetNamespaceProperties(ctx, nil)
+	ac.tier = nsResp.SKU
 	return nil
 }
 
@@ -135,15 +141,32 @@ func (ac *azureClient) GenerateForwardToName(topicName string) string {
 func (ac *azureClient) CreateTopic(ctx context.Context, topicName string) error {
 
 	var err error
+	tSize := int32(10240) // 10 GB
+	if ac.tier == STANDARD {
+		// on standard tier, use a 1GB max size to create a max topic size of 16GB.
+		// 1GB per partition, 16 partitions created for topics on standard tier
+		tSize = int32(1024)
+	}
+	// will not partition queues on Premium tier if partitioning was not enabled
+	// when creating the namespace
+	partioningEnabled := true
 
 	topicResponse, err := ac.adminClient.GetTopic(ctx, topicName, nil)
-	if err == nil && topicResponse == nil {
-		// topic does not exist, create it
-		_, err = ac.adminClient.CreateTopic(ctx, topicName, nil)
-		if err != nil {
-			return err
+	if err == nil {
+		if topicResponse == nil {
+			// topic does not exist, create it
+			opts := azadmin.CreateTopicOptions{
+				Properties: &azadmin.TopicProperties{
+					MaxSizeInMegabytes: &tSize,
+					EnablePartitioning: &partioningEnabled,
+				},
+			}
+			_, err = ac.adminClient.CreateTopic(ctx, topicName, &opts)
+			if err != nil {
+				return err
+			}
 		}
-	} else if err != nil {
+	} else {
 		return err
 	}
 
@@ -211,7 +234,7 @@ func (ac *azureClient) NewSender(name string) (azureSenderShim, error) {
 }
 
 // DeleteRule delete a rule on a subscription
-func (ac *azureClient) DeleteRule(ctx context.Context, topicName, subscriptionName, ruleName string) error {
+func (ac *azureClient) DeleteRule(_ context.Context, topicName, subscriptionName, ruleName string) error {
 	_, err := ac.adminClient.DeleteRule(context.Background(), topicName, subscriptionName, ruleName, nil)
 	return err
 }

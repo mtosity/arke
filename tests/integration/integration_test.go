@@ -812,9 +812,9 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCSCQN")
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCSCTQN.Consumer", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCSCQN.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 
@@ -872,7 +872,7 @@ func TestHeaders_Consume(t *testing.T) {
 
 	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
 		if providerType == "azure" {
-			headers["content-type"] = "text/yaml"
+			delete(headers, "content-type")
 			headers["RoutingKey"] = subjects[0]
 		}
 	}

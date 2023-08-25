@@ -1,9 +1,9 @@
 package main
 
 import (
-    "testing"
+	"testing"
 )
 
-func TestRun(t *testing.T) {
-    run()
+func TestRun(_ *testing.T) {
+	run()
 }

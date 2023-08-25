@@ -584,7 +584,7 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 	return &pb.ConnectResponse{Success: success, Error: errMsg}, err
 }
 
-func brokerDisconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
+func brokerDisconnect(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return &pb.Empty{}, nil

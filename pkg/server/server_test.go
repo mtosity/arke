@@ -261,7 +261,7 @@ func (prov *MockProvider) Connect(ctx *context.Context, cf *pb.ConnectionConfigu
 }
 
 // Subscribe subscribe to a stream of messages from the broker
-func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
+func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, _ <-chan bool) *pb.Error {
 	args := prov.Called(ctx, source, messageChannel)
 
 	for _, msg := range prov.MockMessages {
@@ -281,7 +281,7 @@ func (prov *MockProvider) Subscribe(ctx *context.Context, source *pb.Source, mes
 }
 
 // Disconnect disconnect from the broker
-func (prov *MockProvider) Disconnect(ctx *context.Context) {
+func (prov *MockProvider) Disconnect(*context.Context) {
 }
 
 // Publish publish a message to the broker
