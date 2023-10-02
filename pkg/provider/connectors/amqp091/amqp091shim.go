@@ -3,6 +3,7 @@ package amqp091
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"sync"
 	"time"
 
@@ -38,20 +39,20 @@ type amqp091ChannelShim interface {
 // amqp091Connection A connection to the broker
 type amqp091Connection struct {
 	amqp091ConnectionShim //nolint:unused
-	connection       *amqp.Connection
-	connStr          string
-	tlsCfg           *tls.Config
-	clientIdentifier string
-	channelLock      sync.Mutex
+	connection            *amqp.Connection
+	connStr               string
+	tlsCfg                *tls.Config
+	clientIdentifier      string
+	channelLock           sync.Mutex
 }
 
 // amqp091Channel A channel
 type amqp091Channel struct {
 	amqp091ChannelShim //nolint:unused
-	channel     *amqp.Channel
-	connection  *amqp091Connection
-	channelLock sync.Mutex
-	prefetch    int
+	channel            *amqp.Channel
+	connection         *amqp091Connection
+	channelLock        sync.Mutex
+	prefetch           int
 }
 
 // amqp091Error Error
@@ -68,7 +69,6 @@ type amqp091Message struct {
 	ContentEncoding string
 	Headers         amqp091Table
 	DeliveryTag     uint64
-	ClientSentTime  time.Time
 }
 
 // amqp091Table Simple map
@@ -271,7 +271,6 @@ func (ch *amqp091Channel) NotifyClose(rec chan amqp091Error) chan amqp091Error {
 	cancelErrors := ch.channel.NotifyCancel(make(chan string, cap(rec)))
 	closeErrors := ch.channel.NotifyClose(make(chan *amqp.Error, cap(rec)))
 
-
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
@@ -327,6 +326,14 @@ func fromAmqpTable(tab amqp.Table) amqp091Table {
 	table := make(amqp091Table)
 	for key, val := range tab {
 		table[key] = val
+	}
+	return table
+}
+
+func fromTableToMap(tab amqp091Table) map[string]string {
+	table := make(map[string]string)
+	for key, val := range tab {
+		table[key] = fmt.Sprintf("%v", val)
 	}
 	return table
 }

@@ -866,6 +866,8 @@ func TestHeaders_Consume(t *testing.T) {
 	headers["content-type"] = "text/json"
 	headers["Content-Type"] = "text/yaml"
 	headers["CONTENT-ENCODING"] = "base64"
+	headers["traceparent"] = "00-00000000000000000000000000000000-0000000000000000-00"
+	headers["tracestate"] = ""
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TH")

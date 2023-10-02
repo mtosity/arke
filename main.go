@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"flag"
@@ -16,12 +17,12 @@ import (
 	"time"
 
 	"github.com/soheilhy/cmux"
-
 	metrics "sassoftware.io/convoy/arke/pkg/metrics/prometheus"
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 	"sassoftware.io/convoy/arke/pkg/server"
 	prometheus "sassoftware.io/convoy/arke/pkg/server/prometheus"
 	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/convoy/arke/pkg/util/tracing"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -37,6 +38,18 @@ var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
 
 func run() {
+	tp, err := tracing.InitTracerProvider()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if tp != nil {
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				log.Printf("Error shutting down tracer provider: %v", err)
+			}
+		}()
+	}
+
 	// If we have a memory limit, set the runntime
 	// soft memory limit to help prevent OOM Kills
 	memLimit := util.GetMemoryLimit()
@@ -143,7 +156,6 @@ func run() {
 			},
 		}
 
-		// Create TLS listener.
 		lis = tls.NewListener(lis, config)
 	}
 

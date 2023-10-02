@@ -83,6 +83,14 @@ test-clients: ## Builds test clients
 	$(MAKE) -C test/simple_producer  $(UNAME_S)
 	$(MAKE) -C test/healthz  $(UNAME_S)
 
+test-clients-linux: ## Builds test clients
+	$(MAKE) -C test/test_producer linux
+	$(MAKE) -C test/test_consumer  linux
+	$(MAKE) -C test/simple_consumer  linux
+	$(MAKE) -C test/simple_producer  linux
+	$(MAKE) -C test/healthz  linux
+
+
 linux: linux-nogen generate ## Builds binary for linux_amd64 (lax)
 
 linux-nogen: setup ## Builds binary for linux_amd64 (lax)

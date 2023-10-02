@@ -13,6 +13,9 @@ import (
 
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
+	"sassoftware.io/convoy/arke/pkg/util/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	// Import the connectors so their init functions are executed
 	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
@@ -240,6 +243,7 @@ consumeLoop:
 
 				isSubscribing = true
 
+				// this goroutine receives messages from the provider and sends them to the client for processing
 				go func(mc <-chan *pb.Message, prov provider.Provider, cont *context.Context, stopCh chan bool, stopFor *chan bool, returnErr *error) {
 					newCtx, cancel := context.WithCancel(*cont)
 					defer cancel()
@@ -260,16 +264,21 @@ consumeLoop:
 								message.Address = source.GetAddress()
 							}
 
+							_, span := tracing.SpanFromHeaders(*cont, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
+							span.AddEvent("sending message from server to consumer client")
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := sender.Send(resp)
 							if err != nil {
 								util.Logger.WarnI("error.streamsend", err.Error(), clientIdentifier)
+								span.RecordError(err)
 								*returnErr = err
 								if *stopFor != nil {
 									*stopFor <- true
 								}
+								span.End()
 								return
 							}
+							span.End()
 						}
 					}
 				}(messageChannel, prov, &ctx, stopChan, &stopForLoop, &returnError)
@@ -428,6 +437,15 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				}
 
 				var resp *pb.MessageResponse
+				loopCtx, loopCtxCancel := context.WithCancel(ctx)
+
+				_, span := tracing.SpanFromHeaders(loopCtx, msg.GetHeaders(), "arke-server-publish", trace.SpanKindProducer)
+				span.AddEvent("received message from client")
+
+				endSpan := func() {
+					span.End()
+					loopCtxCancel()
+				}
 
 				if len(msg.GetAddress().GetSubjects()) != 1 {
 
@@ -437,32 +455,46 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					}
 
 					resp = &pb.MessageResponse{Success: false, Error: errMsg}
-
+					span.RecordError(errors.New(errMsg.GetMessage()))
 				} else {
+
+					span.SetName(msg.GetAddress().GetName() + " publish")
+					span.SetAttributes(attribute.KeyValue{
+						Key:   "clientIdentifier",
+						Value: attribute.StringValue(clientIdentifier),
+					})
+
 					timer := time.NewTimer(30 * time.Second)
 					select {
 					case errChanErr := <-errChan:
 						resp = &pb.MessageResponse{Success: false, Error: errChanErr}
+						span.RecordError(errors.New(errChanErr.GetMessage()))
 						stopPubFunc = true
 					case mc <- msg:
+						span.AddEvent("sent message to provider")
 						pubErr := <-errChan
 						if pubErr != nil {
 							resp = &pb.MessageResponse{Success: false, Error: pubErr}
+							span.RecordError(errors.New(pubErr.GetMessage()))
 						} else {
 							resp = &pb.MessageResponse{Success: true}
+							span.AddEvent("message published in provider")
 						}
 					case <-timer.C:
 						errMsg := &pb.Error{Message: "failed to send message to provider for publishing", IsFatal: false}
 						resp = &pb.MessageResponse{Success: false, Error: errMsg}
 						stopPubFunc = true
+						span.RecordError(errors.New(errMsg.GetMessage()))
 					}
 					timer.Stop()
-
 				}
 
 				err = stream.Send(resp)
+				span.AddEvent("sent response to client")
 				if err == io.EOF {
 					stopPublish = true
+					span.RecordError(err)
+					endSpan()
 					return
 				}
 
@@ -470,12 +502,16 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 					util.Logger.WarnI("error.streamsend", err.Error(), clientIdentifier)
 					returnError = err
 					stopPublish = true
+					span.RecordError(err)
+					endSpan()
 					return
 				}
 
 				if stopPubFunc {
+					endSpan()
 					return
 				}
+				endSpan()
 			}
 		}(messageChannel, errChan)
 

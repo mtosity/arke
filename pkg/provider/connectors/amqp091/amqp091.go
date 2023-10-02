@@ -20,6 +20,9 @@ import (
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
 	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/convoy/arke/pkg/util/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const providerName string = "amqp091"
@@ -180,17 +183,23 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var span trace.Span
+	defer func() {
+		if span != nil {
+			span.End()
+		}
+	}()
+
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(amqp091Message)
 		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
-		err = rm.Ack()
+		_, span = tracing.SpanFromHeaders(*ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindConsumer)
+		span.SetAttributes(attribute.String("messaging.message.id", msgid),
+			attribute.String("messaging.client_id", bd.ClientIdentifier))
+		span.AddEvent("provider acking message")
 
-		elapsed := time.Since(rm.ClientSentTime).Microseconds()
-		util.DebugNoFormat("method:ack,client:%s,elapsed:%v,time:%v\n",
-			bd.ClientIdentifier,
-			elapsed,
-			time.Now().UnixNano())
+		err = rm.Ack()
 	} else {
 		util.Logger.DebugI("debug.acknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -204,9 +213,11 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 			Message: err.Error(),
 			IsFatal: true,
 		}
+		span.RecordError(err)
 		return errMsg
 	}
 	util.Logger.DebugI("debug.ackmessage", bd.ClientIdentifier, msgid)
+	span.AddEvent("provider acked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -218,14 +229,22 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var span trace.Span
+	defer func() {
+		if span != nil {
+			span.End()
+		}
+	}()
+
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+
 		rm := rmu.(amqp091Message)
+		_, span = tracing.SpanFromHeaders(*ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindConsumer)
+		span.SetAttributes(attribute.String("messaging.message.id", msgid),
+			attribute.String("messaging.client_id", bd.ClientIdentifier))
+		span.AddEvent("provider nacking message")
+
 		err = rm.Nack(false)
-		elapsed := time.Since(rm.ClientSentTime).Microseconds()
-		util.DebugNoFormat("method:nack,client:%s,elapsed:%v,time:%v\n",
-			bd.ClientIdentifier,
-			elapsed,
-			time.Now().UnixNano())
 	} else {
 		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -239,9 +258,11 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 			Message: err.Error(),
 			IsFatal: true,
 		}
+		span.RecordError(err)
 		return errMsg
 	}
 	util.Logger.DebugI("debug.nackmessage", bd.ClientIdentifier, msgid)
+	span.AddEvent("provider nacked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -252,7 +273,19 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var retrySpan trace.Span
+	_, retrySpan = tracing.SpanFromHeaders(*ctx, nil, msgid+" retry", trace.SpanKindConsumer)
+	defer func() {
+		if retrySpan != nil {
+			retrySpan.End()
+		}
+	}()
+
+	retrySpan.SetAttributes(attribute.String("source.name", origSource.GetName()),
+		attribute.String("messaging.client_id", bd.ClientIdentifier))
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		retrySpan.AddEvent("setting up retry")
+
 		rm := rmu.(amqp091Message)
 
 		// setup exchange/queue/binding
@@ -299,26 +332,23 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 			util.Logger.Debugf("Failed to declare retry exchange [%s]", retrySource.GetAddress().GetName())
 		}
 
+		retrySpan.AddEvent("retry address created")
+
 		declareErr = prov.declareQueue(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
 		}
+
+		retrySpan.AddEvent("retry queue created")
 
 		declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
 		}
 
-		start := time.Now()
-		retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
+		retrySpan.AddEvent("retry binding created")
 
-		elapsed := time.Since(start).Microseconds()
-		util.DebugNoFormat("method:retry,client:%s,elapsed:%v,address:%s,subjects:%s,time:%v\n",
-			bd.ClientIdentifier,
-			elapsed,
-			retrySource.GetAddress().GetName(),
-			strings.Join(retrySource.GetAddress().GetSubjects(), ","),
-			time.Now().UnixNano())
+		retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
 
 		if retryErr != nil {
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
@@ -326,6 +356,7 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 		} else {
 			_ = rm.Ack() // We ack the message to prevent it from requeueing or dead lettering
 		}
+		retrySpan.AddEvent("retry ack/nack complete")
 		util.Logger.DebugI("debug.retrymessage", bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
@@ -783,6 +814,14 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
+	newCtx, cancel := context.WithCancel(*ctx)
+	defer cancel()
+
+	var subSpan trace.Span
+	_, subSpan = tracing.SpanFromHeaders(newCtx, nil, source.GetAddress().GetName()+" subscribe setup", trace.SpanKindConsumer)
+	subSpan.SetAttributes(attribute.String("source.name", source.GetName()),
+		attribute.String("messaging.client_id", bd.ClientIdentifier))
+
 	amqpChannel, err := bd.Connection.NewChannel()
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -794,17 +833,25 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: err.Error()}
 	}
 
+	subSpan.AddEvent("address created")
+
 	err = prov.declareQueue(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
+
+	subSpan.AddEvent("queue created")
 
 	err = prov.declareBinding(source, bd, amqpChannel, true)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
+	subSpan.AddEvent("binding created")
+
 	prov.setupDeadLetter(ctx, source)
+
+	subSpan.AddEvent("dead letter address created")
 
 	if source.GetPrefetchCount() > 0 {
 		err := amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
@@ -815,6 +862,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		}
 	}
 
+	subSpan.AddEvent("starting consume")
 	messages, err := amqpChannel.Consume(
 		source.GetName(),      // queue name
 		false,                 // auto-ack
@@ -856,6 +904,9 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		}
 		return nil
 	}()
+
+	subSpan.AddEvent("ending subscribe setup")
+	subSpan.End()
 
 	for {
 		select {
@@ -904,6 +955,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			if msg.DeliveryTag == 0 {
 				continue
 			}
+
 			messageUUID := util.GenUUID()
 			headers := make(map[string]string)
 			for header, value := range msg.Headers {
@@ -917,10 +969,24 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 				headers["Content-Encoding"] = msg.ContentEncoding
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
-			msg.ClientSentTime = time.Now()
+
+			_, span := tracing.SpanFromHeaders(*ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
+			span.SetAttributes(attribute.String("source.name", source.GetName()),
+				attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+			message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
+			message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+				span.SpanContext().TraceID().String(),
+				span.SpanContext().SpanID().String(),
+				span.SpanContext().TraceFlags(),
+			)
+
+			span.AddEvent("sending message from provider to server for consume")
+
 			bd.activeMessages.Add(messageUUID, msg)
 			messageChannel <- message
 			bd.consumed++
+			span.End()
 		}
 	}
 }
@@ -964,6 +1030,7 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 
 // Publish publish a message to the broker
 func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) *pb.Error {
+
 	bd, err := prov.getBrokerDetails(*ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
@@ -1039,6 +1106,13 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				// nil message means shut it down
 				return nil
 			}
+			mCtx := context.Background()
+
+			_, span := tracing.SpanFromHeaders(mCtx, message.GetHeaders(), message.GetAddress().GetName()+" publish", trace.SpanKindProducer)
+
+			span.SetAttributes(attribute.String("subject.name", message.GetAddress().GetSubjects()[0]),
+				attribute.String("messaging.client_id", bd.ClientIdentifier))
+
 			address := message.GetAddress()
 			deliveryMode := 1
 			if message.GetPersistent() {
@@ -1051,8 +1125,10 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 					Message: err.Error(),
 					IsFatal: true,
 				}
+				span.End()
 				continue
 			}
+			span.AddEvent("address created")
 
 			amqpMessage := amqp091Message{}
 			amqpMessage.Body = message.GetBody()
@@ -1072,20 +1148,12 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 
 			amqpMessage.Headers = headers
 
-			// util.Logger.Printf("Sending message to %s:%s", address.GetName(), address.GetSubjects())
-			start := time.Now()
 			err = amqpChannel.Publish(
 				address.GetName(),        // exchange
 				address.GetSubjects()[0], // routing key
 				amqpMessage)
 
-			elapsed := time.Since(start).Microseconds()
-			util.DebugNoFormat("method:publish,client:%s,elapsed:%v,address:%s,subjects:%s,time:%v\n",
-				bd.ClientIdentifier,
-				elapsed,
-				address.GetName(),
-				strings.Join(address.GetSubjects(), ","),
-				time.Now().UnixNano())
+			span.AddEvent("message published to broker")
 
 			if err != nil {
 				util.Logger.WarnI("error.publish", err.Error())
@@ -1100,6 +1168,7 @@ func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan
 				bd.produced++
 			}
 			errChan <- nil
+			span.End()
 		}
 	}
 

@@ -467,3 +467,12 @@ func NewAzureMessageWithSender(sender azureSenderShim) azureMessageShim {
 	msg.sendingMessage = &azservicebus.Message{}
 	return msg
 }
+
+func propertiesToHeaders(props map[string]interface{}) map[string]string {
+	headers := make(map[string]string)
+
+	for k, v := range props {
+		headers[k] = fmt.Sprintf("%v", v)
+	}
+	return headers
+}

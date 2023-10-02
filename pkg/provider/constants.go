@@ -17,3 +17,10 @@ const (
 	// ReconnectDelay Maximum time to wait before a if we failed to connect
 	ReconnectDelay = 2000
 )
+
+const (
+	TraceHeaderName   = "X-B3-TraceId"
+	SpanHeaderName    = "X-B3-SpanId"
+	HeaderTraceParent = "traceparent"
+	HeaderTraceState  = "tracestate"
+)

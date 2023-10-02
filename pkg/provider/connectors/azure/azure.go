@@ -16,6 +16,9 @@ import (
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
 	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/convoy/arke/pkg/util/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const providerName string = "azure"
@@ -131,17 +134,20 @@ func (prov *azureprovider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var span trace.Span
+	defer func() {
+		if span != nil {
+			span.End()
+		}
+	}()
+
 	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(azureMessageShim)
 		util.Logger.Debugf("Client %s acking message %s", bd.ClientIdentifier, msgid)
+		_, span = tracing.SpanFromHeaders(*ctx, propertiesToHeaders(rm.Properties()), msgid+" ack", trace.SpanKindConsumer)
+		span.AddEvent("provider acking message")
 		err = rm.Ack(*ctx)
-
-		elapsed := time.Since(rm.ClientSentTime()).Microseconds()
-		util.DebugNoFormat("method:ack,client:%s,elapsed:%v,time:%v\n",
-			bd.ClientIdentifier,
-			elapsed,
-			time.Now().UnixNano())
 
 		if err != nil {
 			util.Logger.WarnI("error.ack", err.Error())
@@ -169,19 +175,26 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var span trace.Span
+	defer func() {
+		if span != nil {
+			span.End()
+		}
+	}()
+
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(azureMessageShim)
 
+		_, span = tracing.SpanFromHeaders(*ctx, propertiesToHeaders(rm.Properties()), msgid+" nack", trace.SpanKindConsumer)
+		span.SetAttributes(attribute.String("messaging.message.id", msgid),
+			attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+		span.AddEvent("provider acking message")
 		err := rm.Nack(*ctx, false)
 		if err != nil {
 			util.Logger.WarnI("error.nack", err.Error())
 
 			bd.activeMessages.Delete(msgid)
-			elapsed := time.Since(rm.ClientSentTime()).Microseconds()
-			util.DebugNoFormat("method:nack,client:%s,elapsed:%v,time:%v\n",
-				bd.ClientIdentifier,
-				elapsed,
-				time.Now().UnixNano())
 			errMsg := &pb.Error{
 				Message: err.Error(),
 				IsFatal: true,
@@ -194,6 +207,7 @@ func (prov *azureprovider) Nack(ctx *context.Context, msgid string) *pb.Error {
 	}
 
 	util.Logger.DebugI("debug.nackmessage", bd.ClientIdentifier, msgid)
+	span.AddEvent("provider nacked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -204,12 +218,24 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		return &pb.Error{Message: err.Error()}
 	}
 
+	var retrySpan trace.Span
+	_, retrySpan = tracing.SpanFromHeaders(*ctx, nil, msgid+" retry", trace.SpanKindConsumer)
+	defer func() {
+		if retrySpan != nil {
+			retrySpan.End()
+		}
+	}()
+
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		retrySpan.AddEvent("setting up retry")
+
 		rm := rmu.(azureMessageShim)
 		scheduleTime := time.Now().Add(time.Second * time.Duration(delay))
 		util.Logger.Debugf("Retry message[%s](%v)(%v) at %s for %s", rm.ID(), delay, rm.DeliveryCount(), time.Now(), scheduleTime)
 
 		err = bd.azure.CreateTopic(*ctx, origSource.Address.GetName())
+
+		retrySpan.AddEvent("retry address created")
 		if err != nil {
 			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead [%v]", msgid, err.Error())
 			_ = rm.Nack(*ctx, true)
@@ -238,6 +264,7 @@ func (prov *azureprovider) Retry(ctx *context.Context, origSource *pb.Source, ms
 		msgToSend.SetProperties(rm.Properties())
 
 		sErr := msgToSend.Schedule(*ctx, scheduleTime)
+		retrySpan.AddEvent("retry message scheduled")
 		if sErr != nil {
 			util.Logger.Debugf("Failed to schedule retry message [%s], requeueing instead [%v]", msgid, sErr.Error())
 			_ = rm.Nack(*ctx, true)
@@ -330,18 +357,25 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	newCtx, cancel := context.WithCancel(*ctx)
 	defer cancel()
 
+	var subSpan trace.Span
+	newCtx, subSpan = tracing.SpanFromHeaders(newCtx, nil, source.GetAddress().GetName()+" subscribe setup", trace.SpanKindConsumer)
+	subSpan.SetAttributes(attribute.String("source.name", source.GetName()),
+		attribute.String("messaging.client_id", bd.ClientIdentifier))
+
 	bd.updateLastPubSubEvent()
 
 	topicName, topicErr := declareExchange(source.GetAddress(), bd)
 	if topicErr != nil {
 		return &pb.Error{Message: topicErr.Error()}
 	}
+	subSpan.AddEvent("address created")
 
 	opts := source.GetOptions()
 	deadLetterEnabled := false
 	if _, ok := opts["DeadLetterAddress"]; ok {
 		deadLetterEnabled = true
 		deadLetterError := prov.setupDeadLetter(newCtx, source)
+		subSpan.AddEvent("dead letter address created")
 		if deadLetterError != nil {
 			return &pb.Error{Message: deadLetterError.Error()}
 		}
@@ -351,6 +385,7 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	if suberr != nil {
 		return &pb.Error{Message: suberr.Error()}
 	}
+	subSpan.AddEvent("subscription created")
 
 	util.Logger.InfoI("info.azureclientsubscribe", bd.ClientIdentifier, subName, source.GetAddress().GetName())
 
@@ -363,12 +398,16 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 	// TODO: Need to handle lock expiration, the max we can set is 5 minutes
 	// and we have some handlers that run for much longer.
 	go func(msgChan chan azureMessageShim) {
+		subSpan.AddEvent("starting consume")
 		err := bd.azure.ReceiveMessages(newCtx, topicName, subName, int(source.PrefetchCount), msgChan, deadLetterEnabled)
 		if err != nil {
 			return
 		}
 		close(msgChan)
 	}(messages)
+
+	subSpan.AddEvent("ending subscribe setup")
+	subSpan.End()
 
 	// 4 minute ticker for renewing locks because that is less than our LockDuration
 	ticker := time.NewTicker(4 * time.Minute)
@@ -414,11 +453,25 @@ func (prov *azureprovider) Subscribe(ctx *context.Context, source *pb.Source, me
 			}
 
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Data(), Headers: headers, Address: source.GetAddress()}
+
+			_, span := tracing.SpanFromHeaders(*ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
+			span.SetAttributes(attribute.String("source.name", source.GetName()),
+				attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+			message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
+			message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+				span.SpanContext().TraceID().String(),
+				span.SpanContext().SpanID().String(),
+				span.SpanContext().TraceFlags(),
+			)
+
 			msg.SetClientSentTime()
 			bd.activeMessages.Add(messageUUID, msg)
 
+			span.AddEvent("sending message from provider to server for consume")
 			messageChannel <- message
 			bd.consumed++
+			span.End()
 		}
 	}
 }
@@ -810,11 +863,18 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 	}
 
 	for {
+
 		message := <-messageChannel
 		if message == nil {
 			// nil message means shut it down
 			return nil
 		}
+		var span trace.Span
+		loopCtx, cancel := context.WithCancel(*ctx)
+		loopCtx, span = tracing.SpanFromHeaders(loopCtx, message.GetHeaders(), message.GetAddress().GetName()+" publish", trace.SpanKindInternal)
+
+		span.SetAttributes(attribute.String("subject.name", message.GetAddress().GetSubjects()[0]),
+			attribute.String("messaging.client_id", bd.ClientIdentifier))
 
 		topicName, err := declareExchange(message.GetAddress(), bd)
 		if err != nil {
@@ -822,8 +882,11 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 				Message: err.Error(),
 				IsFatal: true,
 			}
+			span.End()
+			cancel()
 			continue
 		}
+		span.AddEvent("address created")
 
 		sender, err := bd.createOrGetSenderForAddress(topicName)
 		if err != nil {
@@ -831,6 +894,8 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 				Message: err.Error(),
 				IsFatal: true,
 			}
+			span.End()
+			cancel()
 			continue
 		}
 
@@ -854,7 +919,8 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 
 		azureMessage.SetProperties(headers)
 
-		err = azureMessage.Send(*ctx)
+		err = azureMessage.Send(loopCtx)
+		span.AddEvent("message published to broker")
 
 		if err != nil {
 			util.Logger.WarnI("error.publish", err.Error())
@@ -869,6 +935,8 @@ func (prov *azureprovider) Publish(ctx *context.Context, messageChannel <-chan *
 			bd.produced++
 		}
 		errChan <- nil
+		cancel()
+		span.End()
 	}
 }
 
