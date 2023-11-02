@@ -205,7 +205,7 @@ func TestConnect(t *testing.T) {
 	prov := NewAzureProvider()
 	cc := &pb.ConnectionConfiguration{}
 	ctx := context.Background()
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.NotNil(t, err)
 }
 
@@ -224,7 +224,7 @@ func Test_Connect_NoClient(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "noclient")
@@ -253,7 +253,7 @@ func TestConnect_Stats(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	stats := prov.Stats()
@@ -292,10 +292,10 @@ func Test_Ack_NoMsg(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 	msg := pb.Message{}
-	err = prov.Ack(&ctx, msg.GetUuid())
+	err = prov.Ack(ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
 
 	amock.AssertExpectations(t)
@@ -325,10 +325,10 @@ func Test_Nack_NoMsg(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 	msg := pb.Message{}
-	err = prov.Nack(&ctx, msg.GetUuid())
+	err = prov.Nack(ctx, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
 
 	amock.AssertExpectations(t)
@@ -402,21 +402,20 @@ func Test_Ack(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}, Name: "subName"}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Ack(&ctx, msg.GetUuid())
+	err = prov.Ack(ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 
@@ -491,22 +490,21 @@ func Test_Ack_AckErr(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName", Subjects: []string{"one", "two"}}, Name: "subName"}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	assert.NotNil(t, msg)
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Ack(&ctx, msg.GetUuid())
+	err = prov.Ack(ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Equal(t, err.GetMessage(), "AckError")
 
@@ -561,21 +559,20 @@ func Test_Nack(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Nack(&ctx, msg.GetUuid())
+	err = prov.Nack(ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 
@@ -630,21 +627,20 @@ func Test_DeadLetter(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.DeadLetter(&ctx, src, msg.GetUuid())
+	err = prov.DeadLetter(ctx, src, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 
@@ -678,13 +674,13 @@ func Test_DeadLetterNoMsg(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 
 	msg := pb.Message{}
-	err = prov.DeadLetter(&ctx, src, msg.GetUuid())
+	err = prov.DeadLetter(ctx, src, msg.GetUuid())
 	assert.Contains(t, err.GetMessage(), "message not found in active messages")
 
 	amock.AssertExpectations(t)
@@ -738,22 +734,21 @@ func Test_Nack_NackError(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	assert.NotNil(t, msg)
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Nack(&ctx, msg.GetUuid())
+	err = prov.Nack(ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Equal(t, err.GetMessage(), "NackError")
 
@@ -821,21 +816,20 @@ func Test_Retry(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Retry(&ctx, src, msg.GetUuid(), 1)
+	err = prov.Retry(ctx, src, msg.GetUuid(), 1)
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 
@@ -902,21 +896,20 @@ func Test_Retry_ScheduleFail(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Retry(&ctx, src, msg.GetUuid(), 1)
+	err = prov.Retry(ctx, src, msg.GetUuid(), 1)
 	assert.NotNil(t, msg)
 	assert.Contains(t, err.GetMessage(), fmt.Sprintf("Failed to schedule retry message [%s], requeueing instead", msg.GetUuid()))
 
@@ -983,21 +976,20 @@ func Test_Retry_errorCreateTopic(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
-	stop := make(chan bool)
 	go func() {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
 	}()
 
 	msg := <-mc
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Retry(&ctx, src, msg.GetUuid(), 1)
+	err = prov.Retry(ctx, src, msg.GetUuid(), 1)
 	assert.NotNil(t, msg)
 	assert.Contains(t, err.GetMessage(), fmt.Sprintf("Failed to publish retry message [%s]. Create topic failed. Requeueing instead", msg.GetUuid()))
 
@@ -1046,13 +1038,13 @@ func Test_Retry_NoMsgWithUUID(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	msgID := "12345"
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Retry(&ctx, src, msgID, 1)
+	err = prov.Retry(ctx, src, msgID, 1)
 	assert.Equal(t, "No message with uuid 12345", err.GetMessage())
 
 	amock.AssertExpectations(t)
@@ -1100,13 +1092,13 @@ func Test_Retry_CreateSenderFail(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	src := &pb.Source{Address: &pb.Address{Name: "topicName"}}
 	msgID := "12345"
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Retry(&ctx, src, msgID, 1)
+	err = prov.Retry(ctx, src, msgID, 1)
 	assert.Equal(t, "No message with uuid 12345", err.GetMessage())
 
 	amock.AssertExpectations(t)
@@ -1117,7 +1109,7 @@ func Test_Ack_NoConnect(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
 	msg := pb.Message{}
-	err := prov.Ack(&ctx, msg.GetUuid())
+	err := prov.Ack(ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
@@ -1126,7 +1118,7 @@ func Test_Nack_NoConnect(t *testing.T) {
 	prov := NewAzureProvider()
 	ctx := context.Background()
 	msg := pb.Message{}
-	err := prov.Nack(&ctx, msg.GetUuid())
+	err := prov.Nack(ctx, msg.GetUuid())
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
@@ -1136,7 +1128,7 @@ func Test_Publish_NoConnect(t *testing.T) {
 	ctx := context.Background()
 	mc := make(chan *pb.Message)
 	ec := make(chan *pb.Error)
-	err := prov.Publish(&ctx, mc, ec)
+	err := prov.Publish(ctx, mc, ec)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
@@ -1148,9 +1140,7 @@ func Test_Subscribe_NoConnect(t *testing.T) {
 	src := &pb.Source{Address: address}
 	mc := make(chan *pb.Message)
 
-	stop := make(chan bool)
-
-	err := prov.Subscribe(&ctx, src, mc, stop)
+	err := prov.Subscribe(ctx, src, mc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "Could not retrieve client-id from context")
 }
@@ -1162,9 +1152,7 @@ func Test_Subscribe_NotopicName(t *testing.T) {
 	src := &pb.Source{Address: address}
 	mc := make(chan *pb.Message)
 
-	stop := make(chan bool)
-
-	err := prov.Subscribe(&ctx, src, mc, stop)
+	err := prov.Subscribe(ctx, src, mc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "address name not defined")
 }
@@ -1175,9 +1163,7 @@ func Test_Subscribe_NoAddress(t *testing.T) {
 	src := &pb.Source{}
 	mc := make(chan *pb.Message)
 
-	stop := make(chan bool)
-
-	err := prov.Subscribe(&ctx, src, mc, stop)
+	err := prov.Subscribe(ctx, src, mc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "address name not defined")
 }
@@ -1206,9 +1192,9 @@ func Test_Disconnect(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
-	prov.Disconnect(&ctx)
+	prov.Disconnect(ctx)
 
 	amock.AssertExpectations(t)
 }
@@ -1250,10 +1236,10 @@ func Test_WaitForConnect(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 
 	assert.Nil(t, err)
-	connected := prov.WaitForConnect(&ctx)
+	connected := prov.WaitForConnect(ctx)
 
 	assert.True(t, connected)
 
@@ -1314,11 +1300,11 @@ func Test_Publish(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	go func() {
-		suberr := prov.Publish(&ctx, mc, errchan)
+		suberr := prov.Publish(ctx, mc, errchan)
 		assert.Nil(t, suberr)
 	}()
 
@@ -1381,11 +1367,11 @@ func Test_Publish_Error(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	go func() {
-		suberr := prov.Publish(&ctx, mc, errchan)
+		suberr := prov.Publish(ctx, mc, errchan)
 		assert.Nil(t, suberr)
 	}()
 
@@ -1633,26 +1619,24 @@ func Test_Subscribe_Options(t *testing.T) {
 	}()
 
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 	var msg *pb.Message
 
 	mc := make(chan *pb.Message)
 	defer close(mc)
 
-	stop := make(chan bool)
-
-	go func(stop chan bool) {
-		suberr := prov.Subscribe(&ctx, src, mc, stop)
+	go func() {
+		suberr := prov.Subscribe(ctx, src, mc)
 		assert.Nil(t, suberr)
-	}(stop)
+	}()
 
 	go func() {
 		msg = <-mc
 	}()
 
 	time.Sleep(100 * time.Millisecond)
-	err = prov.Ack(&ctx, msg.GetUuid())
+	err = prov.Ack(ctx, msg.GetUuid())
 	assert.NotNil(t, msg)
 	assert.Nil(t, err)
 	assert.NotNil(t, msg.GetAddress())
@@ -1896,7 +1880,7 @@ func Test_ClientExists(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	exists := prov.ClientExists("1234")
@@ -1926,7 +1910,7 @@ func Test_ClientExists_false(t *testing.T) {
 
 	ctx := context.Background()
 	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(&ctx, cc, false)
+	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	exists := prov.ClientExists("4321")

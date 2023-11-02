@@ -29,8 +29,8 @@ func getTelemetryCollectorAddress() string {
 	return "localhost:4317"
 }
 
-// Unless OTEL_SDK_DISABLED is explicitly set to true, telemetry is disabled.
-// Telemetry should be enabled by default
+// Unless OTEL_SDK_DISABLED is explicitly set to true (disabled=true), telemetry is enabled.
+// https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#general-sdk-configuration
 func getTelemetryEnabled() bool {
 	if e := os.Getenv("OTEL_SDK_DISABLED"); e != "" {
 		disabled, err := strconv.ParseBool(e)

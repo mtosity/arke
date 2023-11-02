@@ -169,7 +169,7 @@ func (prov *amqp091provider) ClientExists(clientIdentifier string) bool {
 }
 
 // Ack ack a message
-func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
+func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
 			util.Logger.Debugf("recovered: %v", err)
@@ -178,7 +178,7 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		return nil
 	}()
 
-	bd, err := prov.getBrokerDetails(*ctx)
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -190,11 +190,10 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		}
 	}()
 
-	// util.Logger.Printf("Ack message with UUID : %s", msg.GetUuid())
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(amqp091Message)
 		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
-		_, span = tracing.SpanFromHeaders(*ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindConsumer)
+		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindConsumer)
 		span.SetAttributes(attribute.String("messaging.message.id", msgid),
 			attribute.String("messaging.client_id", bd.ClientIdentifier))
 		span.AddEvent("provider acking message")
@@ -211,7 +210,6 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
 			Message: err.Error(),
-			IsFatal: true,
 		}
 		span.RecordError(err)
 		return errMsg
@@ -223,8 +221,8 @@ func (prov *amqp091provider) Ack(ctx *context.Context, msgid string) *pb.Error {
 }
 
 // Nack nack a message
-func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error {
-	bd, err := prov.getBrokerDetails(*ctx)
+func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -239,7 +237,7 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 
 		rm := rmu.(amqp091Message)
-		_, span = tracing.SpanFromHeaders(*ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindConsumer)
+		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindConsumer)
 		span.SetAttributes(attribute.String("messaging.message.id", msgid),
 			attribute.String("messaging.client_id", bd.ClientIdentifier))
 		span.AddEvent("provider nacking message")
@@ -256,7 +254,6 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
 			Message: err.Error(),
-			IsFatal: true,
 		}
 		span.RecordError(err)
 		return errMsg
@@ -267,14 +264,14 @@ func (prov *amqp091provider) Nack(ctx *context.Context, msgid string) *pb.Error 
 	return nil
 }
 
-func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, msgid string, delay int32) *pb.Error {
-	bd, err := prov.getBrokerDetails(*ctx)
+func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, msgid string, delay int32) *pb.Error {
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
 
 	var retrySpan trace.Span
-	_, retrySpan = tracing.SpanFromHeaders(*ctx, nil, msgid+" retry", trace.SpanKindConsumer)
+	_, retrySpan = tracing.SpanFromHeaders(ctx, nil, msgid+" retry", trace.SpanKindConsumer)
 	defer func() {
 		if retrySpan != nil {
 			retrySpan.End()
@@ -368,8 +365,8 @@ func (prov *amqp091provider) Retry(ctx *context.Context, origSource *pb.Source, 
 }
 
 // DeadLetter routes the message to a dead letter Address because all retries have failed
-func (prov *amqp091provider) DeadLetter(ctx *context.Context, _ *pb.Source, msgid string) *pb.Error {
-	bd, err := prov.getBrokerDetails(*ctx)
+func (prov *amqp091provider) DeadLetter(ctx context.Context, _ *pb.Source, msgid string) *pb.Error {
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -388,8 +385,8 @@ func (prov *amqp091provider) DeadLetter(ctx *context.Context, _ *pb.Source, msgi
 }
 
 // Connect connect to rabbitmq
-func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
-	clientIdentifier, err := GetClientIdentifier(*ctx)
+func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
+	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -423,13 +420,13 @@ func (prov *amqp091provider) Connect(ctx *context.Context, cf *pb.ConnectionConf
 
 }
 
-func (prov *amqp091provider) setupDeadLetter(ctx *context.Context, origSource *pb.Source) *pb.Error {
+func (prov *amqp091provider) setupDeadLetter(ctx context.Context, origSource *pb.Source) *pb.Error {
 	opts := origSource.GetOptions()
 	if _, ok := opts["DeadLetterAddress"]; !ok {
 		return nil
 	}
 
-	bd, err := prov.getBrokerDetails(*ctx)
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -797,13 +794,13 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 }
 
 // Subscribe subscribe to a stream of messages from the broker
-func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, messageChannel chan<- *pb.Message, stopChannel <-chan bool) *pb.Error {
+func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
 
 	if source.GetAddress().GetName() == "" {
 		return &pb.Error{Message: "address name not defined"}
 	}
 
-	bd, err := prov.getBrokerDetails(*ctx)
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -814,7 +811,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
-	newCtx, cancel := context.WithCancel(*ctx)
+	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var subSpan trace.Span
@@ -910,15 +907,12 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 
 	for {
 		select {
-		case stop, ok := <-stopChannel:
-			if !ok || stop {
-				// channel is closed, so stop
-				return nil
-			}
+		case <-ctx.Done():
+			return nil
 		case cancelErr, ok := <-cancelChan:
 			if !ok {
 				util.Logger.Debugf("Channel to broker closed during subscribe %v", bd.ClientIdentifier)
-				return &pb.Error{Message: "Channel to broker closed"}
+				return &pb.Error{Message: "Channel to broker closed", IsFatal: true}
 			}
 
 			if cancelErr != (amqp091Error{}) {
@@ -970,7 +964,7 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
 
-			_, span := tracing.SpanFromHeaders(*ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
+			_, span := tracing.SpanFromHeaders(ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
 			span.SetAttributes(attribute.String("source.name", source.GetName()),
 				attribute.String("messaging.client_id", bd.ClientIdentifier))
 
@@ -992,8 +986,8 @@ func (prov *amqp091provider) Subscribe(ctx *context.Context, source *pb.Source, 
 }
 
 // Disconnect disconnect from the broker
-func (prov *amqp091provider) Disconnect(ctx *context.Context) {
-	clientIdentifier, err := GetClientIdentifier(*ctx)
+func (prov *amqp091provider) Disconnect(ctx context.Context) {
+	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
 		return
 	}
@@ -1029,9 +1023,9 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 }
 
 // Publish publish a message to the broker
-func (prov *amqp091provider) Publish(ctx *context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) *pb.Error {
+func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan *pb.Message, errChan chan<- *pb.Error) *pb.Error {
 
-	bd, err := prov.getBrokerDetails(*ctx)
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -1180,8 +1174,8 @@ func (prov *amqp091provider) SupportedSourceOptions() map[string]bool {
 }
 
 // WaitForConnect returns true if connected, false if connection fails
-func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
-	bd, err := prov.getBrokerDetails(*ctx)
+func (prov *amqp091provider) WaitForConnect(ctx context.Context) bool {
+	bd, err := prov.getBrokerDetails(ctx)
 	if err != nil {
 		return false
 	}
@@ -1196,7 +1190,7 @@ func (prov *amqp091provider) WaitForConnect(ctx *context.Context) bool {
 			util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
 			return true
 		}
-		bd, err = prov.getBrokerDetails(*ctx)
+		bd, err = prov.getBrokerDetails(ctx)
 		if err != nil {
 			util.Logger.InfoI("info.clientdetailsgone", bd.ClientIdentifier)
 			return false

@@ -22,9 +22,6 @@ import (
 	"sassoftware.io/convoy/arke/pkg/util"
 )
 
-// streamMaxSubscribeAttempts maximum number of times to attempt subscribing before we give up
-const streamMaxSubscribeAttempts = 10
-
 var GetClientAddr = util.GetClientAddr
 var GetClientIdentifier = util.GetClientIdentifier
 var SetClientIdentifier = util.SetClientIdentifier
@@ -149,11 +146,6 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	var returnError error
 	isSubscribing := false
 
-	stopChan := make(chan bool)
-	defer func() {
-		close(stopChan)
-	}()
-
 	// stopForLoop is used for errors that require the exiting of Consume
 	stopForLoop := make(chan bool)
 	defer func() {
@@ -242,19 +234,16 @@ consumeLoop:
 				}
 
 				isSubscribing = true
+				subCtx, subCancel := context.WithCancel(ctx)
 
 				// this goroutine receives messages from the provider and sends them to the client for processing
-				go func(mc <-chan *pb.Message, prov provider.Provider, cont *context.Context, stopCh chan bool, stopFor *chan bool, returnErr *error) {
-					newCtx, cancel := context.WithCancel(*cont)
-					defer cancel()
+				go func(mc <-chan *pb.Message, prov provider.Provider, cont context.Context, stopFor *chan bool, returnErr *error) {
+					recvCtx, recvCancel := context.WithCancel(cont)
+					defer recvCancel()
 					for {
 						select {
-						case <-newCtx.Done():
+						case <-cont.Done():
 							return
-						case stop, ok := <-stopCh:
-							if !ok || stop {
-								return
-							}
 						case message, ok := <-mc:
 							if !ok {
 								return
@@ -264,7 +253,7 @@ consumeLoop:
 								message.Address = source.GetAddress()
 							}
 
-							_, span := tracing.SpanFromHeaders(*cont, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
+							_, span := tracing.SpanFromHeaders(recvCtx, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
 							span.AddEvent("sending message from server to consumer client")
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := sender.Send(resp)
@@ -281,61 +270,28 @@ consumeLoop:
 							span.End()
 						}
 					}
-				}(messageChannel, prov, &ctx, stopChan, &stopForLoop, &returnError)
+				}(messageChannel, prov, subCtx, &stopForLoop, &returnError)
 
-				go func(mc chan<- *pb.Message, prov provider.Provider, ctx *context.Context, stopCh chan bool, stopFor *chan bool, returnErr *error) {
-					newCtx, cancel := context.WithCancel(*ctx)
-					defer cancel()
-					subscribeAttempts := 0
-					for {
-						defer func() {
-							if err := recover(); err != nil {
-								util.Logger.Warn(fmt.Sprintf("%v", err))
-								// returnError = err
-								return
-							}
-						}()
-						// If subscribe ever stops because of a broker error, restart it if the client still exists
-						// unless the stream was closed
-						select {
-						case <-newCtx.Done():
+				// call provider.Subscribe and use messageChannel to pass messages from the provider to the receiver func above
+				go func(mc chan<- *pb.Message, prov provider.Provider, cont context.Context, cncl context.CancelFunc, stopFor *chan bool, returnErr *error) {
+					defer cncl()
+					defer func() {
+						if err := recover(); err != nil {
+							util.Logger.Warn(fmt.Sprintf("%v", err))
+							// returnError = err
 							return
-						case stop, ok := <-stopCh:
-							if !ok || stop {
-								return
-							}
-						default:
-							subscribeAttempts++
-							// Prevent a subscribe to the provider from being attempted too many times
-							if subscribeAttempts == streamMaxSubscribeAttempts {
-								util.Logger.WarnI("error.streamsubscribemax", clientIdentifier, streamMaxSubscribeAttempts)
-								if *stopFor != nil {
-									*stopFor <- true
-								}
-								*returnErr = fmt.Errorf("stream reached max subscribe attempts %d", streamMaxSubscribeAttempts)
-								return
-							}
-							err := prov.Subscribe(&newCtx, source, mc, stopCh)
-							if err != nil {
-								if clientExists(newCtx) {
-									util.Logger.InfoI("info.subscribefailbutclientexists", clientIdentifier, err.Message)
-									connected := prov.WaitForConnect(ctx)
-									if connected {
-										continue
-									}
-									util.Logger.WarnI("error.brokerconnect", err.Message)
-								} else {
-									util.Logger.Debugf("Client no longer exists. Stopping subcribe.")
-								}
-								*returnErr = fmt.Errorf(err.GetMessage())
-								if *stopFor != nil {
-									*stopFor <- true
-								}
-								return
-							}
+						}
+					}()
+
+					err := prov.Subscribe(cont, source, mc)
+					if err != nil {
+						util.Logger.WarnI("error.brokerconnect", err.Message)
+						*returnErr = fmt.Errorf(err.GetMessage())
+						if *stopFor != nil {
+							*stopFor <- true
 						}
 					}
-				}(messageChannel, prov, &ctx, stopChan, &stopForLoop, &returnError)
+				}(messageChannel, prov, subCtx, subCancel, &stopForLoop, &returnError)
 
 			} else if cnsmRecv.msg.GetAck() != nil { // Ack or Nack the message
 				go func() {
@@ -347,18 +303,18 @@ consumeLoop:
 					if ackmsg.GetUuid() == "" { //nolint gocritic
 						ackerr = &pb.Error{Message: "Uuid not set when acking/nacking"}
 					} else if ackmsg.GetNack() && ackmsg.GetRequeueDelay() > 0 { // delayed retry
-						ackerr = prov.Retry(&ctx, source, ackmsg.GetUuid(), ackmsg.GetRequeueDelay())
+						ackerr = prov.Retry(ctx, source, ackmsg.GetUuid(), ackmsg.GetRequeueDelay())
 					} else if ackmsg.GetNack() { // Nack
 						// dead letter if enabled, else Nack
 						opts := source.GetOptions()
 						if _, ok := opts["DeadLetterAddress"]; ok {
-							ackerr = prov.DeadLetter(&ctx, source, ackmsg.GetUuid())
+							ackerr = prov.DeadLetter(ctx, source, ackmsg.GetUuid())
 						}
 						if _, ok := opts["DeadLetterAddress"]; !ok || ackerr != nil {
-							ackerr = prov.Nack(&ctx, ackmsg.GetUuid())
+							ackerr = prov.Nack(ctx, ackmsg.GetUuid())
 						}
 					} else { // Ack
-						ackerr = prov.Ack(&ctx, ackmsg.GetUuid())
+						ackerr = prov.Ack(ctx, ackmsg.GetUuid())
 					}
 
 					if ackerr != nil {
@@ -515,11 +471,11 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 			}
 		}(messageChannel, errChan)
 
-		err := prov.Publish(&ctx, messageChannel, errChan)
+		err := prov.Publish(ctx, messageChannel, errChan)
 		if err != nil {
 			errChan <- err
 			if clientExists(ctx) {
-				connected := prov.WaitForConnect(&ctx)
+				connected := prov.WaitForConnect(ctx)
 				if connected {
 					continue
 				}
@@ -602,7 +558,7 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 	maxRetries := util.GetConfig("MAX_RECONNECT_RETRIES", 5)
 	maxSleep := util.GetConfig("MAX_RECONNECT_DELAY", 5000) // Default 5s
 	for connectTry := 1; connectTry <= maxRetries.(int); connectTry++ {
-		errMsg = prov.Connect(&ctx, cf, tlsSkipVerify)
+		errMsg = prov.Connect(ctx, cf, tlsSkipVerify)
 		if errMsg == nil || errMsg.GetMessage() == "" {
 			break
 		}
@@ -629,7 +585,7 @@ func brokerDisconnect(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	if found {
 		providerType := cf.(*pb.ConnectionConfiguration).GetProvider()
 		prov, _ := provider.GetProvider(providerType)
-		prov.Disconnect(&ctx)
+		prov.Disconnect(ctx)
 		connectionMap.Delete(clientIdentifier)
 		util.Logger.InfoI("info.clientdisconnect", clientIdentifier)
 		return &pb.Empty{}, nil

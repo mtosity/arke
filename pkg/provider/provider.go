@@ -13,16 +13,16 @@ import (
 
 // Provider provider interface
 type Provider interface {
-	Publish(*context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
-	Subscribe(*context.Context, *pb.Source, chan<- *pb.Message, <-chan bool) *pb.Error
-	Ack(*context.Context, string) *pb.Error
-	Nack(*context.Context, string) *pb.Error
-	Retry(*context.Context, *pb.Source, string, int32) *pb.Error
-	DeadLetter(*context.Context, *pb.Source, string) *pb.Error
-	Connect(*context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
-	Disconnect(*context.Context)
+	Publish(context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
+	Subscribe(context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
+	Ack(context.Context, string) *pb.Error
+	Nack(context.Context, string) *pb.Error
+	Retry(context.Context, *pb.Source, string, int32) *pb.Error
+	DeadLetter(context.Context, *pb.Source, string) *pb.Error
+	Connect(context.Context, *pb.ConnectionConfiguration, bool) *pb.Error
+	Disconnect(context.Context)
 	SupportedSourceOptions() map[string]bool
-	WaitForConnect(*context.Context) bool
+	WaitForConnect(context.Context) bool
 	Stats() *Stats
 	ClientExists(string) bool
 }
