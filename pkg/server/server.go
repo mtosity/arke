@@ -282,11 +282,19 @@ consumeLoop:
 							return
 						}
 					}()
-
-					err := prov.Subscribe(cont, source, mc)
-					if err != nil {
-						util.Logger.WarnI("error.brokerconnect", err.Message)
-						*returnErr = fmt.Errorf(err.GetMessage())
+					connected := prov.WaitForConnect(cont)
+					if connected {
+						err := prov.Subscribe(cont, source, mc)
+						if err != nil {
+							util.Logger.WarnI("error.brokerconnect", err.Message)
+							*returnErr = fmt.Errorf(err.GetMessage())
+							if *stopFor != nil {
+								*stopFor <- true
+							}
+						}
+					} else {
+						util.Logger.WarnI("error.brokerconnect", "could not connect to broker")
+						*returnErr = fmt.Errorf("could not connect to broker")
 						if *stopFor != nil {
 							*stopFor <- true
 						}

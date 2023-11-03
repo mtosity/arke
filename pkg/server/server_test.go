@@ -605,6 +605,7 @@ func TestServerNoConnect_FAIL(t *testing.T) {
 func TestConsumerServerConsume(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -639,6 +640,7 @@ func TestConsumerServerConsume(t *testing.T) {
 func TestConsumerServerConsume_Nack(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -673,6 +675,7 @@ func TestConsumerServerConsume_Nack(t *testing.T) {
 func TestConsumerServerConsume_DLQ(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["DeadLetterAddress"] = "dlq"
@@ -707,6 +710,7 @@ func TestConsumerServerConsume_DLQ(t *testing.T) {
 func TestConsumerServerConsume_DLQFail(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["DeadLetterAddress"] = "dlq"
@@ -742,6 +746,7 @@ func TestConsumerServerConsume_DLQFail(t *testing.T) {
 func TestConsumerServerConsume_Retry(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
@@ -797,6 +802,7 @@ func TestConsumerServerConsume_BadOption(t *testing.T) {
 func TestConsumerServerConsume_AckErr(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}}
 	stream := &MockConsumerConsumeServerStream{}
@@ -829,6 +835,7 @@ func TestConsumerServerConsume_AckErr(t *testing.T) {
 func TestConsumerServerConsume_SourceTwice(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
 
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
