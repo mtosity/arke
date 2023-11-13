@@ -66,9 +66,9 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/term v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d // indirect
@@ -84,13 +84,8 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-// NGMTS-21506: fix for CVE-2020-14040
 replace (
-	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.0
 	sassoftware.io/convoy/arke/api => ./api
-	golang.org/x/text v0.3.0 => golang.org/x/text v0.3.8
-	golang.org/x/text v0.3.2 => golang.org/x/text v0.3.8
-	golang.org/x/text v0.3.7 => golang.org/x/text v0.3.8
+	golang.org/x/net => golang.org/x/net v0.17.0
 )
