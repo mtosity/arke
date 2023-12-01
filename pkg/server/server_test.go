@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/convoy/arke/api"
 	"sassoftware.io/convoy/arke/pkg/provider"
-	. "sassoftware.io/convoy/arke/pkg/server"
+	s "sassoftware.io/convoy/arke/pkg/server"
 	"sassoftware.io/convoy/arke/pkg/util"
 	// mp "sassoftware.io/convoy/arke/pkg/provider/mock"
 )
@@ -25,9 +25,9 @@ import (
 var ctx context.Context
 var cf *pb.ConnectionConfiguration
 var mockp *MockProvider
-var conSrv *ConsumerServer
-var proSrv *ProducerServer
-var hlthSrv *HealthzServer
+var conSrv *s.ConsumerServer
+var proSrv *s.ProducerServer
+var hlthSrv *s.HealthzServer
 var expectedErrorMessage = "this is my error"
 var errMsg pb.Error = pb.Error{Message: expectedErrorMessage}
 
@@ -40,9 +40,9 @@ func init() {
 	cf = &pb.ConnectionConfiguration{Provider: provName, ClientName: "ServerTest"}
 	mocky, _ := provider.GetProvider(provName)
 	mockp = mocky.(*MockProvider)
-	conSrv = &ConsumerServer{}
-	proSrv = &ProducerServer{}
-	hlthSrv = &HealthzServer{}
+	conSrv = &s.ConsumerServer{}
+	proSrv = &s.ProducerServer{}
+	hlthSrv = &s.HealthzServer{}
 }
 
 type MockConsumerConsumeServerStream struct {
@@ -184,17 +184,17 @@ var defaultDate = time.Date(2021, time.November, 6, 15, 0, 0, 0, time.Local)
 // NewMockProvider creates a new provider
 func NewMockProvider() provider.Provider {
 	prov := &MockProvider{}
-	GetClientIdentifier = func(context.Context) (string, error) {
+	s.GetClientIdentifier = func(context.Context) (string, error) {
 		return "127.0.0.1:1234-1234", nil
 	}
-	SetClientIdentifier = func(cx context.Context, n string) (string, error) {
+	s.SetClientIdentifier = func(cx context.Context, n string) (string, error) {
 		return fmt.Sprintf("%s-%d", n, 123), nil
 	}
-	RemoveClientIdentifier = func(context.Context) {}
-	GetClientAddr = func(context.Context) (string, error) {
+	s.RemoveClientIdentifier = func(context.Context) {}
+	s.GetClientAddr = func(context.Context) (string, error) {
 		return "127.0.0.1:1234", nil
 	}
-	NewTimestampPB = func() *timestamppb.Timestamp {
+	s.NewTimestampPB = func() *timestamppb.Timestamp {
 		return timestamppb.New(defaultDate)
 	}
 	return prov
@@ -332,7 +332,7 @@ func TestProducerServerNew(t *testing.T) {
 	prov := NewMockProvider()
 	assert.NotNil(t, prov)
 
-	srv := &ProducerServer{}
+	srv := &s.ProducerServer{}
 
 	assert.NotNil(t, srv)
 }
@@ -342,7 +342,7 @@ func TestConsumerServerNew(t *testing.T) {
 	prov := NewMockProvider()
 	assert.NotNil(t, prov)
 
-	srv := &ConsumerServer{}
+	srv := &s.ConsumerServer{}
 
 	assert.NotNil(t, srv)
 }
@@ -419,11 +419,11 @@ func TestServerNoConnectionShare(t *testing.T) {
 	assert.Nil(t, err)
 	defer proSrv.Disconnect(ctx, &pb.Empty{}) //nolint errcheck
 
-	oldClientIdentifier := GetClientIdentifier
-	GetClientIdentifier = func(context.Context) (string, error) {
+	oldClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
 		return "456", nil
 	}
-	defer func() { GetClientIdentifier = oldClientIdentifier }()
+	defer func() { s.GetClientIdentifier = oldClientIdentifier }()
 
 	ctx2 := context.WithValue(context.Background(), peer.Peer{}, "")
 	cr2, err2 := proSrv.Connect(ctx2, cf)
@@ -514,8 +514,8 @@ func TestProducerServerPublishSend_Fail(t *testing.T) {
 func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	oldGetClientIdentifier := GetClientIdentifier
-	GetClientIdentifier = func(context.Context) (string, error) {
+	oldGetClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
 		return "", errors.New("Can't get Client UUID")
 	}
 
@@ -525,7 +525,7 @@ func TestServerDisconnect_SuccessNoUUID(t *testing.T) {
 	conSrv.Connect(ctx, cf) //nolint errcheck
 	connectResp, err := conSrv.Disconnect(ctx, empty)
 
-	GetClientIdentifier = oldGetClientIdentifier
+	s.GetClientIdentifier = oldGetClientIdentifier
 
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -543,12 +543,12 @@ func TestServerDisconnect_FailNoMap(t *testing.T) {
 
 	conSrv.Connect(ctx, cf) //nolint errcheck
 
-	oldGetClientIdentifier := GetClientIdentifier
-	GetClientIdentifier = func(context.Context) (string, error) {
+	oldGetClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
 	connectResp, err := conSrv.Disconnect(ctx, empty)
-	GetClientIdentifier = oldGetClientIdentifier
+	s.GetClientIdentifier = oldGetClientIdentifier
 
 	assert.NotNil(t, connectResp)
 	assert.Nil(t, err)
@@ -878,12 +878,12 @@ func TestHealthzServerCheck(t *testing.T) {
 
 func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 
-	oldGetProcessStats := GetProcessStats
+	oldGetProcessStats := s.GetProcessStats
 	defer func() {
-		oldGetProcessStats = GetProcessStats
+		oldGetProcessStats = s.GetProcessStats
 	}()
 
-	GetProcessStats = func() *util.ProcessStats {
+	s.GetProcessStats = func() *util.ProcessStats {
 		cpus := runtime.NumCPU()
 		ps := &util.ProcessStats{}
 		ps.MaxMemory = 1000
@@ -911,7 +911,7 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 			Status: &pb.HealthStatus{
 				Uuid: uuid,
 				Code: pb.HealthStatus_UNHEALTHY,
-				Time: NewTimestampPB(),
+				Time: s.NewTimestampPB(),
 			},
 		},
 	}
@@ -920,17 +920,17 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 	err := hlthSrv.Check(stream)
 	assert.Nil(t, err)
 	stream.AssertExpectations(t)
-	GetProcessStats = oldGetProcessStats
+	s.GetProcessStats = oldGetProcessStats
 }
 
 func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 
-	oldGetProcessStats := GetProcessStats
+	oldGetProcessStats := s.GetProcessStats
 	defer func() {
-		oldGetProcessStats = GetProcessStats
+		oldGetProcessStats = s.GetProcessStats
 	}()
 
-	GetProcessStats = func() *util.ProcessStats {
+	s.GetProcessStats = func() *util.ProcessStats {
 		ps := &util.ProcessStats{}
 		ps.MaxMemory = 1000
 		ps.MemoryAverage = 1000
@@ -957,7 +957,7 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 			Status: &pb.HealthStatus{
 				Uuid: uuid,
 				Code: pb.HealthStatus_UNHEALTHY,
-				Time: NewTimestampPB(),
+				Time: s.NewTimestampPB(),
 			},
 		},
 	}
@@ -966,5 +966,5 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 	err := hlthSrv.Check(stream)
 	assert.Nil(t, err)
 	stream.AssertExpectations(t)
-	GetProcessStats = oldGetProcessStats
+	s.GetProcessStats = oldGetProcessStats
 }
