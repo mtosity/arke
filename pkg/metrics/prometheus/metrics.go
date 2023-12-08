@@ -66,7 +66,9 @@ func Serve(lis *net.Listener) {
 	}
 
 	if err := metricsServer.Serve(*lis); err != nil {
-		util.Logger.WarnI("error.metricsserve", err)
+		if err.Error() != "mux: server closed" {
+			util.Logger.WarnI("error.metricsserve", err.Error())
+		}
 	}
 }
 

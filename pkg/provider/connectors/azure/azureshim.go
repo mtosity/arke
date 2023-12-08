@@ -101,8 +101,10 @@ type azureSender struct {
 
 // azureReceiver receiver
 type azureReceiver struct {
-	receiver      *azservicebus.Receiver
-	inFlightCount int
+	receiver         *azservicebus.Receiver
+	inFlightMessages util.ConcurrentMap
+	topicName        string
+	subscriptionName string
 }
 
 // NewAzureClient create a new namespace object
@@ -269,16 +271,19 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 	}
 	defer receiver.Close(ctx)
 
-	rcvr := &azureReceiver{receiver: receiver, inFlightCount: 0}
+	rcvr := &azureReceiver{receiver: receiver, topicName: topicName, subscriptionName: subscriptionName, inFlightMessages: *util.NewConcurrentMap()}
 	for {
-		msgReqCnt := prefetch - rcvr.inFlightCount
 		if ctx.Err() != nil {
 			return nil // context closed
 		}
+
+		inFlight := rcvr.inFlightMessages.GetList()
+		msgReqCnt := prefetch - len(inFlight)
 		if msgReqCnt < 1 {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			continue
 		}
+
 		msgs, err := receiver.ReceiveMessages(ctx, msgReqCnt, nil)
 		if err != nil {
 			if ctx.Err() != nil { // context closed
@@ -292,7 +297,7 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 			message.receiver = rcvr
 			message.receivedMessage = msg
 			message.deadLetterEnabled = deadLetterEnabled
-			message.receiver.inFlightCount++
+			rcvr.inFlightMessages.Add(message.ID(), time.Now())
 			messages <- message
 		}
 	}
@@ -300,7 +305,7 @@ func (ac *azureClient) ReceiveMessages(ctx context.Context, topicName, subscript
 
 // Ack acknowledges a message and removes it from the broker
 func (am *azureMessage) Ack(ctx context.Context) error {
-	am.receiver.inFlightCount--
+	am.receiver.inFlightMessages.Delete(am.ID())
 	return am.receiver.receiver.CompleteMessage(ctx, am.receivedMessage, nil)
 }
 
@@ -319,7 +324,7 @@ func (am *azureMessage) Nack(ctx context.Context, requeue bool) error {
 	// if we are not to requeue and dead lettering is enabled, dead letter
 	// if we are not to requeue and dead lettering is not enabled, ack the message
 	if requeue {
-		am.receiver.inFlightCount--
+		am.receiver.inFlightMessages.Delete(am.ID())
 		return am.receiver.receiver.AbandonMessage(ctx, am.receivedMessage, nil)
 	} else if am.deadLetterEnabled {
 		return am.DeadLetter(ctx)
@@ -331,7 +336,7 @@ func (am *azureMessage) Nack(ctx context.Context, requeue bool) error {
 func (am *azureMessage) DeadLetter(ctx context.Context) error {
 	reason := "client request"
 	opts := &azservicebus.DeadLetterOptions{Reason: &reason}
-	am.receiver.inFlightCount--
+	am.receiver.inFlightMessages.Delete(am.ID())
 	return am.receiver.receiver.DeadLetterMessage(ctx, am.receivedMessage, opts)
 }
 

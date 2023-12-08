@@ -120,7 +120,7 @@ test-nogen: ## Executes unit tests without protoc generation
 # integration test related
 
 build_test_c:
-	${BUILD_ENV} go test -c ./ -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
+	${BUILD_ENV} OTEL_SDK_DISABLED=true go test -c ./ -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
 
 pre_stop_test_c:
 	killall -2 arke.test || true

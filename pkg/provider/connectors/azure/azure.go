@@ -392,7 +392,7 @@ func (prov *azureprovider) Subscribe(ctx context.Context, source *pb.Source, mes
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
 
-	messages := make(chan azureMessageShim)
+	messages := make(chan azureMessageShim, 2*int(source.PrefetchCount))
 	// stopChan := make(chan bool)
 
 	// TODO: Need to handle lock expiration, the max we can set is 5 minutes

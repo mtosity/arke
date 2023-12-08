@@ -102,6 +102,10 @@ func run() {
 	kp := keepalive.ServerParameters{
 		Time:    20 * time.Second,
 		Timeout: 60 * time.Second,
+		// Disconnect clients that have been idle for 5 minutes.
+		// Idleness on bidirectional streams only kicks in when there are
+		// no open streams.
+		MaxConnectionIdle: 5 * time.Minute,
 	}
 
 	kaep := keepalive.EnforcementPolicy{
