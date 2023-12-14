@@ -450,15 +450,18 @@ func (prov *azureprovider) Subscribe(ctx context.Context, source *pb.Source, mes
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Data(), Headers: headers, Address: source.GetAddress()}
 
 			_, span := tracing.SpanFromHeaders(ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
-			span.SetAttributes(attribute.String("source.name", source.GetName()),
-				attribute.String("messaging.client_id", bd.ClientIdentifier))
 
-			message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
-			message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
-				span.SpanContext().TraceID().String(),
-				span.SpanContext().SpanID().String(),
-				span.SpanContext().TraceFlags(),
-			)
+			if tracing.Enabled() {
+				span.SetAttributes(attribute.String("source.name", source.GetName()),
+					attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+				message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
+				message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+					span.SpanContext().TraceID().String(),
+					span.SpanContext().SpanID().String(),
+					span.SpanContext().TraceFlags(),
+				)
+			}
 
 			msg.SetClientSentTime()
 			bd.activeMessages.Add(messageUUID, msg)

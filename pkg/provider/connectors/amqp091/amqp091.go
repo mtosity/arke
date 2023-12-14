@@ -965,15 +965,18 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
 
 			_, span := tracing.SpanFromHeaders(ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
-			span.SetAttributes(attribute.String("source.name", source.GetName()),
-				attribute.String("messaging.client_id", bd.ClientIdentifier))
 
-			message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
-			message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
-				span.SpanContext().TraceID().String(),
-				span.SpanContext().SpanID().String(),
-				span.SpanContext().TraceFlags(),
-			)
+			if tracing.Enabled() {
+				span.SetAttributes(attribute.String("source.name", source.GetName()),
+					attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+				message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
+				message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+					span.SpanContext().TraceID().String(),
+					span.SpanContext().SpanID().String(),
+					span.SpanContext().TraceFlags(),
+				)
+			}
 
 			span.AddEvent("sending message from provider to server for consume")
 

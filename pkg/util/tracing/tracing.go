@@ -19,6 +19,7 @@ import (
 )
 
 var initResourcesOnce sync.Once
+var tracingEnabled bool
 
 func getTelemetryCollectorAddress() string {
 
@@ -32,14 +33,16 @@ func getTelemetryCollectorAddress() string {
 // Unless OTEL_SDK_DISABLED is explicitly set to true (disabled=true), telemetry is enabled.
 // https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#general-sdk-configuration
 func getTelemetryEnabled() bool {
+	tracingEnabled = true
 	if e := os.Getenv("OTEL_SDK_DISABLED"); e != "" {
 		disabled, err := strconv.ParseBool(e)
 		if err != nil {
-			return true
+			tracingEnabled = true
+		} else {
+			tracingEnabled = !disabled
 		}
-		return !disabled
 	}
-	return true
+	return tracingEnabled
 }
 
 func initResource() *sdkresource.Resource {
@@ -59,6 +62,10 @@ func initResource() *sdkresource.Resource {
 		)
 	})
 	return resource
+}
+
+func Enabled() bool {
+	return tracingEnabled
 }
 
 func InitTracerProvider() (*sdktrace.TracerProvider, error) {
