@@ -94,15 +94,15 @@ test-clients-linux: ## Builds test clients
 linux: linux-nogen generate ## Builds binary for linux_amd64 (lax)
 
 linux-nogen: setup ## Builds binary for linux_amd64 (lax)
-	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE}
+	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE} ./cmd
 
 osx: darwin ## Builds binary for darwin_amd64 (osx)
 
 darwin: setup generate ## Builds binary for darwin_amd64 (osx)
-	${BUILD_ENV} GOARCH=arm64 GOOS=darwin go build -o build/darwin/${OUT_FILE}
+	${BUILD_ENV} GOARCH=arm64 GOOS=darwin go build -o build/darwin/${OUT_FILE} ./cmd
 
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
-	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE}
+	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE} ./cmd
 
 build: $(UNAME_S) ## Builds binary for current platform
 
@@ -120,7 +120,7 @@ test-nogen: ## Executes unit tests without protoc generation
 # integration test related
 
 build_test_c:
-	${BUILD_ENV} OTEL_SDK_DISABLED=true go test -c ./ -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
+	${BUILD_ENV} OTEL_SDK_DISABLED=true go test -c ./cmd -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
 
 pre_stop_test_c:
 	killall -2 arke.test || true

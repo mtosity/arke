@@ -66,6 +66,7 @@ debug.ensurechannelerror=Error ensuring channel on connection for {0}: {1}
 warn.azureMinimumExpiresTime=Client {0} Expires header for source {1} is too low ({2}). Defaulting to 5 minutes minimum.
 info.subscribefatal=Client {0} received a fatal error from provider Subscribe. Closing stream. {1}
 info.failedinittelemetryexporter=Failed to initialize telemetry exporter: {0}
+error.tls=Could not load TLS cert and key: {0}
 `
 
 // Logger default logger

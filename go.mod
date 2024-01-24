@@ -10,7 +10,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/soheilhy/cmux v0.1.5
 	github.com/stretchr/testify v1.8.4
-	sassoftware.io/convoy/arke/api v0.0.0-20211213191304-b79d5663ed51
+	sassoftware.io/convoy/arke/api v1.1.5
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.19.0
