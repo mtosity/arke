@@ -389,7 +389,7 @@ func TestServerConnectBadProvider_Fail(t *testing.T) {
 	connectResp, err := proSrv.Connect(ctx, config)
 
 	assert.NotNil(t, connectResp)
-	assert.Regexp(t, regexp.MustCompile("Invalid provider name"), err.Error())
+	assert.Regexp(t, regexp.MustCompile("invalid provider name"), err.Error())
 }
 
 func TestServerConnectTwice_Ignore(t *testing.T) {

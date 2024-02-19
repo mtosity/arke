@@ -81,31 +81,6 @@ func init() {
 	}
 }
 
-// every 30 seconds check the list of active connections
-// if a client has 0 active streams and hasn't created or
-// deleted a stream in over 30 seconds, disconnect it.
-// Severed client connections may hang around for up to 60
-// seconds since we are checking every 30.
-func connectionCleaner() {
-	provy, _ := provider.GetProvider("amqp091")
-	prov := provy.(*amqp091provider)
-	ticker := time.NewTicker(30 * time.Second)
-	for {
-		<-ticker.C
-		for _, connID := range prov.connections.GetList() {
-			if conn, ok := prov.connections.Get(connID); ok {
-				bd := conn.(*BrokerDetails)
-				util.Logger.Debugf("Client %v has %d open streams", connID, bd.ActiveStreams)
-				lastKnown := time.Since(bd.lastPubSubEvent)
-				if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
-					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connID, lastKnown)
-					prov.disconnectClientByIdentifier(connID)
-				}
-			}
-		}
-	}
-}
-
 /*
  * AMQP 0-9-1 provider code
  */
@@ -706,8 +681,9 @@ func (bd *BrokerDetails) deleteBindingByKeyFromSource(source *pb.Source, propKey
 	return nil
 }
 
-func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) {
+func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) []string {
 	bindings := bd.getBindingKeysForSource(source)
+	removed := make([]string, 0)
 	for _, binding := range bindings {
 		bindingExpected := false
 		routingKey := binding["routing_key"].(string)
@@ -722,9 +698,12 @@ func (bd *BrokerDetails) cleanupBindings(source *pb.Source, subjects []string) {
 			err := bd.deleteBindingByKeyFromSource(source, binding["properties_key"].(string))
 			if err != nil {
 				util.Logger.Debugf("Error deleting binding: %s", err.Error())
+			} else {
+				removed = append(removed, binding["properties_key"].(string))
 			}
 		}
 	}
+	return removed
 }
 
 func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
@@ -787,7 +766,8 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 		}
 	}
 
-	bd.cleanupBindings(source, subjects)
+	removed := bd.cleanupBindings(source, subjects)
+	util.Logger.Debugf("removed %d bindings from %s", len(removed), source.GetName())
 
 	bd.knownBindings.Add(knownBindingKey, true)
 	return nil
@@ -970,8 +950,8 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 				span.SetAttributes(attribute.String("source.name", source.GetName()),
 					attribute.String("messaging.client_id", bd.ClientIdentifier))
 
-				message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
-				message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+				message.Headers[tracing.HeaderTraceState] = span.SpanContext().TraceState().String()
+				message.Headers[tracing.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
 					span.SpanContext().TraceID().String(),
 					span.SpanContext().SpanID().String(),
 					span.SpanContext().TraceFlags(),

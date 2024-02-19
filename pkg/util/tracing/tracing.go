@@ -21,6 +21,13 @@ import (
 var initResourcesOnce sync.Once
 var tracingEnabled bool
 
+const (
+	TraceHeaderName   = "X-B3-TraceId"
+	SpanHeaderName    = "X-B3-SpanId"
+	HeaderTraceParent = "traceparent"
+	HeaderTraceState  = "tracestate"
+)
+
 func getTelemetryCollectorAddress() string {
 
 	if addr := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); addr != "" {

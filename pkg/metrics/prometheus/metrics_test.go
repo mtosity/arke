@@ -1,12 +1,21 @@
 package prometheus
 
 import (
+	"context"
+	"io"
+	"net"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"sassoftware.io/viya/zlog"
 
 	"sassoftware.io/convoy/arke/pkg/metrics"
+	"sassoftware.io/convoy/arke/pkg/provider"
+	"sassoftware.io/convoy/arke/pkg/util"
+
+	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
 )
 
 func Test_Metrics(t *testing.T) {
@@ -78,4 +87,42 @@ func Test_Metrics(t *testing.T) {
 	assert.Equal(t, metrics.RequestTotalCounter, []string{"arke", "request", "total"})
 	assert.Equal(t, metrics.RecvMsgCounter, []string{"arke", "recvmsg", "total"})
 	assert.Equal(t, metrics.SendMsgCounter, []string{"arke", "sendmsg", "total"})
+}
+
+func Test_gatherClientStats(t *testing.T) {
+	_, _ = provider.GetProvider("amqp091")
+	gatherClientStats()
+	assert.NotEmpty(t, Stats)
+}
+
+func Test_Serve(t *testing.T) {
+	util.Logger.Level = zlog.Debug
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lis, err := net.Listen("tcp", ":50052")
+	assert.Nil(t, err)
+	go Serve(ctx, &lis)
+
+	req, err := http.NewRequest("GET", "http://localhost:50052/metrics", nil)
+	assert.Nil(t, err)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 200, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	assert.Contains(t, string(body), "arke_client_active_messages")
+
+	req, err = http.NewRequest("GET", "http://localhost:50052/debug/pprof/", nil)
+	assert.Nil(t, err)
+
+	res, err = client.Do(req)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 200, res.StatusCode)
+	body, _ = io.ReadAll(res.Body)
+	assert.Contains(t, string(body), "full goroutine stack dump")
 }

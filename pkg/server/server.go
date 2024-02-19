@@ -36,14 +36,15 @@ var healthNotifiers = util.NewConcurrentMap()
 
 func init() {
 	if !strings.HasSuffix(os.Args[0], ".test") {
+		// ctx, _ := context.WithCancel(context.Background())
 		util.Logger.Debugf("Starting server connection watcher")
 		go connectionWatcher()
+		// go util.MonitorProcessStats(ctx)
 		go util.MonitorProcessStats()
 		util.Logger.InfoI("info.hpamonitor")
 		healthChan := make(chan pb.HealthStatus_Code)
 		go util.MonitorHPA(healthChan)
 		go monitorHealthChan(healthChan)
-
 	}
 }
 

@@ -52,26 +52,6 @@ func init() {
 	}
 }
 
-func connectionCleaner() {
-	provy, _ := provider.GetProvider("azure")
-	prov := provy.(*azureprovider)
-	ticker := time.NewTicker(30 * time.Second)
-	for {
-		<-ticker.C
-		for _, connID := range prov.connections.GetList() {
-			if conn, ok := prov.connections.Get(connID); ok {
-				bd := conn.(*BrokerDetails)
-				util.Logger.Debugf("Client %v has %d open streams", connID, bd.ActiveStreams)
-				lastKnown := time.Since(bd.lastPubSubEvent)
-				if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
-					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connID, lastKnown)
-					prov.disconnectClientByIdentifier(connID)
-				}
-			}
-		}
-	}
-}
-
 type azureprovider struct {
 	provider.Provider
 	connections *util.ConcurrentMap
@@ -455,8 +435,8 @@ func (prov *azureprovider) Subscribe(ctx context.Context, source *pb.Source, mes
 				span.SetAttributes(attribute.String("source.name", source.GetName()),
 					attribute.String("messaging.client_id", bd.ClientIdentifier))
 
-				message.Headers[provider.HeaderTraceState] = span.SpanContext().TraceState().String()
-				message.Headers[provider.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
+				message.Headers[tracing.HeaderTraceState] = span.SpanContext().TraceState().String()
+				message.Headers[tracing.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s",
 					span.SpanContext().TraceID().String(),
 					span.SpanContext().SpanID().String(),
 					span.SpanContext().TraceFlags(),
