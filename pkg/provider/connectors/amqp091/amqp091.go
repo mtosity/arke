@@ -1286,6 +1286,14 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	var conn amqp091ConnectionShim
 	var err error
 
+	// Reinitialize these maps early, we especially want to
+	// ensure activeMessages gets cleared out before an Ack/Nacks
+	// are sent from the client.
+	bd.knownExchanges = util.NewConcurrentMap()
+	bd.knownQueues = util.NewConcurrentMap()
+	bd.knownBindings = util.NewConcurrentMap()
+	bd.activeMessages = util.NewConcurrentMap()
+
 	cf := bd.connectionConfig
 
 	var tenant = cf.GetTenant()
@@ -1344,10 +1352,6 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	bd.ErrorChannel = make(chan amqp091Error)
 	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
 	bd.state = provider.CONNECTED
-	bd.knownExchanges = util.NewConcurrentMap()
-	bd.knownQueues = util.NewConcurrentMap()
-	bd.knownBindings = util.NewConcurrentMap()
-	bd.activeMessages = util.NewConcurrentMap()
 
 	util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
 
