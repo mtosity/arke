@@ -3,14 +3,14 @@ module sassoftware.io/convoy/arke
 go 1.21
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.4.0
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.6.1
 	github.com/armon/go-metrics v0.3.10
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.12.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/soheilhy/cmux v0.1.5
 	github.com/stretchr/testify v1.8.4
-	sassoftware.io/convoy/arke/api v1.1.5
+	sassoftware.io/convoy/arke/api v1.1.7
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.19.0
@@ -25,10 +25,9 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.1 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
-	github.com/Azure/go-amqp v1.0.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect
+	github.com/Azure/go-amqp v1.0.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
