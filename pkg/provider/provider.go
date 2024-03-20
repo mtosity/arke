@@ -76,7 +76,7 @@ func NewProvider(providerType string) (Provider, error) {
 	pf, ok := registeredProviderTypes.Get(providerType)
 	if !ok {
 		providerList := registeredProviderTypes.GetList()
-		return nil, fmt.Errorf("Invalid provider name. Must be one of: %s", strings.Join(providerList, ","))
+		return nil, fmt.Errorf("invalid provider name. Must be one of: %s", strings.Join(providerList, ","))
 	}
 	var provOnce providerOnce
 	// store provOnce in a map so it doesn't get gc'd

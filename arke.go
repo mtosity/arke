@@ -38,31 +38,50 @@ type Arke struct {
 	tlsSkipVerify  bool
 	serverOptions  []grpc.ServerOption
 	tracerProvider *trace.TracerProvider
+	mux            cmux.CMux
 }
 
-func (a Arke) WithTLSSkipVerify(tlsSkipVerify bool) Arke {
+func (a *Arke) WithTLSSkipVerify(tlsSkipVerify bool) *Arke {
 	a.tlsSkipVerify = tlsSkipVerify
 	return a
 }
 
-func (a Arke) WithPort(port int) Arke {
+func (a *Arke) WithPort(port int) *Arke {
 	a.port = port
 	return a
 }
 
-func (a Arke) WithCertFilePath(path string) Arke {
+func (a *Arke) WithCertFilePath(path string) *Arke {
 	a.certFile = path
 	return a
 }
 
-func (a Arke) WithCertKeyPath(path string) Arke {
+func (a *Arke) WithCertKeyPath(path string) *Arke {
 	a.certKey = path
 	return a
 }
 
-func DefaultArkeServer() Arke {
+func defaultKeepAliveParams() keepalive.ServerParameters {
+	return keepalive.ServerParameters{
+		Time:    20 * time.Second,
+		Timeout: 60 * time.Second,
+		// Disconnect clients that have been idle for 5 minutes.
+		// Idleness on bidirectional streams only kicks in when there are
+		// no open streams.
+		MaxConnectionIdle: 5 * time.Minute,
+	}
+}
 
-	a := Arke{
+func defaultKeepAliveEnforcementPolicy() keepalive.EnforcementPolicy {
+	return keepalive.EnforcementPolicy{
+		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
+		PermitWithoutStream: true,            // Allow pings even when there are no active streams
+	}
+}
+
+func DefaultArkeServer() *Arke {
+
+	a := &Arke{
 		port: 50051,
 	}
 
@@ -71,7 +90,6 @@ func DefaultArkeServer() Arke {
 		log.Fatal(err)
 	}
 	a.tracerProvider = tp
-	fmt.Println(tp)
 
 	// If we have a memory limit, set the runntime
 	// soft memory limit to help prevent OOM Kills
@@ -89,23 +107,13 @@ func DefaultArkeServer() Arke {
 		}
 	}
 
-	kp := keepalive.ServerParameters{
-		Time:    20 * time.Second,
-		Timeout: 60 * time.Second,
-		// Disconnect clients that have been idle for 5 minutes.
-		// Idleness on bidirectional streams only kicks in when there are
-		// no open streams.
-		MaxConnectionIdle: 5 * time.Minute,
-	}
+	kp := defaultKeepAliveParams()
 
-	kaep := keepalive.EnforcementPolicy{
-		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
-		PermitWithoutStream: true,            // Allow pings even when there are no active streams
-	}
+	kaep := defaultKeepAliveEnforcementPolicy()
 
 	a.serverOptions = append(a.serverOptions, grpc.KeepaliveEnforcementPolicy(kaep))
 	a.serverOptions = append(a.serverOptions, grpc.KeepaliveParams(kp))
-	// Add two Prometeus server options
+	// Add two Prometheus server options
 	a.serverOptions = append(a.serverOptions, grpc.UnaryInterceptor(prometheus.UnaryInterceptor))
 	a.serverOptions = append(a.serverOptions, grpc.StreamInterceptor(prometheus.StreamInterceptor))
 
@@ -113,7 +121,44 @@ func DefaultArkeServer() Arke {
 	return a
 }
 
-func (a Arke) Serve() error {
+func (a Arke) listener() (net.Listener, error) {
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
+
+	if err != nil {
+		return nil, err
+	}
+
+	tlsCfg, err := a.tlsConfig()
+	if tlsCfg != nil && err == nil {
+		lis = tls.NewListener(lis, tlsCfg)
+	}
+
+	return lis, nil
+}
+
+func (a Arke) tlsConfig() (*tls.Config, error) {
+	if a.certFile != "" && a.certKey != "" {
+		certificate, err := tls.LoadX509KeyPair(a.certFile, a.certKey)
+		if err != nil {
+			return nil, err
+		}
+
+		config := &tls.Config{
+			Certificates: []tls.Certificate{certificate},
+			Rand:         rand.Reader,
+			NextProtos: []string{
+				"h2", "http/1.1",
+			},
+		}
+		return config, nil
+	}
+	return nil, nil
+}
+
+func (a *Arke) Serve(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -131,7 +176,7 @@ func (a Arke) Serve() error {
 		}()
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
+	lis, err := a.listener()
 
 	if err != nil {
 		util.Logger.ErrorI("error.netlisten", err.Error())
@@ -151,40 +196,37 @@ func (a Arke) Serve() error {
 
 	util.Logger.InfoI("info.starting", a.port)
 
-	if a.certFile != "" && a.certKey != "" {
-		certificate, err := tls.LoadX509KeyPair(a.certFile, a.certKey)
-		if err != nil {
-			util.Logger.ErrorI("error.tls", err.Error())
-			return err
-		}
-
-		config := &tls.Config{
-			Certificates: []tls.Certificate{certificate},
-			Rand:         rand.Reader,
-			NextProtos: []string{
-				"h2", "http/1.1",
-			},
-		}
-
-		lis = tls.NewListener(lis, config)
-	}
-
-	mx := cmux.New(lis)
-	httpListener := mx.Match(cmux.HTTP1Fast())
+	a.mux = cmux.New(lis)
+	httpListener := a.mux.Match(cmux.HTTP1Fast())
 	// Matching on application/grpc Content-Type (as suggested) does not seem to work
 	// so if we're not HTTP/1, assume gRPC.
-	grpcListener := mx.Match(cmux.Any())
+	grpcListener := a.mux.Match(cmux.Any())
 
 	go a.server.Serve(grpcListener) // nolint errcheck
 	// To emit prometeus metrics for arke
-	go metrics.Serve(&httpListener)
+	go metrics.Serve(ctx, &httpListener)
 
-	if err := mx.Serve(); err != nil {
-		switch err.(type) { //nolint gocritic
-		case *net.OpError:
-			return err
+	serveErrChan := make(chan error)
+	go func(as *Arke) {
+		if err := as.mux.Serve(); err != nil {
+			switch err.(type) { //nolint gocritic
+			case *net.OpError:
+				serveErrChan <- nil
+				return
+			}
+			serveErrChan <- err
 		}
-		util.Logger.ErrorI("error.failedserve", err.Error())
+		serveErrChan <- nil
+	}(a)
+
+	var serveErr error
+	select {
+	case <-ctx.Done():
+		a.mux.Close()
+	case serveErr = <-serveErrChan:
+		if serveErr != nil {
+			util.Logger.ErrorI("error.failedserve", serveErr.Error())
+		}
 	}
-	return nil
+	return serveErr
 }

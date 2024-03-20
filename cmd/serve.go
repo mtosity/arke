@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,7 +18,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tlsSkipVerify = flag.Bool("tls-skip-verify", false, "Force TLS, but always skip verification")
 
-func run() {
+func run(ctx context.Context) error {
 
 	// Set up cpu and memory profiling if passed in as args
 	flag.Parse()
@@ -50,12 +52,19 @@ func run() {
 	certKey := os.Getenv("CERT_KEY")
 
 	svr := arke.DefaultArkeServer().WithTLSSkipVerify(*tlsSkipVerify).WithCertFilePath(certFile).WithCertKeyPath(certKey)
-	err := svr.Serve()
+	err := svr.Serve(ctx)
 	if err != nil {
-		util.Logger.FatalI("error.generic", err)
+		switch err.(type) { //nolint gocritic
+		case *net.OpError:
+			return nil
+		default:
+			util.Logger.FatalI("error.generic", err)
+		}
 	}
+	return err
 }
 
 func main() {
-	run()
+	ctx := context.Background()
+	run(ctx) //nolint:errcheck
 }

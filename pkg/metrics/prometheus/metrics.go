@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -48,8 +49,8 @@ func init() {
 	met.NewGlobal(promConf, Stats.Sink) //nolint errcheck
 }
 
-// Serve Create a new HTTP server and Serve metrics requests
-func Serve(lis *net.Listener) {
+func setupServer() *http.Server {
+
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", gatherClientStatsHandler())
 
@@ -65,11 +66,18 @@ func Serve(lis *net.Listener) {
 		Handler: mux,
 	}
 
-	if err := metricsServer.Serve(*lis); err != nil {
-		if err.Error() != "mux: server closed" {
-			util.Logger.WarnI("error.metricsserve", err.Error())
-		}
-	}
+	return metricsServer
+}
+
+// Serve Create a new HTTP server and Serve metrics requests
+func Serve(ctx context.Context, lis *net.Listener) {
+	metricsServer := setupServer()
+
+	go metricsServer.Serve(*lis) //nolint errcheck
+
+	<-ctx.Done()
+	metricsServer.Shutdown(ctx) //nolint errcheck
+
 }
 
 func gatherClientStatsHandler() http.Handler {

@@ -65,7 +65,7 @@ func TestGetProvider(t *testing.T) {
 func TestGetProvider_Fail(t *testing.T) {
 	prov, err := p.GetProvider("unknown")
 	assert.Nil(t, prov)
-	assert.Regexp(t, regexp.MustCompile("Invalid provider name"), err.Error())
+	assert.Regexp(t, regexp.MustCompile("invalid provider name"), err.Error())
 }
 
 func TestConcurrentNewProvider(t *testing.T) {

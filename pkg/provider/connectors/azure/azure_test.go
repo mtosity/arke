@@ -1923,3 +1923,146 @@ func Test_sourceNameToSubName_ShortName(t *testing.T) {
 	idx := strings.Index(subName, "-")
 	assert.Equal(t, idx, 9)
 }
+
+func Test_ClientSentTime(t *testing.T) {
+	am := azureMessage{}
+	now := time.Now()
+	am.clientSentTime = now
+	assert.Equal(t, now, am.ClientSentTime())
+}
+
+func Test_SetClientSentTime(t *testing.T) {
+	am := azureMessage{}
+	am.SetClientSentTime()
+	assert.Equal(t, am.clientSentTime, am.ClientSentTime())
+}
+
+func Test_SetContentType_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{}
+	am.SetContentType("text/plain")
+	assert.Equal(t, "text/plain", am.ContentType())
+}
+
+func Test_SetContentType_SendingMessage(t *testing.T) {
+	am := azureMessage{}
+	am.sendingMessage = &azservicebus.Message{}
+	am.SetContentType("text/plain")
+	assert.Equal(t, "text/plain", am.ContentType())
+}
+
+func Test_DeliveryCount(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{DeliveryCount: 10}
+	assert.Equal(t, uint32(10), am.DeliveryCount())
+}
+
+func Test_Data_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{}
+	am.SetData([]byte("data"))
+	// can't set data on a received message
+	assert.Nil(t, am.Data())
+}
+
+func Test_Data_SendingMessage(t *testing.T) {
+
+	am := azureMessage{}
+	am.sendingMessage = &azservicebus.Message{}
+	am.SetData([]byte("data"))
+	assert.Equal(t, []byte("data"), am.Data())
+}
+
+func Test_ID_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{MessageID: "myID"}
+	assert.Equal(t, "myID", am.ID())
+}
+
+func Test_ID_SendingMessage(t *testing.T) {
+	am := azureMessage{}
+	id := "myID"
+	am.sendingMessage = &azservicebus.Message{MessageID: &id}
+	assert.Equal(t, "myID", am.ID())
+}
+
+func Test_propertiesToHeaders(t *testing.T) {
+	p := make(map[string]interface{})
+	p["int"] = 1
+	p["string"] = "s"
+
+	h := propertiesToHeaders(p)
+	assert.Equal(t, "1", h["int"])
+	assert.Equal(t, "s", h["string"])
+}
+
+func Test_GenerateForwardName(t *testing.T) {
+	ac := NewAzureClient("hostname", "username", "password")
+	fn := ac.GenerateForwardToName("topicName")
+	assert.Equal(t, "sb://hostname/topicName", fn)
+}
+
+func Test_LockedUntil(t *testing.T) {
+	lockTime := time.Now()
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{LockedUntil: &lockTime}
+	assert.Equal(t, lockTime, am.LockedUntil())
+}
+
+func Test_SetProperties_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{}
+
+	p := make(map[string]interface{})
+	p["key"] = "value"
+	am.SetProperties(p)
+	prop, ok := am.Property("key")
+	assert.True(t, ok)
+	assert.Equal(t, "value", prop)
+}
+
+func Test_SetProperty_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{ApplicationProperties: make(map[string]interface{})}
+	am.SetProperty("key", "value")
+	prop, ok := am.Property("key")
+	assert.True(t, ok)
+	assert.Equal(t, "value", prop)
+}
+
+func Test_SetProperties_SendingMessage(t *testing.T) {
+	am := azureMessage{}
+	am.sendingMessage = &azservicebus.Message{}
+
+	p := make(map[string]interface{})
+	p["key"] = "value"
+	am.SetProperties(p)
+	prop, ok := am.Property("key")
+	assert.True(t, ok)
+	assert.Equal(t, "value", prop)
+}
+
+func Test_SetProperty_SendingMessage(t *testing.T) {
+	am := azureMessage{}
+	am.sendingMessage = &azservicebus.Message{ApplicationProperties: make(map[string]interface{})}
+	am.SetProperty("key", "value")
+	prop, ok := am.Property("key")
+	assert.True(t, ok)
+	assert.Equal(t, "value", prop)
+}
+
+func Test_Properties_ReceivedMessage(t *testing.T) {
+	am := azureMessage{}
+	am.receivedMessage = &azservicebus.ReceivedMessage{ApplicationProperties: make(map[string]interface{})}
+	am.SetProperty("key", "value")
+	props := am.Properties()
+	assert.Equal(t, "value", props["key"])
+}
+
+func Test_Properties_SendingMessage(t *testing.T) {
+	am := azureMessage{}
+	am.sendingMessage = &azservicebus.Message{ApplicationProperties: make(map[string]interface{})}
+	am.SetProperty("key", "value")
+	props := am.Properties()
+	assert.Equal(t, "value", props["key"])
+}

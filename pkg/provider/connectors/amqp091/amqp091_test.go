@@ -4,14 +4,19 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
 	// "github.com/NeowayLabs/wabbit/amqptest/server"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/convoy/arke/api"
+	"sassoftware.io/convoy/arke/pkg/provider"
 )
 
 var ctx context.Context
@@ -293,7 +298,6 @@ func TestConnect_Stats(t *testing.T) {
 	assert.Nil(t, err)
 
 	stats := prov.Stats()
-	fmt.Println(stats)
 	assert.Equal(t, len(stats.Clients), 1)
 	client := stats.Clients[0]
 	assert.Equal(t, client.Streams, 0)
@@ -336,6 +340,84 @@ func Test_Ack_NoMsg(t *testing.T) {
 	assert.Contains(t, err.GetMessage(), "No message with uuid")
 
 	amock.AssertExpectations(t)
+}
+
+func Test_Ack_AckErr(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	cmock := &amqpChannelMock{}
+	msgs := make(chan amqp091Message)
+	defer close(msgs)
+	delMock := mock.Mock{}
+	go func(dMock *mock.Mock) {
+		mm := amqp091Message{}
+		mm.DeliveryTag = 1
+		dMock.On("Ack").Return(errors.New("ackErr"))
+		mm.SetDelivery(dMock) //nolint
+
+		msgs <- mm
+	}(&delMock)
+
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
+	cmock.On("Close").Return(nil)
+	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "#")
+	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+
+	go func() {
+		suberr := prov.Subscribe(ctx, src, mc)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+
+	err = prov.Ack(ctx, msg.GetUuid())
+	assert.NotNil(t, msg)
+	assert.NotNil(t, err)
+	assert.Equal(t, "ackErr", err.GetMessage())
+
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+
+	delMock.AssertExpectations(t)
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 1)
 }
 
 func Test_Nack_NoMsg(t *testing.T) {
@@ -589,6 +671,82 @@ func Test_Nack(t *testing.T) {
 	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 1)
 }
 
+func Test_Nack_NackErr(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	cmock := &amqpChannelMock{}
+	msgs := make(chan amqp091Message)
+	defer close(msgs)
+	delMock := mock.Mock{}
+	go func(dMock *mock.Mock) {
+		mm := amqp091Message{}
+		mm.DeliveryTag = 1
+		dMock.On("Nack", false, false).Return(errors.New("nackErr"))
+		mm.SetDelivery(dMock) //nolint
+
+		msgs <- mm
+	}(&delMock)
+
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
+	cmock.On("Close").Return(nil)
+	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "#")
+	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+	go func() {
+		suberr := prov.Subscribe(ctx, src, mc)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+
+	err = prov.Nack(ctx, msg.GetUuid())
+	assert.NotNil(t, msg)
+	assert.NotNil(t, err)
+	assert.Equal(t, "nackErr", err.GetMessage())
+
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 1)
+}
+
 func Test_Retry(t *testing.T) {
 	prov := NewAMQP091Provider()
 
@@ -723,6 +881,99 @@ func Test_RetryFailure(t *testing.T) {
 	}()
 
 	msg := <-mc
+	retErr := prov.Retry(ctx, src, msg.GetUuid(), 1)
+	assert.Nil(t, retErr)
+
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+
+	delMock.AssertExpectations(t)
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 2)
+}
+
+func Test_RetryFailure_NoBrokerDetails(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "", errors.New("no client identifier")
+	}
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+	}()
+
+	retErr := prov.Retry(ctx, nil, "", 1)
+	assert.NotNil(t, retErr)
+	assert.Contains(t, retErr.GetMessage(), "no client identifier")
+
+}
+func Test_RetryFailure_DeclareErrorsStillSuccess(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	cmock := &amqpChannelMock{}
+	msgs := make(chan amqp091Message)
+	defer close(msgs)
+	delMock := mock.Mock{}
+	go func(dMock *mock.Mock) {
+		mm := amqp091Message{}
+		mm.DeliveryTag = 1
+		dMock.On("Ack").Return(nil)
+		mm.SetDelivery(dMock) //nolint
+
+		msgs <- mm
+	}(&delMock)
+
+	cancels := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(cancels)
+	cmock.On("Close").Return(nil)
+	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("err")).Once()
+	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
+	cmock.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	opts := make(map[string]string)
+	opts["junkheader"] = "junkvalue"
+	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	mc := make(chan *pb.Message)
+	defer close(mc)
+	go func() {
+		suberr := prov.Subscribe(ctx, src, mc)
+		assert.Nil(t, suberr)
+	}()
+
+	msg := <-mc
+	src.Options = opts
 	retErr := prov.Retry(ctx, src, msg.GetUuid(), 1)
 	assert.Nil(t, retErr)
 
@@ -1444,6 +1695,328 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 
 	cmock.AssertExpectations(t)
 	amock.AssertExpectations(t)
+}
+
+func Test_newAmqp091Error(t *testing.T) {
+	e := "myError"
+	code := 123
+	aErr := newAmqp091Error(e, code)
+	assert.Equal(t, code, aErr.Code())
+	assert.Equal(t, e, aErr.error.Reason)
+}
+
+func Test_fromAmqpMessage(t *testing.T) {
+	del := amqp.Delivery{}
+	del.Body = []byte("Hello")
+	del.DeliveryMode = uint8(2)
+	del.Headers = amqp.Table{"h1": "header1"}
+	del.ContentType = "text"
+	del.ContentEncoding = "plain"
+	del.DeliveryTag = 1
+
+	aMsg := fromAmqpMessage(del)
+	assert.Equal(t, del.Body, aMsg.Body)
+	assert.Equal(t, int(del.DeliveryMode), aMsg.DeliveryMode)
+	assert.Equal(t, del.Headers["h1"], aMsg.Headers["h1"])
+	assert.Equal(t, del.ContentType, aMsg.ContentType)
+	assert.Equal(t, del.ContentEncoding, aMsg.ContentEncoding)
+	assert.Equal(t, del.DeliveryTag, aMsg.DeliveryTag)
+}
+
+func Test_toAmqpMessage(t *testing.T) {
+	aMsg := &amqp091Message{}
+	aMsg.Body = []byte("Hello")
+	aMsg.DeliveryMode = 2
+	aMsg.Headers = amqp091Table{"h1": "header1"}
+	aMsg.ContentType = "text"
+	aMsg.ContentEncoding = "plain"
+
+	del := toAmqpMessage(aMsg)
+	assert.Equal(t, aMsg.Body, del.Body)
+	assert.Equal(t, aMsg.DeliveryMode, int(del.DeliveryMode))
+	assert.Equal(t, aMsg.Headers["h1"], del.Headers["h1"])
+	assert.Equal(t, aMsg.ContentType, del.ContentType)
+	assert.Equal(t, aMsg.ContentEncoding, del.ContentEncoding)
+}
+
+func Test_NewAmqp091Connection(t *testing.T) {
+	c := NewAmqp091Connection("connStr", "identifier", nil).(*amqp091Connection)
+	assert.Equal(t, "identifier", c.clientIdentifier)
+	assert.Equal(t, "connStr", c.connStr)
+	assert.Nil(t, c.tlsCfg)
+}
+
+func Test_amqpConfig(t *testing.T) {
+	cfg := amqpConfig("connName", nil)
+	assert.Equal(t, "connName", cfg.Properties["connection_name"])
+	assert.Equal(t, 10*time.Second, cfg.Heartbeat)
+	assert.Equal(t, "en_US", cfg.Locale)
+	assert.Nil(t, cfg.TLSClientConfig)
+}
+
+func Test_SetDelivery(t *testing.T) {
+	m := &amqp091Message{}
+	m.SetDelivery(1)
+	assert.Equal(t, 1, m.delivery)
+}
+
+func Test_ClientExists(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	exists := prov.ClientExists("1234")
+	assert.True(t, exists)
+}
+
+func Test_ClientExists_false(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	exists := prov.ClientExists("4321")
+	assert.False(t, exists)
+}
+
+func Test_getBrokerDetails_err(t *testing.T) {
+	prov := NewAMQP091Provider().(*amqp091provider)
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+	}()
+
+	ctx := context.Background()
+	bd, err := prov.getBrokerDetails(ctx)
+	assert.NotNil(t, bd)
+	assert.NotNil(t, err)
+	assert.Equal(t, "could not retrieve broker details for this connection: 1234", err.Error())
+
+}
+
+func Test_SetupDeadLetter_no_BD(t *testing.T) {
+	prov := NewAMQP091Provider().(*amqp091provider)
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "", errors.New("nope")
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+	}()
+
+	ctx := context.Background()
+	opts := make(map[string]string)
+	opts["DeadLetterAddress"] = "dla"
+	src := &pb.Source{Options: opts}
+	err := prov.setupDeadLetter(ctx, src)
+	assert.NotNil(t, err)
+}
+
+func Test_SetupDeadLetter_channel_error(t *testing.T) {
+	prov := NewAMQP091Provider().(*amqp091provider)
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	cmock := &amqpChannelMock{}
+
+	amock := &amqpConnectionMock{}
+	amock.On("NewChannel").Return(cmock, errors.New("chanerr"))
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+	}()
+
+	bd := BrokerDetails{}
+	bd.Connection = amock
+	prov.connections.Add("1234", &bd)
+
+	ctx := context.Background()
+	opts := make(map[string]string)
+	opts["DeadLetterAddress"] = "dla"
+	src := &pb.Source{Options: opts}
+	err := prov.setupDeadLetter(ctx, src)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.GetMessage(), "chanerr")
+	amock.AssertExpectations(t)
+	cmock.AssertExpectations(t)
+}
+
+func Test_connect_clientDisconnect(t *testing.T) {
+	bd := BrokerDetails{}
+	bd.clientDisconnect = true
+	ok, err := bd.connect()
+	assert.False(t, ok)
+	assert.Nil(t, err)
+}
+
+func Test_connect_connecting_connected(t *testing.T) {
+	bd := BrokerDetails{}
+	bd.state = provider.CONNECTING
+	bd.clientDisconnect = false
+	go func() {
+		time.Sleep(1 * time.Second)
+		bd.state = provider.CONNECTED
+	}()
+	ok, err := bd.connect()
+	assert.True(t, ok)
+	assert.Nil(t, err)
+}
+
+func Test_connect_connecting_closed(t *testing.T) {
+	bd := BrokerDetails{}
+	bd.state = provider.CONNECTING
+	bd.clientDisconnect = false
+	go func() {
+		time.Sleep(1 * time.Second)
+		bd.state = provider.CLOSED
+	}()
+	ok, err := bd.connect()
+	assert.False(t, ok)
+	assert.Nil(t, err)
+}
+
+func Test_connect_connecting_disconnected(t *testing.T) {
+	bd := BrokerDetails{}
+	bd.state = provider.CONNECTING
+	bd.clientDisconnect = false
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		bd.state = provider.DISCONNECTED
+	}()
+	ok, err := bd.connect()
+	assert.True(t, ok)
+	assert.Nil(t, err)
+	amock.AssertExpectations(t)
+}
+
+func mockManagementRequestServer() *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body []byte
+		var status int
+		if r.Method == "GET" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/" {
+			status = http.StatusOK
+			body = []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
+		}
+		if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
+			status = http.StatusNoContent
+		}
+		if body != nil {
+			w.Write(body) //nolint:errcheck
+		}
+		w.WriteHeader(status)
+	}))
+	return server
+}
+
+func Test_cleanupBindings(t *testing.T) {
+
+	bd := &BrokerDetails{}
+	addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address"}
+	src := &pb.Source{Address: addr, Name: "queue"}
+	creds := &pb.Credentials{Username: "user", Password: "password"}
+	bd.connectionConfig = &pb.ConnectionConfiguration{Credentials: creds}
+
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, err := url.Parse(msrv.URL)
+	assert.Nil(t, err)
+	bd.connectionConfig.Host = u.Hostname()
+	bd.connectionConfig.Tenant = "tenant"
+	i, _ := strconv.Atoi(u.Port())
+	bd.connectionConfig.AdminPort = int32(i)
+
+	removed := bd.cleanupBindings(src, []string{"routingkey2"})
+	assert.Len(t, removed, 1)
+}
+
+func Test_cleanupBindings_none(t *testing.T) {
+
+	bd := &BrokerDetails{}
+	addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address"}
+	src := &pb.Source{Address: addr, Name: "queue"}
+	creds := &pb.Credentials{Username: "user", Password: "password"}
+	bd.connectionConfig = &pb.ConnectionConfiguration{Credentials: creds}
+
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, err := url.Parse(msrv.URL)
+	assert.Nil(t, err)
+	bd.connectionConfig.Host = u.Hostname()
+	bd.connectionConfig.Tenant = "tenant"
+	i, _ := strconv.Atoi(u.Port())
+	bd.connectionConfig.AdminPort = int32(i)
+
+	removed := bd.cleanupBindings(src, []string{"routingkey"})
+	assert.Len(t, removed, 0)
 }
 
 // func Test_Publish_ChannelCloseError(t *testing.T) {
