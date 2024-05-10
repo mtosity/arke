@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,7 +29,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 	}
 
 	if namespace == "" {
-		Logger.Warn("warn.namespace")
+		Logger.Debug("No kubernetes namespace detected, not monitoring HPA for changes")
 		return
 	}
 
@@ -40,12 +39,12 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 		kubeconfig := filepath.Join(home, ".kube", "config")
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
-			Logger.WarnI("warn.clusterconfig", err.Error())
+			Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 			return
 		}
 
 	} else if err != nil {
-		Logger.WarnI("warn.clusterconfig", err.Error())
+		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 		return
 	}
 
@@ -54,7 +53,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		Logger.WarnI("warn.clusterconfig", err.Error())
+		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 		return
 	}
 
@@ -66,7 +65,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 	defer func() {
 		// protect from send on closed channel
 		if err := recover(); err != nil {
-			Logger.WarnI("warn.hpamonitorpanic", err)
+			Logger.Debugf("Error monitoring HPA: %s", err)
 			return
 		}
 	}()
@@ -75,10 +74,10 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 		// hpa := clientset.AutoscalingV1().HorizontalPodAutoscalers()
 		watcher, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, metav1.ListOptions{})
 		if err != nil {
-			fmt.Println(err)
+			Logger.Debugf("Could not get HPA watcher: %s", err)
 		}
 		if watcher == nil {
-			Logger.Info("info.nohpa")
+			Logger.Debug("No HPA found")
 			return
 		}
 		for event := range watcher.ResultChan() {

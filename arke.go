@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -87,7 +86,7 @@ func DefaultArkeServer() *Arke {
 
 	tp, err := tracing.InitTracerProvider()
 	if err != nil {
-		log.Fatal(err)
+		util.Logger.FatalI("error.otel.init", err)
 	}
 	a.tracerProvider = tp
 
@@ -171,7 +170,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	if a.tracerProvider != nil {
 		defer func() {
 			if err := a.tracerProvider.Shutdown(context.Background()); err != nil {
-				log.Printf("Error shutting down tracer provider: %v", err)
+				util.Logger.ErrorI("error.otel.shutdown", err)
 			}
 		}()
 	}

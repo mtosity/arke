@@ -41,7 +41,7 @@ func init() {
 		go connectionWatcher()
 		// go util.MonitorProcessStats(ctx)
 		go util.MonitorProcessStats()
-		util.Logger.InfoI("info.hpamonitor")
+		util.Logger.Debug("Monitoring Horizontal Pod Autoscaler")
 		healthChan := make(chan pb.HealthStatus_Code)
 		go util.MonitorHPA(healthChan)
 		go monitorHealthChan(healthChan)

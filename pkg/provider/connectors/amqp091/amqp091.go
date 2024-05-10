@@ -101,18 +101,8 @@ func NewAMQP091Provider() provider.Provider {
 		}
 	}
 
-	// go prov.monitor()
 	return prov
 }
-
-// func (prov *amqp091provider) monitor() {
-// 	for {
-// 		util.Logger.Printf("---")
-// 		util.Logger.Printf("Number of active messages: %d", len(prov.activeMessages.messages))
-// 		util.Logger.Printf("Number of broker connections: %d", len(prov.connections.deets))
-// 		time.Sleep(5 * time.Second)
-// 	}
-// }
 
 func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)

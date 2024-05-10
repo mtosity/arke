@@ -55,18 +55,15 @@ info.rulelist=Error listing rules on subscription {0} for {1}: {2}
 error.ruleadd=Error adding rule on subscription {0} for {1}: {2} with error {3}
 error.ruledel=Error deleting rule on subscription {0} for {1}: {2} with error {3}
 info.azureclientsubscribe=Client {0} subscribed to {1} on topic {2}
-info.hpamonitor=Monitoring Horizontal Pod Autoscaler
-warn.namespace=Could not determine namespace for pod. Not monitoring for HPA changes
-warn.clusterconfig=Could not configure cluster monitoring: {0}
 info.scaled={0} HPA scaled up from {1} to {2}. Asking clients to GOAWAY
 debug.healthnotify=Health notification code {0} sent to {1}
-warn.hpamonitorpanic=HPA monitor error: {0}
-info.nohpa=No HPA found
 debug.ensurechannelerror=Error ensuring channel on connection for {0}: {1}
 warn.azureMinimumExpiresTime=Client {0} Expires header for source {1} is too low ({2}). Defaulting to 5 minutes minimum.
 info.subscribefatal=Client {0} received a fatal error from provider Subscribe. Closing stream. {1}
 info.failedinittelemetryexporter=Failed to initialize telemetry exporter: {0}
 error.tls=Could not load TLS cert and key: {0}
+error.otel.shutdown=Error shutting down OTEL tracer provider: {0}
+error.otel.init=Error initializing OTEL tracer provider: {0}
 `
 
 // Logger default logger
