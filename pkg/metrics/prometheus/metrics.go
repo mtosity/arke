@@ -5,11 +5,13 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"regexp"
 	"strings"
 
 	met "github.com/armon/go-metrics"
 	promet "github.com/armon/go-metrics/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"sassoftware.io/convoy/arke/pkg/metrics"
@@ -24,23 +26,29 @@ type stats struct {
 
 // Stats global Stats variable for access to the sinks
 var (
-	Stats *stats
+	Stats    *stats
+	registry *prometheus.Registry
 )
 
 func init() {
 	Stats = &stats{}
 
+	registry = prometheus.NewRegistry()
+	registry.MustRegister(collectors.NewBuildInfoCollector())
+	registry.MustRegister(collectors.NewGoCollector(
+		collectors.WithGoCollectorRuntimeMetrics(collectors.GoRuntimeMetricsRule{Matcher: regexp.MustCompile("/.*")}),
+	))
 	// The go-metrics library does not support setting a help on metrics with their PrometheusSink.
 	// Continue to pass our expected help text along until we can implement a proper fix for this,
 	// but the help in the metrics output will be just the key for now.
-	prometheus.MustRegister(newArkeGauge(metrics.ClientActMessageGauge, "Number of active messages to be processed."))
-	prometheus.MustRegister(newArkeGauge(metrics.ClientStreamsGauge, "Number of client active streams."))
-	prometheus.MustRegister(newArkeGauge(metrics.ClientConsumedGauge, "Total number of client requests have been consumed."))
-	prometheus.MustRegister(newArkeGauge(metrics.ClientProducedGauge, "Total number of client requests have been produced."))
-	prometheus.MustRegister(newArkeSample(metrics.RequestElapsedSummary, "The request elapsed time."))
-	prometheus.MustRegister(newArkeCounter(metrics.RequestTotalCounter, "Total number of requests processed."))
-	prometheus.MustRegister(newArkeCounter(metrics.RecvMsgCounter, "Total number of stream messages have been received."))
-	prometheus.MustRegister(newArkeCounter(metrics.SendMsgCounter, "Total number of stream messages have been sent."))
+	registry.MustRegister(newArkeGauge(metrics.ClientActMessageGauge, "Number of active messages to be processed."))
+	registry.MustRegister(newArkeGauge(metrics.ClientStreamsGauge, "Number of client active streams."))
+	registry.MustRegister(newArkeGauge(metrics.ClientConsumedGauge, "Total number of client requests have been consumed."))
+	registry.MustRegister(newArkeGauge(metrics.ClientProducedGauge, "Total number of client requests have been produced."))
+	registry.MustRegister(newArkeSample(metrics.RequestElapsedSummary, "The request elapsed time."))
+	registry.MustRegister(newArkeCounter(metrics.RequestTotalCounter, "Total number of requests processed."))
+	registry.MustRegister(newArkeCounter(metrics.RecvMsgCounter, "Total number of stream messages have been received."))
+	registry.MustRegister(newArkeCounter(metrics.SendMsgCounter, "Total number of stream messages have been sent."))
 
 	Stats.Sink, _ = promet.NewPrometheusSink()
 
@@ -50,9 +58,10 @@ func init() {
 }
 
 func setupServer() *http.Server {
+	promHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", gatherClientStatsHandler())
+	mux.Handle("/metrics", gatherClientStatsHandler(promHandler))
 
 	if util.Logger.Level.String() == "debug" {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -80,10 +89,10 @@ func Serve(ctx context.Context, lis *net.Listener) {
 
 }
 
-func gatherClientStatsHandler() http.Handler {
+func gatherClientStatsHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gatherClientStats()
-		promhttp.Handler().ServeHTTP(w, r)
+		h.ServeHTTP(w, r)
 	})
 }
 

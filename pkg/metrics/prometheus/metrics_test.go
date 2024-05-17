@@ -114,7 +114,11 @@ func Test_Serve(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 200, res.StatusCode)
 	body, _ := io.ReadAll(res.Body)
-	assert.Contains(t, string(body), "arke_client_active_messages")
+	sbody := string(body)
+	assert.Contains(t, sbody, "arke_client_active_messages")
+	assert.Contains(t, sbody, "go_info")
+	assert.Contains(t, sbody, "go_sync_mutex_wait_total_seconds_total")
+	assert.Contains(t, sbody, "go_memstats_next_gc_bytes")
 
 	req, err = http.NewRequest("GET", "http://localhost:50052/debug/pprof/", nil)
 	assert.Nil(t, err)
