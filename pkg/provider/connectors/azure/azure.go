@@ -13,10 +13,10 @@ import (
 	"time"
 
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util"
-	"sassoftware.io/convoy/arke/pkg/util/tracing"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/util/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

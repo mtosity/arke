@@ -15,11 +15,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/stretchr/testify/mock"
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	s "sassoftware.io/convoy/arke/pkg/server"
-	"sassoftware.io/convoy/arke/pkg/util"
-	// mp "sassoftware.io/convoy/arke/pkg/provider/mock"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/provider"
+	s "sassoftware.io/viya/arke/pkg/server"
+	"sassoftware.io/viya/arke/pkg/util"
+	// mp "sassoftware.io/viya/arke/pkg/provider/mock"
 )
 
 var ctx context.Context
@@ -187,7 +187,7 @@ func NewMockProvider() provider.Provider {
 	s.GetClientIdentifier = func(context.Context) (string, error) {
 		return "127.0.0.1:1234-1234", nil
 	}
-	s.SetClientIdentifier = func(cx context.Context, n string) (string, error) {
+	s.SetClientIdentifier = func(_ context.Context, n string) (string, error) {
 		return fmt.Sprintf("%s-%d", n, 123), nil
 	}
 	s.RemoveClientIdentifier = func(context.Context) {}

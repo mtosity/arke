@@ -12,8 +12,8 @@ import (
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/util"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 func init() {

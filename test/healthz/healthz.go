@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/util"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )

@@ -7,7 +7,7 @@ syntax = "proto3";
 
 option java_outer_classname = "ArkeProtos";
 option java_package = "org.arke";
-option go_package = "sassoftware.io/convoy/arke/api";
+option go_package = "sassoftware.io/viya/arke/api";
 
 import "google/protobuf/timestamp.proto";
 

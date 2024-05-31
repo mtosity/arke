@@ -1,4 +1,4 @@
-version: "3"
+---
 services:
   gencerts:
     build:
@@ -6,11 +6,11 @@ services:
       context: .
     image: tests_gencerts:latest
     volumes:
-    - ./certs:/certs
+      - ./certs:/certs
     # environment:
     # - ADDITIONAL_HOSTNAMES=${ADDITIONAL_HOSTNAMES}
     command: ${ARKE_ADDITIONAL_HOSTNAMES}
     networks:
-    - arketest
+      - arketest
 networks:
   arketest:

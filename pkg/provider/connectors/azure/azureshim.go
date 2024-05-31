@@ -9,7 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 const STANDARD = "Standard"

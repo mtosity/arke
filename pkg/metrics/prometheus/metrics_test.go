@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"sassoftware.io/viya/zlog"
 
-	"sassoftware.io/convoy/arke/pkg/metrics"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/metrics"
+	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util"
 
-	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
+	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
 )
 
 func Test_Metrics(t *testing.T) {

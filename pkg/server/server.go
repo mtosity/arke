@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util/tracing"
 
 	// Import the connectors so their init functions are executed
-	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
-	"sassoftware.io/convoy/arke/pkg/util"
+	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var GetClientAddr = util.GetClientAddr
@@ -238,7 +238,7 @@ consumeLoop:
 				subCtx, subCancel := context.WithCancel(ctx)
 
 				// this goroutine receives messages from the provider and sends them to the client for processing
-				go func(mc <-chan *pb.Message, prov provider.Provider, cont context.Context, stopFor *chan bool, returnErr *error) {
+				go func(mc <-chan *pb.Message, cont context.Context, stopFor *chan bool, returnErr *error) {
 					recvCtx, recvCancel := context.WithCancel(cont)
 					defer recvCancel()
 					for {
@@ -271,7 +271,7 @@ consumeLoop:
 							span.End()
 						}
 					}
-				}(messageChannel, prov, subCtx, &stopForLoop, &returnError)
+				}(messageChannel, subCtx, &stopForLoop, &returnError)
 
 				// call provider.Subscribe and use messageChannel to pass messages from the provider to the receiver func above
 				go func(mc chan<- *pb.Message, prov provider.Provider, cont context.Context, cncl context.CancelFunc, stopFor *chan bool, returnErr *error) {
@@ -379,7 +379,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 		}
 		messageChannel := make(chan *pb.Message)
 		errChan := make(chan *pb.Error)
-		go func(mc chan<- *pb.Message, ec chan<- *pb.Error) {
+		go func(mc chan<- *pb.Message, ec <-chan *pb.Error) {
 			// close the channel so the prov.Publish knows to stop
 			defer close(mc)
 			stopPubFunc := false
@@ -431,13 +431,13 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 
 					timer := time.NewTimer(30 * time.Second)
 					select {
-					case errChanErr := <-errChan:
+					case errChanErr := <-ec:
 						resp = &pb.MessageResponse{Success: false, Error: errChanErr}
 						span.RecordError(errors.New(errChanErr.GetMessage()))
 						stopPubFunc = true
 					case mc <- msg:
 						span.AddEvent("sent message to provider")
-						pubErr := <-errChan
+						pubErr := <-ec
 						if pubErr != nil {
 							resp = &pb.MessageResponse{Success: false, Error: pubErr}
 							span.RecordError(errors.New(pubErr.GetMessage()))

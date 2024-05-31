@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"sync"
 
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"

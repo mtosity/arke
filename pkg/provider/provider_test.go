@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	p "sassoftware.io/convoy/arke/pkg/provider"
-	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
-	"sassoftware.io/convoy/arke/pkg/util"
+	p "sassoftware.io/viya/arke/pkg/provider"
+	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
+	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/zlog"
 )
 

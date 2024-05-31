@@ -13,18 +13,18 @@ import (
 	"time"
 
 	"github.com/soheilhy/cmux"
-	metrics "sassoftware.io/convoy/arke/pkg/metrics/prometheus"
-	_ "sassoftware.io/convoy/arke/pkg/provider/connectors" // initializes providers
-	"sassoftware.io/convoy/arke/pkg/server"
-	prometheus "sassoftware.io/convoy/arke/pkg/server/prometheus"
-	"sassoftware.io/convoy/arke/pkg/util"
-	"sassoftware.io/convoy/arke/pkg/util/tracing"
+	metrics "sassoftware.io/viya/arke/pkg/metrics/prometheus"
+	_ "sassoftware.io/viya/arke/pkg/provider/connectors" // initializes providers
+	"sassoftware.io/viya/arke/pkg/server"
+	prometheus "sassoftware.io/viya/arke/pkg/server/prometheus"
+	"sassoftware.io/viya/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/util/tracing"
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 
-	pb "sassoftware.io/convoy/arke/api"
+	pb "sassoftware.io/viya/arke/api"
 
 	"google.golang.org/grpc/reflection"
 )

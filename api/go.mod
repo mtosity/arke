@@ -1,4 +1,4 @@
-module sassoftware.io/convoy/arke/api
+module sassoftware.io/viya/arke/api
 
 go 1.21
 

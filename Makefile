@@ -117,7 +117,7 @@ test-nogen: ## Executes unit tests without protoc generation
 	mkdir -p coverage/unit
 	rm -f coverage/unit/*
 	LOG_FORMAT=term go test -cover -v -timeout 30s --coverprofile coverage.out ./... -args -test.gocoverdir=${PWD}/coverage/unit
-	
+
 	go tool cover -html=coverage.out -o coverage.html
 
 # integration test related
@@ -150,21 +150,22 @@ integration_azure: ## Runs integration tests for Azure Service bus
 	source env-azure && go test -count=1 -v -tags=integration ./tests/integration/
 
 lint: ## Run golangci-lint tool
-	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=typecheck --enable=unused --enable=revive --enable=gocritic  --allow-parallel-runners
+	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=typecheck --enable=unused --enable=revive --enable=gocritic  --allow-parallel-runners ./...
 
-compose: #linux ## Builds and runs docker image(s) for integration tests
+compose: linux ## Builds and runs docker image(s) for integration tests
+	cp ./build/linux/arke tests/integration/
 	$(RUN_COMPOSE) || (cd tests/integration && \
-		docker-compose -f docker-compose-certs.yml down && \
-		docker-compose -f docker-compose-certs.yml build && \
-		docker-compose -f docker-compose-certs.yml up --remove-orphans && \
-		docker-compose -f docker-compose.yml build && \
-		docker-compose -f docker-compose.yml down && \
-		docker-compose -f docker-compose.yml up --remove-orphans -d rabbitmq && \
+		docker compose -f docker-compose-certs.yml down && \
+		docker compose -f docker-compose-certs.yml build && \
+		docker compose -f docker-compose-certs.yml up --remove-orphans && \
+		docker compose -f docker-compose.yml build && \
+		docker compose -f docker-compose.yml down && \
+		docker compose -f docker-compose.yml up --remove-orphans -d rabbitmq arke && \
 		sleep 10)
 
 compose_down: ## Removes integration tests Docker resources
 	cd tests/integration ; \
-		docker-compose down
+		docker compose down
 
 integration_test: ## Runs integration tests
 	echo -e "\033[0;36mNo providerTLS\033[0m"

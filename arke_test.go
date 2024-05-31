@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pb "sassoftware.io/convoy/arke/api"
+	pb "sassoftware.io/viya/arke/api"
 )
 
 func Test_DefaultArkeServer(t *testing.T) {

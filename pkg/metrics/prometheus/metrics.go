@@ -14,9 +14,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"sassoftware.io/convoy/arke/pkg/metrics"
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/metrics"
+	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 type stats struct {

@@ -2,11 +2,11 @@
 
 # https://www.rabbitmq.com/ssl.html#manual-certificate-generation
 
-additional_hostnames=$@
+additional_hostnames=$*
 
 sans=""
 
-for hn in "$additional_hostnames"
+for hn in $additional_hostnames
 do
   if [[ "x$hn" != "x" ]]; then
     sans="${sans},DNS:$hn"
@@ -93,15 +93,15 @@ EOF
 
 function generateCert() {
       local svc=$1
-      openssl genrsa -out ${svc}.key 2048
-      openssl req -new -key ${svc}.key -out ${svc}_req.csr -outform PEM \
-            -subj /CN=${svc}/O=server/ -nodes \
+      openssl genrsa -out "${svc}.key" 2048
+      openssl req -new -key "${svc}.key" -out "${svc}_req.csr" -outform PEM \
+            -subj "/CN=${svc}/O=server/" -nodes \
             -addext "subjectAltName=DNS:localhost,DNS:${svc}${sans}"
       cd ../testca
-      openssl ca -config openssl.cnf -in ../server/${svc}_req.csr -out \
-            ../server/${svc}.pem -notext -batch -extensions server_ca_extensions
+      openssl ca -config openssl.cnf -in "../server/${svc}_req.csr" -out \
+            "../server/${svc}.pem" -notext -batch -extensions server_ca_extensions
       cd ../server
-      openssl pkcs12 -export -out ${svc}.p12 -in ${svc}.pem -inkey ${svc}.key \
+      openssl pkcs12 -export -out "${svc}.p12" -in "${svc}.pem" -inkey "${svc}.key" \
             -passout pass:
 }
 

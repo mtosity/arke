@@ -1,4 +1,4 @@
-version: "3"
+---
 services:
   arke:
     build:
@@ -6,7 +6,7 @@ services:
       context: .
     image: tests_arke:latest
     networks:
-    - arketest
+      - arketest
     ports:
       - "50051:50051"
     environment:
@@ -16,7 +16,7 @@ services:
       - CERT_KEY=/certs/server/arke.key
       - CA_BUNDLE=/certs/testca/ca_certificate.pem
     volumes:
-    - ./certs:/certs
+      - ./certs:/certs
   rabbitmq:
     image: rabbitmq:3.9-management
     ports:
@@ -25,10 +25,9 @@ services:
       - "15672:15672"
       - "15671:15671"
     networks:
-    - arketest
+      - arketest
     volumes:
-    - ./certs:/certs
-    - ./rabbitmq.conf:/etc/rabbitmq/conf.d/00-rabbitmq.conf
+      - ./certs:/certs
+      - ./rabbitmq.conf:/etc/rabbitmq/conf.d/00-rabbitmq.conf
 networks:
   arketest:
-

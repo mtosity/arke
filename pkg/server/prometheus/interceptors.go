@@ -7,9 +7,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"sassoftware.io/convoy/arke/pkg/metrics"
-	"sassoftware.io/convoy/arke/pkg/metrics/prometheus"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/metrics"
+	"sassoftware.io/viya/arke/pkg/metrics/prometheus"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // UnaryInterceptor unary grpc interceptor

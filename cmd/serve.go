@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"sassoftware.io/convoy/arke"
-	_ "sassoftware.io/convoy/arke/pkg/provider/connectors"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke"
+	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")

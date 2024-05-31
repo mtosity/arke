@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	pb "sassoftware.io/convoy/arke/api"
-	"sassoftware.io/convoy/arke/pkg/util"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // Provider provider interface

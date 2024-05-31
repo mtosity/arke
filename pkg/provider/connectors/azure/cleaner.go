@@ -3,8 +3,8 @@ package azure
 import (
 	"time"
 
-	"sassoftware.io/convoy/arke/pkg/provider"
-	"sassoftware.io/convoy/arke/pkg/util"
+	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // every 30 seconds check the list of active connections

@@ -1,4 +1,4 @@
-module sassoftware.io/convoy/arke
+module sassoftware.io/viya/arke
 
 go 1.21
 
@@ -10,7 +10,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/soheilhy/cmux v0.1.5
 	github.com/stretchr/testify v1.8.4
-	sassoftware.io/convoy/arke/api v1.1.7
+	sassoftware.io/viya/arke/api v1.1.7
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.19.0
@@ -84,5 +84,5 @@ require (
 
 replace (
 	github.com/gogo/protobuf v1.1.1 => github.com/gogo/protobuf v1.3.2
-	sassoftware.io/convoy/arke/api => ./api
+	sassoftware.io/viya/arke/api => ./api
 )
