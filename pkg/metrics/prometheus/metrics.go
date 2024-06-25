@@ -7,6 +7,7 @@ import (
 	"net/http/pprof"
 	"regexp"
 	"strings"
+	"time"
 
 	met "github.com/armon/go-metrics"
 	promet "github.com/armon/go-metrics/prometheus"
@@ -50,7 +51,12 @@ func init() {
 	registry.MustRegister(newArkeCounter(metrics.RecvMsgCounter, "Total number of stream messages have been received."))
 	registry.MustRegister(newArkeCounter(metrics.SendMsgCounter, "Total number of stream messages have been sent."))
 
-	Stats.Sink, _ = promet.NewPrometheusSink()
+	opts := promet.PrometheusOpts{
+		Registerer: registry,
+		Expiration: 60 * time.Second,
+		Name:       "arke_sink",
+	}
+	Stats.Sink, _ = promet.NewPrometheusSinkFrom(opts)
 
 	promConf := met.DefaultConfig("")
 	promConf.EnableHostname = false

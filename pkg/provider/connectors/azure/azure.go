@@ -13,12 +13,12 @@ import (
 	"time"
 
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/pkg/provider"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const providerName string = "azure"
@@ -225,7 +225,7 @@ func (prov *azureprovider) Retry(ctx context.Context, origSource *pb.Source, msg
 		// Set or update the x-death header which tracks our retry attempts
 		if xDeath, ok := rm.Property("x-death"); ok {
 			var count int
-			fmt.Sscanf(xDeath.(string), "[map[count:%d", &count)
+			fmt.Sscanf(xDeath.(string), "[map[count:%d", &count) //nolint errcheck
 			count++
 			util.Logger.Debugf("Updating x-death to %d", count)
 			rm.SetProperty("x-death", fmt.Sprintf("[map[count:%d ]]", count))
