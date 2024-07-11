@@ -1010,15 +1010,16 @@ func Test_DLQ(t *testing.T) {
 	argsEmpty := make(amqp091Table)
 	args := make(amqp091Table)
 	args["x-dead-letter-exchange"] = "dla"
+	args["x-queue-type"] = "quorum"
 	cancels := make(chan amqp091Error)
 	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", "addressname", "topic", false, false).Return(nil).Once()
 	cmock.On("ExchangeDeclare", "dla", "topic", false, false).Return(nil).Once()
-	cmock.On("QueueDeclare", "queuename", false, false, false, args).Return(nil).Once()
+	cmock.On("QueueDeclare", "queuename.quorum", true, false, false, args).Return(nil).Once()
 	cmock.On("QueueDeclare", "queuename.dlq", false, false, false, argsEmpty).Return(nil).Once()
-	cmock.On("QueueBind", "queuename", "routingkey", "addressname", mock.Anything).Return(nil).Once()
-	cmock.On("QueueBind", "queuename.dlq", "queuename", "dla", mock.Anything).Return(nil).Once()
+	cmock.On("QueueBind", "queuename.quorum", "routingkey", "addressname", mock.Anything).Return(nil).Once()
+	cmock.On("QueueBind", "queuename.dlq", "queuename.quorum", "dla", mock.Anything).Return(nil).Once()
 	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
 
 	amock := &amqpConnectionMock{}
@@ -1047,7 +1048,7 @@ func Test_DLQ(t *testing.T) {
 	subjects = append(subjects, "routingkey")
 	options := map[string]string{"DeadLetterAddress": "dla"}
 	src := &pb.Source{Name: "queuename", Address: &pb.Address{Name: "addressname", Subjects: subjects},
-		Options: options}
+		Options: options, Durable: true}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -1116,6 +1117,34 @@ func Test_Subscribe_NoAddressName(t *testing.T) {
 	err := prov.Subscribe(ctx, src, mc)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.GetMessage(), "address name not defined")
+}
+
+func Test_SourceNameNotQuorum(t *testing.T) {
+	address := &pb.Address{}
+	src := &pb.Source{Name: "myname", Address: address}
+	src.Name = sourceName(src)
+	assert.Equal(t, "myname", src.GetName())
+}
+
+func Test_SourceNameQuorum(t *testing.T) {
+	address := &pb.Address{}
+	src := &pb.Source{Name: "myname", Address: address, Durable: true}
+	src.Name = sourceName(src)
+	assert.Equal(t, "myname.quorum", src.GetName())
+}
+
+func Test_SourceNameNotQuorum_AutoDelete(t *testing.T) {
+	address := &pb.Address{}
+	src := &pb.Source{Name: "myname", Address: address, AutoDelete: true}
+	src.Name = sourceName(src)
+	assert.Equal(t, "myname", src.GetName())
+}
+
+func Test_SourceNameNotQuorum_AutoDeleteDurable(t *testing.T) {
+	address := &pb.Address{}
+	src := &pb.Source{Name: "myname", Address: address, AutoDelete: true, Durable: true}
+	src.Name = sourceName(src)
+	assert.Equal(t, "myname", src.GetName())
 }
 
 func Test_Subscribe_NoAddress(t *testing.T) {
@@ -1303,11 +1332,14 @@ func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
 		AutoDelete:    false,
 		PrefetchCount: 4}
 
+	expectedQueueArgs := amqp091Table{}
+	expectedQueueArgs["x-queue-type"] = "quorum"
+
 	cmock.On("SetPrefetch", 4).Return(nil)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
-	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), amqp091Table{}).Return(nil)
-	cmock.On("Consume", src.GetName(), false, src.GetExclusive()).Return(msgs, nil)
+	cmock.On("QueueDeclare", src.GetName()+".quorum", src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), expectedQueueArgs).Return(nil)
+	cmock.On("Consume", src.GetName()+".quorum", false, src.GetExclusive()).Return(msgs, nil)
 	cancels := make(chan amqp091Error)
 	cmock.On("NotifyClose").Return(cancels)
 

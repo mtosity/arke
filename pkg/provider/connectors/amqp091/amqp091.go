@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/pkg/provider"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const providerName string = "amqp091"
@@ -243,6 +243,8 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 		}
 	}()
 
+	origSource.Name = sourceName(origSource)
+
 	retrySpan.SetAttributes(attribute.String("source.name", origSource.GetName()),
 		attribute.String("messaging.client_id", bd.ClientIdentifier))
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
@@ -404,7 +406,7 @@ func (prov *amqp091provider) setupDeadLetter(ctx context.Context, origSource *pb
 
 	// setup exchange/queue/binding
 	subjects := make([]string, 0)
-	sourceName := fmt.Sprintf("%s.dlq", origSource.GetName())
+	sourceName := fmt.Sprintf("%s.dlq", strings.Replace(origSource.GetName(), ".quorum", "", 1))
 	subject := origSource.GetName()
 	if dls, ok := opts["DeadLetterSubject"]; ok {
 		subject = dls
@@ -532,6 +534,20 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	return nil
 }
 
+func sourceName(source *pb.Source) string {
+	if isQuorum(source) {
+		return source.GetName() + ".quorum"
+	}
+	return source.GetName()
+}
+
+func isQuorum(source *pb.Source) bool {
+	if source.AutoDelete || !source.Durable {
+		return false
+	}
+	return true
+}
+
 func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
 	known := bd.queueKnown(source.GetName())
 	if known && !force {
@@ -539,6 +555,11 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 	}
 
 	args := make(amqp091Table)
+
+	if isQuorum(source) {
+		args["x-queue-type"] = "quorum"
+	}
+
 	for option, value := range source.GetOptions() {
 		switch option {
 		case "MessageTTL":
@@ -780,6 +801,8 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	if bd.Connection.IsClosed() {
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
+
+	source.Name = sourceName(source)
 
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
