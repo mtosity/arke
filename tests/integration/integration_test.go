@@ -241,7 +241,7 @@ func connect() *grpc.ClientConn {
 	defer cancel()
 
 	// Attempt a non-TLS connection to arke first
-	conn, _ = grpc.Dial(arkeAddress(), grpc.WithInsecure())
+	conn, _ = grpc.NewClient(arkeAddress(), grpc.WithInsecure())
 
 	c := healthpb.NewHealthClient(conn)
 	resp, err := c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
@@ -258,7 +258,7 @@ func connect() *grpc.ClientConn {
 		}
 		tlsConfig := &tls.Config{RootCAs: cp}
 
-		conn, _ = grpc.Dial(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
+		conn, _ = grpc.NewClient(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
 
 		c := healthpb.NewHealthClient(conn)
 		resp, _ = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})

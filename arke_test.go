@@ -116,7 +116,7 @@ func Test_listener(t *testing.T) {
 }
 
 func testHealth(port int) error {
-	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", port), grpc.WithTransportCredentials(insecure.NewCredentials())) //nolint staticcheck
+	conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", port), grpc.WithTransportCredentials(insecure.NewCredentials())) //nolint staticcheck
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
