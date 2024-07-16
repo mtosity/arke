@@ -8,6 +8,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
+	"sassoftware.io/viya/arke/pkg/i18n"
 	"sassoftware.io/viya/arke/pkg/util"
 )
 
@@ -158,7 +159,7 @@ func (ch *amqp091Channel) ensureChannel() error {
 	if ch.channel.IsClosed() {
 		newCh, err := ch.connection.NewChannel()
 		if err != nil {
-			util.Logger.DebugI("debug.ensurechannelerror", ch.connection.clientIdentifier, err)
+			util.Logger.DebugI(i18n.EnsureChannelError, ch.connection.clientIdentifier, err)
 			return err
 		}
 		ch.channel = newCh.(*amqp091Channel).channel

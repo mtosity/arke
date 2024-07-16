@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/soheilhy/cmux"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"sassoftware.io/viya/arke/pkg/i18n"
 	metrics "sassoftware.io/viya/arke/pkg/metrics/prometheus"
 	_ "sassoftware.io/viya/arke/pkg/provider/connectors" // initializes providers
 	"sassoftware.io/viya/arke/pkg/server"
 	prometheus "sassoftware.io/viya/arke/pkg/server/prometheus"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
-	"go.opentelemetry.io/otel/sdk/trace"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -86,7 +87,7 @@ func DefaultArkeServer() *Arke {
 
 	tp, err := tracing.InitTracerProvider()
 	if err != nil {
-		util.Logger.FatalI("error.otel.init", err)
+		util.Logger.FatalI(i18n.OTELInitError, err)
 	}
 	a.tracerProvider = tp
 
@@ -102,7 +103,7 @@ func DefaultArkeServer() *Arke {
 		var err error
 		a.port, err = strconv.Atoi(portEnv)
 		if err != nil {
-			util.Logger.FatalI("error.port", err)
+			util.Logger.FatalI(i18n.PortParsingError, err)
 		}
 	}
 
@@ -170,7 +171,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	if a.tracerProvider != nil {
 		defer func() {
 			if err := a.tracerProvider.Shutdown(context.Background()); err != nil {
-				util.Logger.ErrorI("error.otel.shutdown", err)
+				util.Logger.ErrorI(i18n.OTELShutdownError, err)
 			}
 		}()
 	}
@@ -178,7 +179,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	lis, err := a.listener()
 
 	if err != nil {
-		util.Logger.ErrorI("error.netlisten", err.Error())
+		util.Logger.ErrorI(i18n.NetListenError, err.Error())
 		return err
 	}
 
@@ -193,7 +194,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	util.Logger.Debug("Registering reflection service")
 	reflection.Register(a.server)
 
-	util.Logger.InfoI("info.starting", a.port)
+	util.Logger.InfoI(i18n.Starting, a.port)
 
 	a.mux = cmux.New(lis)
 	httpListener := a.mux.Match(cmux.HTTP1Fast())
@@ -224,7 +225,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 		a.mux.Close()
 	case serveErr = <-serveErrChan:
 		if serveErr != nil {
-			util.Logger.ErrorI("error.failedserve", serveErr.Error())
+			util.Logger.ErrorI(i18n.FailedServeError, serveErr.Error())
 		}
 	}
 	return serveErr

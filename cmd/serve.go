@@ -10,6 +10,7 @@ import (
 	"runtime/pprof"
 
 	"sassoftware.io/viya/arke"
+	"sassoftware.io/viya/arke/pkg/i18n"
 	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
 	"sassoftware.io/viya/arke/pkg/util"
 )
@@ -25,11 +26,11 @@ func run(ctx context.Context) error {
 	if *cpuprofile != "" {
 		f, err := os.Create(filepath.Clean(*cpuprofile))
 		if err != nil {
-			util.Logger.FatalI("error.cpuprofile", err)
+			util.Logger.FatalI(i18n.CPUProfileError, err)
 		}
 		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
-			util.Logger.FatalI("error.cpuprofile", err)
+			util.Logger.FatalI(i18n.CPUProfileError, err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -38,12 +39,12 @@ func run(ctx context.Context) error {
 		if *memprofile != "" {
 			f, err := os.Create(filepath.Clean(*memprofile))
 			if err != nil {
-				util.Logger.FatalI("error.memprofile", err)
+				util.Logger.FatalI(i18n.MemProfileError, err)
 			}
 			defer f.Close()
 			runtime.GC() // get up-to-date statistics
 			if err := pprof.WriteHeapProfile(f); err != nil {
-				util.Logger.FatalI("error.memprofile", err)
+				util.Logger.FatalI(i18n.MemProfileError, err)
 			}
 		}
 	}()
@@ -58,7 +59,7 @@ func run(ctx context.Context) error {
 		case *net.OpError:
 			return nil
 		default:
-			util.Logger.FatalI("error.generic", err)
+			util.Logger.FatalI(i18n.GenericError, err)
 		}
 	}
 	return err

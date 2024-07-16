@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/i18n"
 	"sassoftware.io/viya/arke/pkg/provider"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
@@ -107,7 +108,7 @@ func NewAMQP091Provider() provider.Provider {
 func (prov *amqp091provider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
-		util.Logger.WarnI("error.noclientuuid", err.Error())
+		util.Logger.WarnI(i18n.NoClientUUIDError, err.Error())
 		return &BrokerDetails{}, err
 	}
 
@@ -165,12 +166,12 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 
 		err = rm.Ack()
 	} else {
-		util.Logger.DebugI("debug.acknomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
 	if err != nil {
-		util.Logger.WarnI("error.ack", err.Error())
+		util.Logger.WarnI(i18n.AckError, err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -179,7 +180,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 		span.RecordError(err)
 		return errMsg
 	}
-	util.Logger.DebugI("debug.ackmessage", bd.ClientIdentifier, msgid)
+	util.Logger.DebugI(i18n.AckMessage, bd.ClientIdentifier, msgid)
 	span.AddEvent("provider acked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -209,12 +210,12 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 
 		err = rm.Nack(false)
 	} else {
-		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.NackNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
 	if err != nil {
-		util.Logger.WarnI("error.nack", err.Error())
+		util.Logger.WarnI(i18n.NackError, err.Error())
 
 		bd.activeMessages.Delete(msgid)
 		errMsg := &pb.Error{
@@ -223,7 +224,7 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 		span.RecordError(err)
 		return errMsg
 	}
-	util.Logger.DebugI("debug.nackmessage", bd.ClientIdentifier, msgid)
+	util.Logger.DebugI(i18n.NackMessage, bd.ClientIdentifier, msgid)
 	span.AddEvent("provider nacked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -321,10 +322,10 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 			_ = rm.Ack() // We ack the message to prevent it from requeueing or dead lettering
 		}
 		retrySpan.AddEvent("retry ack/nack complete")
-		util.Logger.DebugI("debug.retrymessage", bd.ClientIdentifier, msgid, delay)
+		util.Logger.DebugI(i18n.RetryMessage, bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
-		util.Logger.DebugI("debug.retrynomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.RetryNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
@@ -377,7 +378,7 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 
 	_, bdErr := bd.connect()
 	if bdErr != nil {
-		util.Logger.WarnI("error.brokerconnect", bdErr.Error())
+		util.Logger.WarnI(i18n.BrokerConnectError, bdErr.Error())
 		return &pb.Error{Message: bdErr.Error()}
 	}
 	prov.connections.Add(bd.ClientIdentifier, &bd)
@@ -446,7 +447,7 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 	case pb.Address_QUEUE:
 		exchangeType = "direct"
 	default:
-		util.Logger.WarnI("error.addresstype", aType.String())
+		util.Logger.WarnI(i18n.AddressTypeError, aType.String())
 		return "", fmt.Errorf("%s is not a valid address type", aType)
 	}
 	return exchangeType, nil
@@ -500,11 +501,11 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		if err != nil {
 			return err
 		}
-		util.Logger.InfoI("info.exchangedeclare", address.GetName())
+		util.Logger.InfoI(i18n.ExchangeDeclare, address.GetName())
 
 		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete())
 		if err != nil {
-			util.Logger.WarnI("error.exchangedeclare", err.Error())
+			util.Logger.WarnI(i18n.ExchangeDeclareError, err.Error())
 			return err
 		}
 
@@ -517,12 +518,12 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		if !known || force {
 			err := prov.declareExchange(parent, bd, amqpChannel, force)
 			if err != nil {
-				util.Logger.WarnI("error.exchangedeclare", err.Error())
+				util.Logger.WarnI(i18n.ExchangeDeclareError, err.Error())
 			}
 
 			// Bind each subject from the Address exchange to the ParentAddress exchange
 			for _, subject := range address.GetSubjects() {
-				util.Logger.InfoI("info.exchangebind", address.GetName(), parent.GetName(), subject)
+				util.Logger.InfoI(i18n.ExchangeBind, address.GetName(), parent.GetName(), subject)
 				err = amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName())
 				if err != nil {
 					return err
@@ -585,7 +586,7 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 
 	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), source.GetExclusive(), args)
 	if qErr != nil {
-		util.Logger.WarnI("error.queuedeclare", qErr.Error())
+		util.Logger.WarnI(i18n.QueueDeclareError, qErr.Error())
 	}
 	bd.knownQueues.Add(source.GetName(), true)
 
@@ -726,7 +727,7 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 
 	// If the address has subjects, bind to each subject.
 	// But if the address has no subjects, bind without a subject. Don't do both.
-	util.Logger.InfoI("info.binding", source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
+	util.Logger.InfoI(i18n.Binding, source.GetName(), strings.Join(source.GetAddress().GetSubjects(), ","), source.GetAddress().GetName())
 
 	matchHeadersList := make([]amqp091Table, 0)
 
@@ -766,13 +767,13 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 			for _, matchHeaders := range matchHeadersList {
 				bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), matchHeaders)
 				if bErr != nil {
-					util.Logger.WarnI("error.queuebind", bErr.Error())
+					util.Logger.WarnI(i18n.QueueBindError, bErr.Error())
 				}
 			}
 		} else {
 			bErr := amqpChannel.QueueBind(source.GetName(), subject, source.GetAddress().GetName(), nil)
 			if bErr != nil {
-				util.Logger.WarnI("error.queuebind", bErr.Error())
+				util.Logger.WarnI(i18n.QueueBindError, bErr.Error())
 			}
 		}
 	}
@@ -860,11 +861,11 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	)
 
 	if err != nil {
-		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, source.GetName(), err.Error())
+		util.Logger.WarnI(i18n.ClientSubscribeError, bd.ClientIdentifier, source.GetName(), err.Error())
 		return &pb.Error{Message: err.Error()}
 	}
 
-	util.Logger.InfoI("info.clientsubscribe", bd.ClientIdentifier, source.GetName())
+	util.Logger.InfoI(i18n.ClientSubscribe, bd.ClientIdentifier, source.GetName())
 
 	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
@@ -1007,7 +1008,7 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 	}()
 
 	bd.clientDisconnect = true
-	util.Logger.InfoI("info.clientdisconnect", bd.ClientIdentifier)
+	util.Logger.InfoI(i18n.ClientDisconnect, bd.ClientIdentifier)
 	bd.shutdownChan <- true // shut down the connectionWatcher
 	// close the client if it is still connected
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
@@ -1146,7 +1147,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 			span.AddEvent("message published to broker")
 
 			if err != nil {
-				util.Logger.WarnI("error.publish", err.Error())
+				util.Logger.WarnI(i18n.PublishError, err.Error())
 
 				errMsg := &pb.Error{
 					Message: err.Error(),
@@ -1154,7 +1155,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 				}
 				errChan <- errMsg
 			} else {
-				util.Logger.DebugI("debug.clientpublished", bd.ClientIdentifier)
+				util.Logger.DebugI(i18n.ClientPublished, bd.ClientIdentifier)
 				bd.produced++
 			}
 			errChan <- nil
@@ -1183,12 +1184,12 @@ func (prov *amqp091provider) WaitForConnect(ctx context.Context) bool {
 
 	for start := time.Now(); time.Since(start) < provider.CONNECTTIMEOUT*time.Second; {
 		if bd.state == provider.CONNECTED {
-			util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
+			util.Logger.InfoI(i18n.ClientConnected, bd.ClientIdentifier)
 			return true
 		}
 		bd, err = prov.getBrokerDetails(ctx)
 		if err != nil {
-			util.Logger.InfoI("info.clientdetailsgone", bd.ClientIdentifier)
+			util.Logger.InfoI(i18n.ClientDetailsGone, bd.ClientIdentifier)
 			return false
 		}
 
@@ -1294,7 +1295,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 		tenant = "/"
 	}
 
-	util.Logger.InfoI("info.clientconnect", bd.ClientIdentifier, cf.GetHost())
+	util.Logger.InfoI(i18n.ClientConnect, bd.ClientIdentifier, cf.GetHost())
 
 	scheme := "amqp"
 
@@ -1336,7 +1337,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	err = conn.Connect()
 
 	if err != nil {
-		util.Logger.WarnI("error.brokerconnect", err.Error())
+		util.Logger.WarnI(i18n.BrokerConnectError, err.Error())
 		bd.state = provider.CLOSED
 		return false, err
 	}
@@ -1346,7 +1347,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	bd.ErrorChannel = bd.Connection.NotifyClose(bd.ErrorChannel) // this looks unneeded but it aids in unit testing
 	bd.state = provider.CONNECTED
 
-	util.Logger.InfoI("info.clientconnected", bd.ClientIdentifier)
+	util.Logger.InfoI(i18n.ClientConnected, bd.ClientIdentifier)
 
 	return true, nil
 

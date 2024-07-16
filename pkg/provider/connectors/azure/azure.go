@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/pkg/i18n"
 	"sassoftware.io/viya/arke/pkg/provider"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
@@ -75,7 +76,7 @@ type BrokerDetails struct {
 func (prov *azureprovider) getBrokerDetails(ctx context.Context) (*BrokerDetails, error) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
-		util.Logger.WarnI("error.noclientuuid", err.Error())
+		util.Logger.WarnI(i18n.NoClientUUIDError, err.Error())
 		return &BrokerDetails{}, err
 	}
 
@@ -130,7 +131,7 @@ func (prov *azureprovider) Ack(ctx context.Context, msgid string) *pb.Error {
 		err = rm.Ack(ctx)
 
 		if err != nil {
-			util.Logger.WarnI("error.ack", err.Error())
+			util.Logger.WarnI(i18n.AckError, err.Error())
 
 			bd.activeMessages.Delete(msgid)
 			errMsg := &pb.Error{
@@ -140,11 +141,11 @@ func (prov *azureprovider) Ack(ctx context.Context, msgid string) *pb.Error {
 			return errMsg
 		}
 	} else {
-		util.Logger.DebugI("debug.acknomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
-	util.Logger.DebugI("debug.ackmessage", bd.ClientIdentifier, msgid)
+	util.Logger.DebugI(i18n.AckMessage, bd.ClientIdentifier, msgid)
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -172,7 +173,7 @@ func (prov *azureprovider) Nack(ctx context.Context, msgid string) *pb.Error {
 		span.AddEvent("provider acking message")
 		err := rm.Nack(ctx, false)
 		if err != nil {
-			util.Logger.WarnI("error.nack", err.Error())
+			util.Logger.WarnI(i18n.NackError, err.Error())
 
 			bd.activeMessages.Delete(msgid)
 			errMsg := &pb.Error{
@@ -182,11 +183,11 @@ func (prov *azureprovider) Nack(ctx context.Context, msgid string) *pb.Error {
 			return errMsg
 		}
 	} else {
-		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.NackNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
-	util.Logger.DebugI("debug.nackmessage", bd.ClientIdentifier, msgid)
+	util.Logger.DebugI(i18n.NackMessage, bd.ClientIdentifier, msgid)
 	span.AddEvent("provider nacked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -252,10 +253,10 @@ func (prov *azureprovider) Retry(ctx context.Context, origSource *pb.Source, msg
 		}
 
 		_ = rm.Ack(ctx)
-		util.Logger.DebugI("debug.retrymessage", bd.ClientIdentifier, msgid, delay)
+		util.Logger.DebugI(i18n.RetryMessage, bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
-		util.Logger.DebugI("debug.nacknomessage", bd.ClientIdentifier, msgid)
+		util.Logger.DebugI(i18n.RetryNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 	return nil
@@ -289,12 +290,12 @@ func (prov *azureprovider) Connect(ctx context.Context, cf *pb.ConnectionConfigu
 	err = bd.azure.Connect()
 
 	if err != nil {
-		util.Logger.WarnI("error.brokerconnect", err.Error())
+		util.Logger.WarnI(i18n.BrokerConnectError, err.Error())
 		return &pb.Error{Message: err.Error()}
 	}
 
 	prov.connections.Add(bd.ClientIdentifier, &bd)
-	util.Logger.InfoI("info.clientconnect", bd.ClientIdentifier, cf.GetHost())
+	util.Logger.InfoI(i18n.ClientConnect, bd.ClientIdentifier, cf.GetHost())
 
 	return nil
 }
@@ -367,7 +368,7 @@ func (prov *azureprovider) Subscribe(ctx context.Context, source *pb.Source, mes
 	}
 	subSpan.AddEvent("subscription created")
 
-	util.Logger.InfoI("info.azureclientsubscribe", bd.ClientIdentifier, subName, source.GetAddress().GetName())
+	util.Logger.InfoI(i18n.AzureClientSubscribe, bd.ClientIdentifier, subName, source.GetAddress().GetName())
 
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
@@ -494,7 +495,7 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (string, error) {
 	case pb.Address_FILTER:
 	case pb.Address_QUEUE:
 	default:
-		util.Logger.WarnI("error.addresstype", addressType)
+		util.Logger.WarnI(i18n.AddressTypeError, addressType)
 		return "", fmt.Errorf("%s is not a valid address type", addressType)
 	}
 
@@ -521,7 +522,7 @@ func declareExchange(address *pb.Address, bd *BrokerDetails) (string, error) {
 		if !known {
 			parentTopic, err := declareExchange(parent, bd)
 			if err != nil {
-				util.Logger.WarnI("error.exchangedeclare", err.Error())
+				util.Logger.WarnI(i18n.ExchangeDeclareError, err.Error())
 			}
 
 			forwardTopicName := bd.azure.GenerateForwardToName(address.GetName())
@@ -620,7 +621,7 @@ func declareSubscription(source *pb.Source, bd *BrokerDetails, topicName string)
 			// 5 minutes is the minimum AutoDeleteOnIdle
 			minimumTime := 5 * 60 * 1000
 			if val > 0 && val < minimumTime {
-				util.Logger.WarnI("warn.azureMinimumExpiresTime", bd.ClientIdentifier, source.GetName(), val)
+				util.Logger.WarnI(i18n.AzureMinimumExpiresTime, bd.ClientIdentifier, source.GetName(), val)
 				val = minimumTime
 			}
 			if val > 0 {
@@ -749,7 +750,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 	existingRules, err := bd.azure.ListRules(topicName, subName)
 	var existingRuleNames []string
 	if err != nil {
-		util.Logger.InfoI("info.rulelist", subName, bd.ClientIdentifier, err.Error())
+		util.Logger.InfoI(i18n.RuleList, subName, bd.ClientIdentifier, err.Error())
 	}
 	for _, rule := range existingRules {
 		if rule.Name == "$Default" {
@@ -782,7 +783,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 			err := bd.azure.CreateRule(ctx, topicName, subName, ruleName, ruleText)
 			if err != nil {
 				if !strings.Contains(err.Error(), "409 Conflict") {
-					util.Logger.WarnI("error.ruleadd", subName, bd.ClientIdentifier, ruleText, err.Error())
+					util.Logger.WarnI(i18n.RuleAddError, subName, bd.ClientIdentifier, ruleText, err.Error())
 				}
 			}
 		}
@@ -795,7 +796,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 				err = bd.azure.DeleteRule(ctx, topicName, subName, ruleName)
 				if err != nil {
 					if !strings.Contains(err.Error(), "404 Not Found") {
-						util.Logger.WarnI("error.ruledel", subName, bd.ClientIdentifier, ruleName, err.Error())
+						util.Logger.WarnI(i18n.RuleDelError, subName, bd.ClientIdentifier, ruleName, err.Error())
 					}
 				}
 			}
@@ -805,7 +806,7 @@ func declareSubscriptionWithOptions(source *pb.Source, bd *BrokerDetails, topicN
 	err = bd.azure.CreateSubscription(ctx, topicName, subName, subOpts)
 
 	if err != nil {
-		util.Logger.WarnI("error.clientsubscribe", bd.ClientIdentifier, subName, err.Error())
+		util.Logger.WarnI(i18n.ClientSubscribeError, bd.ClientIdentifier, subName, err.Error())
 		return subName, err
 	}
 
@@ -901,7 +902,7 @@ func (prov *azureprovider) Publish(ctx context.Context, messageChannel <-chan *p
 		span.AddEvent("message published to broker")
 
 		if err != nil {
-			util.Logger.WarnI("error.publish", err.Error())
+			util.Logger.WarnI(i18n.PublishError, err.Error())
 
 			errMsg := &pb.Error{
 				Message: err.Error(),
@@ -909,7 +910,7 @@ func (prov *azureprovider) Publish(ctx context.Context, messageChannel <-chan *p
 			}
 			errChan <- errMsg
 		} else {
-			util.Logger.DebugI("debug.clientpublished", bd.ClientIdentifier)
+			util.Logger.DebugI(i18n.ClientPublished, bd.ClientIdentifier)
 			bd.produced++
 		}
 		errChan <- nil

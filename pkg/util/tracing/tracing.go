@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 
-	"sassoftware.io/viya/arke/pkg/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -16,6 +15,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var initResourcesOnce sync.Once
@@ -92,7 +93,7 @@ func InitTracerProvider() (*sdktrace.TracerProvider, error) {
 			exporter, err = otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(otelAddr), otlptracegrpc.WithInsecure())
 		}
 		if err != nil {
-			util.Logger.InfoI("info.failedinittelemetryexporter", err.Error())
+			util.Logger.InfoI(i18n.FailedInitTelemetryExporter, err.Error())
 			return nil, err
 		}
 
