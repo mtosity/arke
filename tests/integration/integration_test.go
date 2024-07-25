@@ -368,7 +368,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCR")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5, Durable: true}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -1897,7 +1897,7 @@ func TestSubscribeAckNackInvalidID(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TAIID")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TAIID", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TAIID", Address: address, PrefetchCount: 5, Durable: true}
 	c := pb.NewConsumerClient(consumerConnection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
@@ -1961,7 +1961,7 @@ func TestSubscribeAckInvalidIDNoConnect(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TAIIDNC")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TAIIDNC", Address: address, PrefetchCount: 5}
+	source := &pb.Source{Name: "sas.test.proxy.TAIIDNC", Address: address, PrefetchCount: 5, Durable: true}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()

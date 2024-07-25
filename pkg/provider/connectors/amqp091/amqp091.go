@@ -536,7 +536,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 }
 
 func sourceName(source *pb.Source) string {
-	if isQuorum(source) {
+	if isQuorum(source) && !strings.HasSuffix(source.GetName(), ".quorum") {
 		return source.GetName() + ".quorum"
 	}
 	return source.GetName()

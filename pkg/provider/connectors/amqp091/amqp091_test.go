@@ -1147,6 +1147,13 @@ func Test_SourceNameNotQuorum_AutoDeleteDurable(t *testing.T) {
 	assert.Equal(t, "myname", src.GetName())
 }
 
+func Test_SourceNameNamedDotQuorum(t *testing.T) {
+	address := &pb.Address{}
+	src := &pb.Source{Name: "myname.quorum", Address: address, Durable: true}
+	src.Name = sourceName(src)
+	assert.Equal(t, "myname.quorum", src.GetName())
+}
+
 func Test_Subscribe_NoAddress(t *testing.T) {
 	prov := NewAMQP091Provider()
 	ctx := context.Background()
