@@ -8,76 +8,76 @@ import (
 )
 
 type getLocaleFileTestCase struct {
-	bundleID      string
+	filePrefix    string
 	locale        string
 	expectedFiles []string
 }
 
 func TestGetLocaleFiles(t *testing.T) {
-	bundleID := ArkeBundleID
+	filePrefix := messageFilePrefix
 	cases := []getLocaleFileTestCase{
 		{
-			bundleID: bundleID,
-			locale:   "en-US",
+			filePrefix: filePrefix,
+			locale:     "en-US",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_en_US.properties", bundleID),
-				fmt.Sprintf("assets/%s_en.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_en_US.properties", filePrefix),
+				fmt.Sprintf("assets/%s_en.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "zh-Hans",
+			filePrefix: filePrefix,
+			locale:     "zh-Hans",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_zh-Hans.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_zh-Hans.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "zh-SG",
+			filePrefix: filePrefix,
+			locale:     "zh-SG",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_zh-Hans.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_zh-Hans.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "zh-Hant",
+			filePrefix: filePrefix,
+			locale:     "zh-Hant",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_zh-Hant.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_zh-Hant.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "zh-MO",
+			filePrefix: filePrefix,
+			locale:     "zh-MO",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_zh-Hant.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_zh-Hant.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "zh-TW",
+			filePrefix: filePrefix,
+			locale:     "zh-TW",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_zh-Hant.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_zh-Hant.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 		{
-			bundleID: bundleID,
-			locale:   "de-DE",
+			filePrefix: filePrefix,
+			locale:     "de-DE",
 			expectedFiles: []string{
-				fmt.Sprintf("assets/%s_de_DE.properties", bundleID),
-				fmt.Sprintf("assets/%s_de.properties", bundleID),
-				fmt.Sprintf("assets/%s.properties", bundleID),
+				fmt.Sprintf("assets/%s_de_DE.properties", filePrefix),
+				fmt.Sprintf("assets/%s_de.properties", filePrefix),
+				fmt.Sprintf("assets/%s.properties", filePrefix),
 			},
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.locale, func(t *testing.T) {
-			gotFiles := getLocaleFileNames(c.bundleID, c.locale)
+			gotFiles := getLocaleFileNames(c.filePrefix, c.locale)
 			assert.Equal(t, c.expectedFiles, gotFiles)
 		})
 	}

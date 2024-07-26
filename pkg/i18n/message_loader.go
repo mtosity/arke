@@ -7,8 +7,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-const ArkeBundleID = "arke-log-icu"
 const embedPropDir = "assets"
+const messageFilePrefix = "messages"
 
 var l10Messages []byte
 
@@ -20,7 +20,7 @@ var propertyFiles embed.FS
 func L10n() []byte {
 	if l10Messages == nil {
 		InitializeSystemLocale()
-		filePaths := getLocaleFileNames(ArkeBundleID, SystemLocale)
+		filePaths := getLocaleFileNames(messageFilePrefix, SystemLocale)
 		l10Messages = []byte{}
 		for _, p := range filePaths {
 			contents, err := propertyFiles.ReadFile(p)
@@ -37,7 +37,7 @@ func L10n() []byte {
 
 // getLocaleFileNames - Get the expected locale files in order of precedence for the given bundle
 // ID and locale, taking into account special cases for chinese.
-func getLocaleFileNames(bundleID string, locale string) []string {
+func getLocaleFileNames(filePrefix string, locale string) []string {
 	tag, err := language.Parse(locale)
 	if err != nil {
 		tag = language.English
@@ -50,24 +50,24 @@ func getLocaleFileNames(bundleID string, locale string) []string {
 	script := scriptTmp.String()
 	region := regionTmp.String()
 
-	defaultFile := fmt.Sprintf("%s/%s.properties", embedPropDir, bundleID)
+	defaultFile := fmt.Sprintf("%s/%s.properties", embedPropDir, filePrefix)
 
 	var files []string
 
 	// Special case for Chinese - must include the script
 	if lang == "zh" {
 		if script == "Hans" || region == "SG" || (script == "" && region == "") {
-			files = append(files, fmt.Sprintf("%s/%s_zh-Hans.properties", embedPropDir, bundleID))
+			files = append(files, fmt.Sprintf("%s/%s_zh-Hans.properties", embedPropDir, filePrefix))
 		} else if script == "Hant" || region == "TW" || region == "HK" || region == "MO" {
-			files = append(files, fmt.Sprintf("%s/%s_zh-Hant.properties", embedPropDir, bundleID))
+			files = append(files, fmt.Sprintf("%s/%s_zh-Hant.properties", embedPropDir, filePrefix))
 		}
 		files = append(files, defaultFile)
 		return files
 	}
 
 	return []string{
-		fmt.Sprintf("%s/%s_%s_%s.properties", embedPropDir, bundleID, lang, region),
-		fmt.Sprintf("%s/%s_%s.properties", embedPropDir, bundleID, lang),
+		fmt.Sprintf("%s/%s_%s_%s.properties", embedPropDir, filePrefix, lang, region),
+		fmt.Sprintf("%s/%s_%s.properties", embedPropDir, filePrefix, lang),
 		defaultFile,
 	}
 }
