@@ -8,7 +8,7 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
-	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/i18n"
 	"sassoftware.io/viya/arke/pkg/util"
 )
 

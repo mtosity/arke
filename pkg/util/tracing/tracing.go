@@ -15,7 +15,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
-	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/i18n"
 	"sassoftware.io/viya/arke/pkg/util"
 )
 

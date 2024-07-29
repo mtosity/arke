@@ -10,7 +10,7 @@ import (
 	"runtime/pprof"
 
 	"sassoftware.io/viya/arke"
-	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/i18n"
 	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
 	"sassoftware.io/viya/arke/pkg/util"
 )

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"sassoftware.io/viya/zlog"
-	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/i18n"
 )
 
 // Logger default logger

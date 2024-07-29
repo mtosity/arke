@@ -14,7 +14,7 @@ import (
 
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"sassoftware.io/viya/arke/pkg/i18n"
+	"sassoftware.io/viya/arke/i18n"
 	metrics "sassoftware.io/viya/arke/pkg/metrics/prometheus"
 	_ "sassoftware.io/viya/arke/pkg/provider/connectors" // initializes providers
 	"sassoftware.io/viya/arke/pkg/server"

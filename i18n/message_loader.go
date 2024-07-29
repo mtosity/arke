@@ -7,12 +7,12 @@ import (
 	"golang.org/x/text/language"
 )
 
-const embedPropDir = "assets"
-const messageFilePrefix = "messages"
+const embedPropDir = "resources"
+const messageFilePrefix = "GoLogMessages"
 
 var l10Messages []byte
 
-//go:embed assets/*.properties
+//go:embed resources/*.properties
 var propertyFiles embed.FS
 
 // L10n - Load the localization messages from the appropriate locale properties file
