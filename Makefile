@@ -169,15 +169,15 @@ compose_down: ## Removes integration tests Docker resources
 
 integration_test: ## Runs integration tests
 	echo -e "\033[0;36mNo providerTLS\033[0m"
-	go test -count=1 -v -tags=integration ./tests/integration/
+	cd tests/integration ; go test -count=1 -v -tags=integration ./
 
 integration_test_tls: ## Runs integration tests with TLS enabled
 	echo -e "\033[0;31mProvider TLS enabled\033[0m"
-	PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./tests/integration/
+	cd tests/integration ; PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./
 
 integration_test_tls_send_ca: ## Runs integraiton tests with TLS enabled by sending TLS certs
 	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
-	PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./tests/integration/
+	cd tests/integration ; PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./
 
 integration: compose integration_test ## Runs compose and integration_test
 
