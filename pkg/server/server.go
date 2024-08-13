@@ -214,9 +214,7 @@ consumeLoop:
 
 				source = cnsmRecv.msg.GetSrc()
 
-				if source.GetPrefetchCount() < 1 {
-					source.PrefetchCount = 1
-				}
+				SetSourceDefaults(source)
 
 				// verify source.SourceOptions
 				validOptions := prov.SupportedSourceOptions()
@@ -524,6 +522,24 @@ func (s *ConsumerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.E
 func (s *ProducerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 	retVal, _ := brokerDisconnect(ctx, empty)
 	return retVal, nil
+}
+
+func SetSourceDefaults(source *pb.Source) {
+	// Prefetch can not be less than 1 or it will cause a flood
+	// of messages
+	if source.GetPrefetchCount() < 1 {
+		source.PrefetchCount = 1
+	}
+
+	opts := source.GetOptions()
+	if _, ok := opts["Expires"]; !ok {
+		// Force auto-delete queues to expire after 5 minutes, unless
+		// the client has already set an Expires (PSGO-471)
+		if source.AutoDelete {
+			source.Options["Expires"] = "300000" // 5 minutes
+		}
+	}
+
 }
 
 func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) (*pb.ConnectResponse, error) {

@@ -637,6 +637,33 @@ func TestConsumerServerConsume(t *testing.T) {
 	stream.AssertExpectations(t)
 }
 
+func TestSetSourceDefaults(t *testing.T) {
+	sourceOptions := make(map[string]string)
+	sourceOptions["option1"] = "ok"
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions}
+
+	s.SetSourceDefaults(source)
+	opts := source.GetOptions()
+	assert.Equal(t, "", opts["Expires"])
+	assert.Equal(t, int32(1), source.GetPrefetchCount())
+
+	source.AutoDelete = true
+	s.SetSourceDefaults(source)
+	opts = source.GetOptions()
+	assert.Equal(t, "300000", opts["Expires"])
+	assert.Equal(t, int32(1), source.GetPrefetchCount())
+
+	sourceOptions["Expires"] = "5000"
+	source.Options = sourceOptions
+	s.SetSourceDefaults(source)
+	assert.Equal(t, "5000", opts["Expires"])
+	assert.Equal(t, int32(1), source.GetPrefetchCount())
+
+	source.PrefetchCount = 10
+	s.SetSourceDefaults(source)
+	assert.Equal(t, int32(10), source.GetPrefetchCount())
+}
+
 func TestConsumerServerConsume_Nack(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
