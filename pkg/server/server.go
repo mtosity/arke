@@ -531,12 +531,16 @@ func SetSourceDefaults(source *pb.Source) {
 		source.PrefetchCount = 1
 	}
 
-	opts := source.GetOptions()
-	if _, ok := opts["Expires"]; !ok {
-		// Force auto-delete queues to expire after 5 minutes, unless
-		// the client has already set an Expires (PSGO-471)
-		if source.AutoDelete {
-			source.Options["Expires"] = "300000" // 5 minutes
+	// Force auto-delete queues to expire after 5 minutes, unless
+	// the client has already set an Expires (PSGO-471)
+	if source.AutoDelete {
+		opts := source.GetOptions()
+		if opts == nil {
+			opts = make(map[string]string)
+		}
+		if _, ok := opts["Expires"]; !ok {
+			opts["Expires"] = "300000" // 5 minutes
+			source.Options = opts
 		}
 	}
 

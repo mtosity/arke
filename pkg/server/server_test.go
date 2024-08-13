@@ -637,6 +637,24 @@ func TestConsumerServerConsume(t *testing.T) {
 	stream.AssertExpectations(t)
 }
 
+func TestSetSourceDefaultsWithNoOptions(t *testing.T) {
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}}
+
+	s.SetSourceDefaults(source)
+	opts := source.GetOptions()
+	assert.Equal(t, "", opts["Expires"])
+	assert.Equal(t, int32(1), source.GetPrefetchCount())
+
+	source.AutoDelete = true
+	s.SetSourceDefaults(source)
+	opts = source.GetOptions()
+	assert.Equal(t, "300000", opts["Expires"])
+	assert.Equal(t, int32(1), source.GetPrefetchCount())
+
+	source.PrefetchCount = 10
+	s.SetSourceDefaults(source)
+	assert.Equal(t, int32(10), source.GetPrefetchCount())
+}
 func TestSetSourceDefaults(t *testing.T) {
 	sourceOptions := make(map[string]string)
 	sourceOptions["option1"] = "ok"
