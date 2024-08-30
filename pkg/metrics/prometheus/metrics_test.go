@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -97,6 +98,44 @@ func Test_gatherClientStats(t *testing.T) {
 
 func Test_Serve(t *testing.T) {
 	util.Logger.Level = zlog.Debug
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lis, err := net.Listen("tcp", ":50052")
+	assert.Nil(t, err)
+	go Serve(ctx, &lis)
+
+	req, err := http.NewRequest("GET", "http://localhost:50052/metrics", nil)
+	assert.Nil(t, err)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 200, res.StatusCode)
+	body, _ := io.ReadAll(res.Body)
+	sbody := string(body)
+	assert.Contains(t, sbody, "arke_client_active_messages")
+	assert.Contains(t, sbody, "go_info")
+	assert.Contains(t, sbody, "go_sync_mutex_wait_total_seconds_total")
+	assert.Contains(t, sbody, "go_memstats_next_gc_bytes")
+
+	// pprof not enabled
+	req, err = http.NewRequest("GET", "http://localhost:50052/debug/pprof/", nil)
+	assert.Nil(t, err)
+
+	res, err = client.Do(req)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 404, res.StatusCode)
+	body, _ = io.ReadAll(res.Body)
+	assert.Contains(t, string(body), "404 page not found")
+}
+
+func Test_ServePprofEnabled(t *testing.T) {
+	util.Logger.Level = zlog.Debug
+	os.Setenv(pprofEnv, "true")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

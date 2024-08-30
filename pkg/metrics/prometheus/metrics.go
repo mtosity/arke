@@ -5,7 +5,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +19,6 @@ import (
 
 	"sassoftware.io/viya/arke/pkg/metrics"
 	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 type stats struct {
@@ -30,6 +31,8 @@ var (
 	Stats    *stats
 	registry *prometheus.Registry
 )
+
+const pprofEnv = "PPROF_ENABLED"
 
 func init() {
 	Stats = &stats{}
@@ -63,13 +66,22 @@ func init() {
 	met.NewGlobal(promConf, Stats.Sink) //nolint errcheck
 }
 
+func pprofEnabled() bool {
+	enabled, err := strconv.ParseBool(os.Getenv(pprofEnv))
+	if err != nil {
+		enabled = false
+	}
+
+	return enabled
+}
+
 func setupServer() *http.Server {
 	promHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", gatherClientStatsHandler(promHandler))
 
-	if util.Logger.Level.String() == "debug" {
+	if pprofEnabled() {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
