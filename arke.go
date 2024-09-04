@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -21,6 +20,8 @@ import (
 	prometheus "sassoftware.io/viya/arke/pkg/server/prometheus"
 	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/arke/pkg/util/tracing"
+
+	"github.com/KimMachineGun/automemlimit/memlimit"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -91,12 +92,7 @@ func DefaultArkeServer() *Arke {
 	}
 	a.tracerProvider = tp
 
-	// If we have a memory limit, set the runntime
-	// soft memory limit to help prevent OOM Kills
-	memLimit := util.GetMemoryLimit()
-	if memLimit > 0 {
-		debug.SetMemoryLimit(memLimit)
-	}
+	setGoMemLimit()
 
 	portEnv := os.Getenv("PORT")
 	if portEnv != "" {
@@ -119,6 +115,18 @@ func DefaultArkeServer() *Arke {
 
 	a.server = grpc.NewServer(a.serverOptions...)
 	return a
+}
+
+func setGoMemLimit() {
+	_, _ = memlimit.SetGoMemLimitWithOpts(
+		memlimit.WithRatio(0.9),
+		memlimit.WithProvider(
+			memlimit.ApplyFallback(
+				memlimit.FromCgroup,
+				memlimit.FromSystem,
+			),
+		),
+	)
 }
 
 func (a Arke) listener() (net.Listener, error) {
