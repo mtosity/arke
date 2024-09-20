@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	pb "sassoftware.io/viya/arke/api"
 	v1 "k8s.io/api/autoscaling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -14,11 +13,13 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/i18n"
 )
 
 var LastGoAwayTime time.Time
 
-func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
+func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	currentReplicaCount := int32(-1)
 	var namespace string
 	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
@@ -57,11 +58,6 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 		return
 	}
 
-	arkeHpaName := os.Getenv("HPA_NAME")
-	if arkeHpaName == "" {
-		arkeHpaName = "arke"
-	}
-
 	defer func() {
 		// protect from send on closed channel
 		if err := recover(); err != nil {
@@ -96,8 +92,10 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code) {
 			}
 
 			if currentReplicaCount > 0 && newReplicaCount > currentReplicaCount {
+				Logger.InfoI(i18n.Scaled, arkeHpaName, currentReplicaCount, newReplicaCount)
+				// slight delay to let the service start load balancing
+				time.Sleep(10 * time.Second)
 				healthChan <- pb.HealthStatus_GOAWAY
-				Logger.InfoI("info.scaled", arkeHpaName, currentReplicaCount, newReplicaCount)
 			}
 
 			currentReplicaCount = newReplicaCount

@@ -77,6 +77,13 @@ func Test_WithCertFilePath(t *testing.T) {
 	assert.Equal(t, "/my/path", a.certFile)
 }
 
+func Test_WithHpaName(t *testing.T) {
+	a := &Arke{}
+	assert.Equal(t, "", a.hpaName)
+	a = a.WithHpaName("myHpaName")
+	assert.Equal(t, "myHpaName", a.hpaName)
+}
+
 func Test_tlsConfig_none(t *testing.T) {
 	a := Arke{}
 	cfg, err := a.tlsConfig()

@@ -43,9 +43,6 @@ func init() {
 		// go util.MonitorProcessStats(ctx)
 		go util.MonitorProcessStats()
 		util.Logger.Debug("Monitoring Horizontal Pod Autoscaler")
-		healthChan := make(chan pb.HealthStatus_Code)
-		go util.MonitorHPA(healthChan)
-		go monitorHealthChan(healthChan)
 	}
 }
 
@@ -672,7 +669,7 @@ func notifyHealth(clientAddr string, receiver chan pb.HealthStatus_Code) {
 	healthNotifiers.Add(clientAddr, receiver)
 }
 
-func monitorHealthChan(receiver chan pb.HealthStatus_Code) {
+func MonitorHealthChan(receiver chan pb.HealthStatus_Code) {
 	for code := range receiver {
 		for _, clientAddr := range healthNotifiers.GetList() {
 			if notifierInt, ok := healthNotifiers.Get(clientAddr); ok {

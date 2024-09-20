@@ -35,6 +35,7 @@ type Arke struct {
 	port           int
 	certFile       string
 	certKey        string
+	hpaName        string
 	server         *grpc.Server
 	tlsSkipVerify  bool
 	serverOptions  []grpc.ServerOption
@@ -62,6 +63,11 @@ func (a *Arke) WithCertKeyPath(path string) *Arke {
 	return a
 }
 
+func (a *Arke) WithHpaName(name string) *Arke {
+	a.hpaName = name
+	return a
+}
+
 func defaultKeepAliveParams() keepalive.ServerParameters {
 	return keepalive.ServerParameters{
 		Time:    20 * time.Second,
@@ -83,7 +89,8 @@ func defaultKeepAliveEnforcementPolicy() keepalive.EnforcementPolicy {
 func DefaultArkeServer() *Arke {
 
 	a := &Arke{
-		port: 50051,
+		port:    50051,
+		hpaName: "arke",
 	}
 
 	tp, err := tracing.InitTracerProvider()
@@ -198,6 +205,10 @@ func (a *Arke) Serve(ctx context.Context) error {
 
 	util.Logger.Debug("Registering health check service")
 	server.RegisterHealthServer(a.server)
+
+	healthChan := make(chan pb.HealthStatus_Code)
+	go util.MonitorHPA(healthChan, "sas-arke")
+	go server.MonitorHealthChan(healthChan)
 
 	util.Logger.Debug("Registering reflection service")
 	reflection.Register(a.server)
