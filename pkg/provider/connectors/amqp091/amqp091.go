@@ -584,7 +584,18 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 		}
 	}
 
-	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), source.GetAutoDelete(), source.GetExclusive(), args)
+	// if an AutoDelete source and x-expires is not set, set it to 5 minutes
+	if _, hasExpires := args["x-expires"]; (source.GetAutoDelete() || source.GetExclusive()) && !hasExpires {
+		args["x-expires"] = int(time.Duration(5 * time.Minute).Milliseconds())
+	}
+
+	// The AutoDelete and Exclusive parameters are now set to false because we have experienced issues
+	// related to those features (eg. x-expires on an AutoDelete queue will cause it to be deleted even if
+	// it has never had a consumer). Our clients currently also do not send Exclusive to arke. The client
+	// libraries will remove Exclusive and change it to AutoDelete with a UUID appended to the source.Name.
+	// A better alternative for how we use rabbit is to set both of these to false and set the x-expires
+	// header like we do above.
+	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), false, false, args)
 	if qErr != nil {
 		util.Logger.WarnI(i18n.QueueDeclareError, qErr.Error())
 	}

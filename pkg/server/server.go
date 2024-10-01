@@ -284,14 +284,14 @@ consumeLoop:
 						err := prov.Subscribe(cont, source, mc)
 						if err != nil {
 							util.Logger.WarnI(i18n.BrokerConnectError, err.Message)
-							*returnErr = fmt.Errorf(err.GetMessage())
+							*returnErr = errors.New(err.GetMessage())
 							if *stopFor != nil {
 								*stopFor <- true
 							}
 						}
 					} else {
 						util.Logger.WarnI(i18n.BrokerConnectError, "could not connect to broker")
-						*returnErr = fmt.Errorf("could not connect to broker")
+						*returnErr = errors.New("could not connect to broker")
 						if *stopFor != nil {
 							*stopFor <- true
 						}

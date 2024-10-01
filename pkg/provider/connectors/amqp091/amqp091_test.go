@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/pkg/provider"
+	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var ctx context.Context
@@ -1243,7 +1245,7 @@ func Test_Subscribe_Options(t *testing.T) {
 	cmock.On("ExchangeDeclare", "dla", "topic", false, false).Return(nil).Once()
 	cmock.On("ExchangeBind", address.GetName(), subjects[0], parent.GetName()).Return(nil)
 	cmock.On("ExchangeBind", address.GetName(), subjects[1], parent.GetName()).Return(nil)
-	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), expectedQueueArgs).Return(nil)
+	cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), false, false, expectedQueueArgs).Return(nil)
 	cmock.On("QueueDeclare", "srcname.dlq", false, false, false, amqp091Table{}).Return(nil)
 	cmock.On("QueueBind", src.GetName(), "subject1", address.GetName(), expectedMatchHeaders1).Return(nil).Once()
 	cmock.On("QueueBind", src.GetName(), "subject1", address.GetName(), expectedMatchHeaders2).Return(nil).Once()
@@ -1341,11 +1343,12 @@ func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
 
 	expectedQueueArgs := amqp091Table{}
 	expectedQueueArgs["x-queue-type"] = "quorum"
+	expectedQueueArgs["x-expires"] = 300000
 
 	cmock.On("SetPrefetch", 4).Return(nil)
 	cmock.On("Close").Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
-	cmock.On("QueueDeclare", src.GetName()+".quorum", src.GetDurable(), src.GetAutoDelete(), src.GetExclusive(), expectedQueueArgs).Return(nil)
+	cmock.On("QueueDeclare", src.GetName()+".quorum", src.GetDurable(), false, false, expectedQueueArgs).Return(nil)
 	cmock.On("Consume", src.GetName()+".quorum", false, src.GetExclusive()).Return(msgs, nil)
 	cancels := make(chan amqp091Error)
 	cmock.On("NotifyClose").Return(cancels)
@@ -2058,71 +2061,42 @@ func Test_cleanupBindings_none(t *testing.T) {
 	assert.Len(t, removed, 0)
 }
 
-// func Test_Publish_ChannelCloseError(t *testing.T) {
-// 	prov := NewAMQP091Provider()
+func Test_declareQueueAutoDelete(t *testing.T) {
 
-// 	oldGetClientIdentifier := GetClientIdentifier
-// 	GetClientIdentifier = func(context.Context) (string, error) {
-// 		return "1234", nil
-// 	}
+	var autoDeleteTests = []struct {
+		autoDelete bool
+		exclusive  bool
+		expires    int
+	}{
+		{true, false, 0},
+		{true, false, int(time.Duration(5 * time.Minute).Milliseconds())},
+		{false, true, 0},
+	}
 
-// 	subjects := make([]string)
-// 	subjects = append(subjects, "subject1")
-// 	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
+	for _, adt := range autoDeleteTests {
+		t.Run(fmt.Sprintf("AutoDeleteTest autoDelete:%t, exclusive: %t, expires:%d",
+			adt.autoDelete, adt.exclusive, adt.expires), func(t *testing.T) {
 
-// 	cmock := &amqpChannelMock{}
-// 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], mock.Anything).Return(nil)
-// 	cmock.On("Close").Return(nil)
-// 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete()).Return(nil).Once()
-// 	cmock.On("ExchangeBind", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-// 	amock := &amqpConnectionMock{}
-// 	amock.On("Connect").Return(nil)
+			bd := &BrokerDetails{
+				knownQueues: util.NewConcurrentMap(),
+			}
+			addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address"}
+			src := &pb.Source{Address: addr, Name: "queue", AutoDelete: adt.autoDelete, Exclusive: adt.exclusive}
 
-// 	errs := make(chan Amqp091Error)
-// 	amock.On("NotifyClose").Return(errs)
-// 	amock.On("NewChannel").Return(cmock, nil)
-// 	oldNewAmqpConn091 := NewAmqpConn091
-// 	NewAmqpConn091 = func(string, string, *tls.Config) Amqp091ConnectionShim {
-// 		return amock
-// 	}
+			expectedArgs := make(amqp091Table)
+			if adt.expires > 0 {
+				expectedArgs["x-expires"] = adt.expires
+			} else {
+				expectedArgs["x-expires"] = int(time.Duration(5 * time.Minute).Milliseconds())
+			}
 
-// 	mc := make(chan *pb.Message)
-// 	errchan := make(chan *pb.Error)
+			cmock := &amqpChannelMock{}
+			cmock.On("QueueDeclare", src.GetName(), src.GetDurable(), false, false, expectedArgs).Return(nil)
 
-// 	msg := &pb.Message{Address: address, Body: []byte("thebody")}
-
-// 	msg.Headers = make(map[string]string)
-// 	msg.Headers["Content-Type"] = "application/json"
-// 	msg.Headers["Content-Encoding"] = "utf8"
-
-// 	defer func() {
-// 		GetClientIdentifier = oldGetClientIdentifier
-// 		NewAmqpConn091 = oldNewAmqpConn091
-// 	}()
-
-// 	ctx := context.Background()
-// 	cc := &pb.ConnectionConfiguration{}
-// 	err := prov.Connect(ctx, cc, false)
-// 	assert.Nil(t, err)
-
-// 	done := make(chan bool)
-// 	go func() {
-// 		fmt.Println("publishing...")
-// 		suberr := prov.Publish(ctx, mc, errchan)
-// 		assert.NotNil(t, suberr)
-// 		assert.True(t, false)
-// 		done <- true
-// 	}()
-
-// 	// go func() {
-// 	time.Sleep(100 * time.Millisecond)
-// 	fmt.Printf("errs: %v\n", errs)
-// 	errs <- NewAmqp091Error("chanerr")
-// 	<-done
-// 	// }()
-// 	// time.Sleep(100 * time.Millisecond)
-
-// 	// cmock.AssertNumberOfCalls(t, "Publish", 1)
-// 	// cmock.AssertCalled(t, "ExchangeDeclare", address.GetName(), "headers", address.GetDurable(), address.GetAutoDelete())
-// 	// cmock.AssertCalled(t, "Publish", address.GetName(), address.GetSubjects()[0], mock.Anything)
-// }
+			prov := NewAMQP091Provider().(*amqp091provider)
+			err := prov.declareQueue(src, bd, cmock, false)
+			assert.Nil(t, err)
+			cmock.AssertExpectations(t)
+		})
+	}
+}
