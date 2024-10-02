@@ -104,6 +104,7 @@ func Test_Serve(t *testing.T) {
 
 	lis, err := net.Listen("tcp", ":50052")
 	assert.Nil(t, err)
+	defer lis.Close()
 	go Serve(ctx, &lis)
 
 	req, err := http.NewRequest("GET", "http://localhost:50052/metrics", nil)
@@ -140,11 +141,12 @@ func Test_ServePprofEnabled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	lis, err := net.Listen("tcp", ":50052")
+	lis, err := net.Listen("tcp", ":50053")
 	assert.Nil(t, err)
+	defer lis.Close()
 	go Serve(ctx, &lis)
 
-	req, err := http.NewRequest("GET", "http://localhost:50052/metrics", nil)
+	req, err := http.NewRequest("GET", "http://localhost:50053/metrics", nil)
 	assert.Nil(t, err)
 
 	client := &http.Client{}
@@ -159,7 +161,7 @@ func Test_ServePprofEnabled(t *testing.T) {
 	assert.Contains(t, sbody, "go_sync_mutex_wait_total_seconds_total")
 	assert.Contains(t, sbody, "go_memstats_next_gc_bytes")
 
-	req, err = http.NewRequest("GET", "http://localhost:50052/debug/pprof/", nil)
+	req, err = http.NewRequest("GET", "http://localhost:50053/debug/pprof/", nil)
 	assert.Nil(t, err)
 
 	res, err = client.Do(req)
