@@ -283,11 +283,15 @@ consumeLoop:
 					if connected {
 						err := prov.Subscribe(cont, source, mc)
 						if err != nil {
-							util.Logger.WarnI(i18n.BrokerConnectError, err.Message)
+							util.Logger.WarnI(i18n.SubscribeError, err.Message)
 							*returnErr = errors.New(err.GetMessage())
-							if *stopFor != nil {
-								*stopFor <- true
-							}
+						} else {
+							retMsg := "Subscribe quit unexpectedly"
+							util.Logger.WarnI(i18n.SubscribeError, retMsg)
+							*returnErr = errors.New(retMsg)
+						}
+						if *stopFor != nil {
+							*stopFor <- true
 						}
 					} else {
 						util.Logger.WarnI(i18n.BrokerConnectError, "could not connect to broker")

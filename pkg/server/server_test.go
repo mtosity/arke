@@ -637,6 +637,45 @@ func TestConsumerServerConsume(t *testing.T) {
 	stream.AssertExpectations(t)
 }
 
+func TestConsumerServerSubscribeReturnNil(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+	mockp.On("WaitForConnect", mock.Anything).Return(true)
+
+	sourceOptions := make(map[string]string)
+	sourceOptions["option1"] = "ok"
+	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions}
+	stream := &MockConsumerConsumeServerStream{}
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+
+	messages := make([]*pb.Message, 0)
+
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("one")})
+	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("two")})
+
+	mockp.MockMessages = messages
+
+	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Times(3)
+	stream.On("Recv").Return(cnsm, nil).Once()
+	cnsm = &pb.Consume{Msg: &pb.Consume_Ack{Ack: &pb.MessageConsumed{Uuid: "1"}}}
+	stream.On("Recv").Return(cnsm, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("stop")).Once().After(500 * time.Millisecond)
+
+	// We are returning an error after 500 ms as a simple way of exiting the subscribe
+	mockp.On("Subscribe", mock.Anything, source, mock.Anything).Return(nil).After(50 * time.Millisecond)
+	mockp.On("Ack", mock.Anything, mock.Anything).Return(nil)
+	conSrv.Connect(ctx, cf) //nolint errcheck
+	err := conSrv.Consume(stream)
+
+	// The Subscribe() call above should return nil after 50ms, Consume() should handle
+	// that properly. If Consume() does not handle that properly, then Recv() will return
+	// an error after 500ms with a message 'stop'. We should not get the 'stop' error message.
+	assert.NotEqual(t, err.Error(), "stop")
+
+	mockp.AssertExpectations(t)
+	stream.AssertExpectations(t)
+}
+
 func TestSetSourceDefaultsWithNoOptions(t *testing.T) {
 	source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}}
 
