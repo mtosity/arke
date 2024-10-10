@@ -233,7 +233,7 @@ func (ch *amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-ch
 		return nil, err
 	}
 
-	msgChan := make(chan amqp091Message)
+	msgChan := make(chan amqp091Message, 10)
 
 	go func() {
 		for del := range delChan {

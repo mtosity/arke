@@ -169,7 +169,8 @@ func (stream *MockProducerPublishServerStream) Send(*pb.MessageResponse) error {
 type MockProvider struct {
 	mock.Mock
 	provider.Provider
-	MockMessages []*pb.Message
+	MockMessages         []*pb.Message
+	SubscribeReturnDelay time.Duration
 }
 
 type MockContext struct {
@@ -197,6 +198,7 @@ func NewMockProvider() provider.Provider {
 	s.NewTimestampPB = func() *timestamppb.Timestamp {
 		return timestamppb.New(defaultDate)
 	}
+	prov.SubscribeReturnDelay = 500 * time.Millisecond
 	return prov
 }
 
@@ -263,6 +265,9 @@ func (prov *MockProvider) Connect(ctx context.Context, cf *pb.ConnectionConfigur
 // Subscribe subscribe to a stream of messages from the broker
 func (prov *MockProvider) Subscribe(ctx context.Context, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
 	args := prov.Called(ctx, source, messageChannel)
+	// Subscribe should be long running. Our tests need time to process the
+	// MockMessages below before an error is returned so we Sleep at the end.
+	defer time.Sleep(prov.SubscribeReturnDelay)
 
 	for _, msg := range prov.MockMessages {
 		messageChannel <- msg
@@ -654,6 +659,7 @@ func TestConsumerServerSubscribeReturnNil(t *testing.T) {
 	messages = append(messages, &pb.Message{Address: &pb.Address{Name: "addressname"}, Body: []byte("two")})
 
 	mockp.MockMessages = messages
+	mockp.SubscribeReturnDelay = 50 * time.Millisecond
 
 	stream.On("Send", mock.AnythingOfType("*api.ConsumeResponse")).Return(nil, nil).Times(3)
 	stream.On("Recv").Return(cnsm, nil).Once()
@@ -669,8 +675,8 @@ func TestConsumerServerSubscribeReturnNil(t *testing.T) {
 
 	// The Subscribe() call above should return nil after 50ms, Consume() should handle
 	// that properly. If Consume() does not handle that properly, then Recv() will return
-	// an error after 500ms with a message 'stop'. We should not get the 'stop' error message.
-	assert.NotEqual(t, err.Error(), "stop")
+	// an error after 500ms with a message 'stop'. We should get nil from Consume().
+	assert.Nil(t, err)
 
 	mockp.AssertExpectations(t)
 	stream.AssertExpectations(t)

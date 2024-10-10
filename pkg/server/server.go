@@ -145,7 +145,10 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 	var returnError error
 	isSubscribing := false
 
-	// stopForLoop is used for errors that require the exiting of Consume
+	// stopForLoop is used for errors that require the exiting of Consume,
+	// essentially if a long running goroutine needs to exit, it  needs to
+	// use stopForLoop as a killswitch for the entire Consume() because
+	// we don't want leaks.
 	stopForLoop := make(chan bool)
 	defer func() {
 		close(stopForLoop)
@@ -154,31 +157,36 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 
 	// messageChannel is used for sending messages from the provider back to Consume
 	// for sending back to the client
-	messageChannel := make(chan *pb.Message)
+	messageChannel := make(chan *pb.Message, 10)
 	defer close(messageChannel)
 
 	var source *pb.Source
 
+	// lCtx is our loop context, we use it to shutdown our long running goroutines
+	loopCtx, loopCancel := context.WithCancel(ctx)
+	// lCancel will signal to all long running goroutines to shutdown
+	defer loopCancel()
+
 consumeLoop:
 	for {
+		// recvChan is the channel used to send messages received from the client
+		// to the main processor below
+		recvChan := make(chan consumeRecv)
+
 		// stream.Recv in a goroutine so we can send
 		// received messages back on a channel and we can
-		// use select on that channel and the stopForLoop channel
+		// use select on that channel and the context.Done()
 		// in case of an error
-		recvChan := make(chan consumeRecv)
-		go func(strm pb.Consumer_ConsumeServer, rchan chan consumeRecv) {
+		go func(lCtx context.Context, strm pb.Consumer_ConsumeServer, rchan chan consumeRecv) {
 			msg, errer := strm.Recv()
 			cnsmRecv := consumeRecv{err: errer, msg: msg}
-			timer := time.NewTimer(10 * time.Second)
 			select {
 			case rchan <- cnsmRecv:
-				timer.Stop()
 				return
-			case <-timer.C:
-				timer.Stop()
+			case <-lCtx.Done():
 				return
 			}
-		}(stream, recvChan)
+		}(loopCtx, stream, recvChan)
 
 		select {
 		case <-ctx.Done():
@@ -205,7 +213,6 @@ consumeLoop:
 				if isSubscribing {
 					errMsg := "Only one source message allowed per subscribe"
 					_ = sender.Send(&pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: &pb.Message{Error: &pb.Error{Message: errMsg}}}})
-					// return errors.New(errMsg)
 					continue
 				}
 
@@ -231,12 +238,9 @@ consumeLoop:
 				}
 
 				isSubscribing = true
-				subCtx, subCancel := context.WithCancel(ctx)
 
 				// this goroutine receives messages from the provider and sends them to the client for processing
 				go func(mc <-chan *pb.Message, cont context.Context, stopFor *chan bool, returnErr *error) {
-					recvCtx, recvCancel := context.WithCancel(cont)
-					defer recvCancel()
 					for {
 						select {
 						case <-cont.Done():
@@ -250,7 +254,7 @@ consumeLoop:
 								message.Address = source.GetAddress()
 							}
 
-							_, span := tracing.SpanFromHeaders(recvCtx, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
+							_, span := tracing.SpanFromHeaders(cont, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
 							span.AddEvent("sending message from server to consumer client")
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := sender.Send(resp)
@@ -267,11 +271,10 @@ consumeLoop:
 							span.End()
 						}
 					}
-				}(messageChannel, subCtx, &stopForLoop, &returnError)
+				}(messageChannel, loopCtx, &stopForLoop, &returnError)
 
 				// call provider.Subscribe and use messageChannel to pass messages from the provider to the receiver func above
-				go func(mc chan<- *pb.Message, prov provider.Provider, cont context.Context, cncl context.CancelFunc, stopFor *chan bool, returnErr *error) {
-					defer cncl()
+				go func(mc chan<- *pb.Message, prov provider.Provider, cont context.Context, stopFor *chan bool, returnErr *error) {
 					defer func() {
 						if err := recover(); err != nil {
 							util.Logger.Warn(fmt.Sprintf("%v", err))
@@ -285,10 +288,6 @@ consumeLoop:
 						if err != nil {
 							util.Logger.WarnI(i18n.SubscribeError, err.Message)
 							*returnErr = errors.New(err.GetMessage())
-						} else {
-							retMsg := "Subscribe quit unexpectedly"
-							util.Logger.WarnI(i18n.SubscribeError, retMsg)
-							*returnErr = errors.New(retMsg)
 						}
 						if *stopFor != nil {
 							*stopFor <- true
@@ -300,7 +299,7 @@ consumeLoop:
 							*stopFor <- true
 						}
 					}
-				}(messageChannel, prov, subCtx, subCancel, &stopForLoop, &returnError)
+				}(messageChannel, prov, loopCtx, &stopForLoop, &returnError)
 
 			} else if cnsmRecv.msg.GetAck() != nil { // Ack or Nack the message
 				go func() {
