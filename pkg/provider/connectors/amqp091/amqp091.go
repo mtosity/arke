@@ -1168,8 +1168,8 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 			} else {
 				util.Logger.DebugI(i18n.ClientPublished, bd.ClientIdentifier)
 				bd.produced++
+				errChan <- nil
 			}
-			errChan <- nil
 			span.End()
 		}
 	}
