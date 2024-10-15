@@ -159,7 +159,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(amqp091Message)
 		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
-		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindConsumer)
+		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindInternal)
 		span.SetAttributes(attribute.String("messaging.message.id", msgid),
 			attribute.String("messaging.client_id", bd.ClientIdentifier))
 		span.AddEvent("provider acking message")
@@ -203,7 +203,7 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 
 		rm := rmu.(amqp091Message)
-		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindConsumer)
+		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindInternal)
 		span.SetAttributes(attribute.String("messaging.message.id", msgid),
 			attribute.String("messaging.client_id", bd.ClientIdentifier))
 		span.AddEvent("provider nacking message")
@@ -237,7 +237,7 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 	}
 
 	var retrySpan trace.Span
-	_, retrySpan = tracing.SpanFromHeaders(ctx, nil, msgid+" retry", trace.SpanKindConsumer)
+	_, retrySpan = tracing.SpanFromHeaders(ctx, nil, msgid+" retry", trace.SpanKindInternal)
 	defer func() {
 		if retrySpan != nil {
 			retrySpan.End()
@@ -820,7 +820,7 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	defer cancel()
 
 	var subSpan trace.Span
-	_, subSpan = tracing.SpanFromHeaders(newCtx, nil, source.GetAddress().GetName()+" subscribe setup", trace.SpanKindConsumer)
+	_, subSpan = tracing.SpanFromHeaders(newCtx, nil, source.GetAddress().GetName()+" subscribe setup", trace.SpanKindInternal)
 	subSpan.SetAttributes(attribute.String("source.name", source.GetName()),
 		attribute.String("messaging.client_id", bd.ClientIdentifier))
 
@@ -969,7 +969,7 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 			}
 			message := &pb.Message{Uuid: messageUUID, Body: msg.Body, Headers: headers, Address: source.GetAddress()}
 
-			_, span := tracing.SpanFromHeaders(ctx, message.GetHeaders(), source.GetAddress().GetName()+" subscribe", trace.SpanKindConsumer)
+			_, span := tracing.SpanFromHeaders(ctx, message.GetHeaders(), source.GetAddress().GetName()+" received from broker", trace.SpanKindInternal)
 
 			if tracing.Enabled() {
 				span.SetAttributes(attribute.String("source.name", source.GetName()),
@@ -981,6 +981,8 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 					span.SpanContext().SpanID().String(),
 					span.SpanContext().TraceFlags(),
 				)
+				msg.Headers[tracing.HeaderTraceState] = message.Headers[tracing.HeaderTraceState]
+				msg.Headers[tracing.HeaderTraceParent] = message.Headers[tracing.HeaderTraceParent]
 			}
 
 			span.AddEvent("sending message from provider to server for consume")

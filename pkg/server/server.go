@@ -254,7 +254,7 @@ consumeLoop:
 								message.Address = source.GetAddress()
 							}
 
-							_, span := tracing.SpanFromHeaders(cont, message.GetHeaders(), message.GetAddress().GetName()+" server subscribe", trace.SpanKindConsumer)
+							_, span := tracing.SpanFromHeaders(cont, message.GetHeaders(), message.GetAddress().GetName()+" delivery to client", trace.SpanKindInternal)
 							span.AddEvent("sending message from server to consumer client")
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := sender.Send(resp)
