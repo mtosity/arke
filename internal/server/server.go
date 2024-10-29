@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
+	"sassoftware.io/viya/arke/internal/util/tracing"
 	"strings"
 	"sync"
 	"time"
@@ -15,12 +18,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/i18n"
-	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util/tracing"
-
 	// Import the connectors so their init functions are executed
-	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
-	"sassoftware.io/viya/arke/pkg/util"
+	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
 var GetClientAddr = util.GetClientAddr

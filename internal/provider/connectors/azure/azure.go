@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
+	"sassoftware.io/viya/arke/internal/util/tracing"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,9 +20,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/i18n"
-	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util"
-	"sassoftware.io/viya/arke/pkg/util/tracing"
 )
 
 const providerName string = "azure"

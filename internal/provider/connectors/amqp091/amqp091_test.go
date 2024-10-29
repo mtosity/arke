@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
 	"strconv"
 	"testing"
 	"time"
@@ -17,8 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var ctx context.Context

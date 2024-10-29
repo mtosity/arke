@@ -7,6 +7,8 @@ import (
 	"net/http/pprof"
 	"os"
 	"regexp"
+	"sassoftware.io/viya/arke/internal/metrics"
+	"sassoftware.io/viya/arke/internal/provider"
 	"strconv"
 	"strings"
 	"time"
@@ -16,9 +18,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"sassoftware.io/viya/arke/pkg/metrics"
-	"sassoftware.io/viya/arke/pkg/provider"
 )
 
 type stats struct {

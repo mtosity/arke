@@ -7,6 +7,9 @@ import (
 	"io"
 	"regexp"
 	"runtime"
+	"sassoftware.io/viya/arke/internal/provider"
+	s "sassoftware.io/viya/arke/internal/server"
+	"sassoftware.io/viya/arke/internal/util"
 	"testing"
 	"time"
 
@@ -16,10 +19,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/provider"
-	s "sassoftware.io/viya/arke/pkg/server"
-	"sassoftware.io/viya/arke/pkg/util"
-	// mp "sassoftware.io/viya/arke/pkg/provider/mock"
+	// mp "sassoftware.io/viya/arke/internal/provider/mock"
 )
 
 var ctx context.Context

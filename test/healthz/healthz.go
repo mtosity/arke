@@ -8,13 +8,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sassoftware.io/viya/arke/internal/util"
 	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 const (

@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 	"os"
+	"sassoftware.io/viya/arke/internal/util"
 	"strconv"
 	"sync"
 
@@ -16,7 +17,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 	"sassoftware.io/viya/arke/i18n"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 var initResourcesOnce sync.Once

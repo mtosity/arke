@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/util"
+	"sassoftware.io/viya/arke/internal/util"
 	cfg "sassoftware.io/viya/arke/test/config"
 )
 

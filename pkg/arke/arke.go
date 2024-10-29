@@ -8,27 +8,23 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	metrics "sassoftware.io/viya/arke/internal/metrics/prometheus"
+	"sassoftware.io/viya/arke/internal/server"
+	"sassoftware.io/viya/arke/internal/server/prometheus"
+	"sassoftware.io/viya/arke/internal/util"
+	"sassoftware.io/viya/arke/internal/util/tracing"
 	"strconv"
 	"time"
 
+	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"sassoftware.io/viya/arke/i18n"
-	metrics "sassoftware.io/viya/arke/pkg/metrics/prometheus"
-	_ "sassoftware.io/viya/arke/pkg/provider/connectors" // initializes providers
-	"sassoftware.io/viya/arke/pkg/server"
-	prometheus "sassoftware.io/viya/arke/pkg/server/prometheus"
-	"sassoftware.io/viya/arke/pkg/util"
-	"sassoftware.io/viya/arke/pkg/util/tracing"
-
-	"github.com/KimMachineGun/automemlimit/memlimit"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
-
-	pb "sassoftware.io/viya/arke/api"
-
 	"google.golang.org/grpc/reflection"
+	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/i18n"
+	_ "sassoftware.io/viya/arke/internal/provider/connectors" // initializes providers
 )
 
 type Arke struct {

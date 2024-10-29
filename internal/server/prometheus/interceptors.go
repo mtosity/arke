@@ -2,14 +2,13 @@ package prometheus
 
 import (
 	"context"
+	"sassoftware.io/viya/arke/internal/metrics"
+	"sassoftware.io/viya/arke/internal/metrics/prometheus"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"time"
 
 	"google.golang.org/grpc"
-
-	"sassoftware.io/viya/arke/pkg/metrics"
-	"sassoftware.io/viya/arke/pkg/metrics/prometheus"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // UnaryInterceptor unary grpc interceptor

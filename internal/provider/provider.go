@@ -3,12 +3,12 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // Provider provider interface

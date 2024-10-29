@@ -6,17 +6,16 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sassoftware.io/viya/arke/internal/metrics"
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"sassoftware.io/viya/zlog"
 
-	"sassoftware.io/viya/arke/pkg/metrics"
-	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util"
-
-	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
+	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
 func Test_Metrics(t *testing.T) {

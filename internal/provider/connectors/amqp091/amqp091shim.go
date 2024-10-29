@@ -3,13 +3,13 @@ package amqp091
 import (
 	"context"
 	"crypto/tls"
+	"sassoftware.io/viya/arke/internal/util"
 	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
 	"sassoftware.io/viya/arke/i18n"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // amqp091ConnectionShim Shim so we can do unit testing

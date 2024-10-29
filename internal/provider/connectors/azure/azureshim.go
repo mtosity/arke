@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 const STANDARD = "Standard"

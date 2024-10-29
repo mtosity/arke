@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 func init() {

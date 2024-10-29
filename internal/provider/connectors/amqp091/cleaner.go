@@ -1,10 +1,9 @@
-package azure
+package amqp091
 
 import (
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
 	"time"
-
-	"sassoftware.io/viya/arke/pkg/provider"
-	"sassoftware.io/viya/arke/pkg/util"
 )
 
 // every 30 seconds check the list of active connections
@@ -13,8 +12,8 @@ import (
 // Severed client connections may hang around for up to 60
 // seconds since we are checking every 30.
 func connectionCleaner() {
-	provy, _ := provider.GetProvider("azure")
-	prov := provy.(*azureprovider)
+	provy, _ := provider.GetProvider("amqp091")
+	prov := provy.(*amqp091provider)
 	ticker := time.NewTicker(30 * time.Second)
 	for {
 		<-ticker.C

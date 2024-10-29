@@ -3,15 +3,15 @@ package provider_test
 import (
 	"bytes"
 	"regexp"
+	p "sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	p "sassoftware.io/viya/arke/pkg/provider"
-	_ "sassoftware.io/viya/arke/pkg/provider/connectors"
-	"sassoftware.io/viya/arke/pkg/util"
 	"sassoftware.io/viya/zlog"
+	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
 func TestNewProvider(t *testing.T) {
