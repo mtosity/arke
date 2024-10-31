@@ -20,7 +20,7 @@ func connectionCleaner() {
 		for _, connID := range prov.connections.GetList() {
 			if conn, ok := prov.connections.Get(connID); ok {
 				bd := conn.(*BrokerDetails)
-				util.Logger.Debugf("Client %v has %d open streams", connID, bd.ActiveStreams)
+				util.Logger.Tracef("Client %v has %d open streams", connID, bd.ActiveStreams)
 				lastKnown := time.Since(bd.lastPubSubEvent)
 				if bd.ActiveStreams < 1 && lastKnown > 30*time.Second {
 					util.Logger.Debugf("Client %v has had no streams open for %v. Assuming dead. Disconnecting.", connID, lastKnown)

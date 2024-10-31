@@ -65,7 +65,7 @@ func MonitorProcessStats() {
 		cpuUsage := 100 * ((float64(totalTime) / float64(ps.hz)) / seconds)
 		cpuHistory = cpuHistory[1:]
 		cpuHistory = append(cpuHistory, cpuUsage)
-		Logger.Debugf("CPU Usage: %0.2f%%, Memory Heap (bytes): %d", cpuUsage, mem.HeapAlloc)
+		Logger.Tracef("CPU Usage: %0.2f%%, Memory Heap (bytes): %d", cpuUsage, mem.HeapAlloc)
 		lastProcStat = ps
 
 		<-ticker.C

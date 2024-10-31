@@ -158,7 +158,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		rm := rmu.(amqp091Message)
-		util.Logger.Debugf("Acking message %s with tag %d", msgid, rm.DeliveryTag)
+		util.Logger.Tracef("Acking message %s with tag %d", msgid, rm.DeliveryTag)
 		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindInternal)
 		span.SetAttributes(attribute.String("messaging.message.id", msgid),
 			attribute.String("messaging.client_id", bd.ClientIdentifier))
@@ -166,7 +166,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 
 		err = rm.Ack()
 	} else {
-		util.Logger.DebugI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
+		util.Logger.TraceI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
 	}
 
@@ -180,7 +180,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 		span.RecordError(err)
 		return errMsg
 	}
-	util.Logger.DebugI(i18n.AckMessage, bd.ClientIdentifier, msgid)
+	util.Logger.TraceI(i18n.AckMessage, bd.ClientIdentifier, msgid)
 	span.AddEvent("provider acked message successfully")
 	bd.activeMessages.Delete(msgid)
 	return nil
@@ -790,7 +790,7 @@ func (prov *amqp091provider) declareBinding(source *pb.Source, bd *BrokerDetails
 	}
 
 	removed := bd.cleanupBindings(source, subjects)
-	util.Logger.Debugf("removed %d bindings from %s", len(removed), source.GetName())
+	util.Logger.Tracef("removed %d bindings from %s", len(removed), source.GetName())
 
 	bd.knownBindings.Add(knownBindingKey, true)
 	return nil
@@ -1168,7 +1168,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 				}
 				errChan <- errMsg
 			} else {
-				util.Logger.DebugI(i18n.ClientPublished, bd.ClientIdentifier)
+				util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
 				bd.produced++
 				errChan <- nil
 			}
