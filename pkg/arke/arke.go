@@ -8,13 +8,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"time"
+
 	metrics "sassoftware.io/viya/arke/internal/metrics/prometheus"
 	"sassoftware.io/viya/arke/internal/server"
 	"sassoftware.io/viya/arke/internal/server/prometheus"
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/internal/util/tracing"
-	"strconv"
-	"time"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/soheilhy/cmux"
@@ -132,6 +133,8 @@ func setGoMemLimit() {
 	)
 }
 
+// listener returns a TLS-enabled listener if the certFile and certKey are set,
+// otherwise a plain TCP listener.
 func (a Arke) listener() (net.Listener, error) {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
@@ -148,6 +151,7 @@ func (a Arke) listener() (net.Listener, error) {
 	return lis, nil
 }
 
+// tlsConfig returns an arke-suitable TLS config if the certFile and certKey are set.
 func (a Arke) tlsConfig() (*tls.Config, error) {
 	if a.certFile != "" && a.certKey != "" {
 		certificate, err := tls.LoadX509KeyPair(a.certFile, a.certKey)
@@ -167,6 +171,10 @@ func (a Arke) tlsConfig() (*tls.Config, error) {
 	return nil, nil
 }
 
+// Serve starts the Arke server and blocks until the server is stopped or an error
+// if it fails to start. OTEL is initialized, endpoints are registered, the server
+// begins listening for incoming gRPC and https connections. Server will also
+// startup routines to monitor the number of Arke pods running in K8S.
 func (a *Arke) Serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

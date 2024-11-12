@@ -7,17 +7,19 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
-	"sassoftware.io/viya/arke/internal/util/tracing"
 	"strings"
 	"sync"
 	"time"
+
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
+	"sassoftware.io/viya/arke/internal/util/tracing"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	pb "sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/i18n"
+
 	// Import the connectors so their init functions are executed
 	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
@@ -89,13 +91,14 @@ type HealthzServer struct {
 	pb.UnimplementedHealthzServer
 }
 
-// Connect Connect for the producer server
+// Connect to the message broker and track the connection. If a previous connection exists the client,
+// it will not connect again.
 func (s *ProducerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
 	resp, err := brokerConnect(ctx, cf, s.TLSSkipVerify)
 	return resp, err
 }
 
-// Connect Connect for the consumer server
+// Connect see (ProducerServer).Connect
 func (s *ConsumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
 	resp, err := brokerConnect(ctx, cf, s.TLSSkipVerify)
 	return resp, err
@@ -671,6 +674,7 @@ func notifyHealth(clientAddr string, receiver chan pb.HealthStatus_Code) {
 	healthNotifiers.Add(clientAddr, receiver)
 }
 
+// MonitorHealthChan monitors the health of the server and sends notifications to clients
 func MonitorHealthChan(receiver chan pb.HealthStatus_Code) {
 	for code := range receiver {
 		for _, clientAddr := range healthNotifiers.GetList() {

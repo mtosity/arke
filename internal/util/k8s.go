@@ -19,6 +19,8 @@ import (
 
 var LastGoAwayTime time.Time
 
+// MonitorHPA monitors the HPA for changes and sends a GOAWAY signal to the health check
+// channel when the replica count is increased
 func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	currentReplicaCount := int32(-1)
 	var namespace string

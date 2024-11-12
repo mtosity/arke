@@ -3,15 +3,18 @@ package provider
 import (
 	"context"
 	"fmt"
-	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"sync"
 	"sync/atomic"
 
+	"sassoftware.io/viya/arke/internal/util"
+
 	pb "sassoftware.io/viya/arke/api"
 )
 
-// Provider provider interface
+// Provider interface is for broker providers. For instance, to access
+// a message broker using ampq091 (such as RabbitMQ), an ampq091 provider
+// would implement this interface.
 type Provider interface {
 	Publish(context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
 	Subscribe(context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
@@ -72,6 +75,7 @@ func (po *providerOnce) Do(f func() Provider) Provider {
 	return nil
 }
 
+// NewProvider creates a new provider of the given type
 func NewProvider(providerType string) (Provider, error) {
 	pf, ok := registeredProviderTypes.Get(providerType)
 	if !ok {
@@ -87,6 +91,8 @@ func NewProvider(providerType string) (Provider, error) {
 	return provider, nil
 }
 
+// GetProvider returns a provider of the given type. If the provider is not
+// already created, it will create a new one.
 func GetProvider(providerType string) (Provider, error) {
 	_, registered := registeredProviders.Get(providerType)
 
@@ -105,6 +111,7 @@ func GetProvider(providerType string) (Provider, error) {
 	return prov.(Provider), nil
 }
 
+// Register registers a provider's name with the factory method to create it
 func Register(name string, factory Factory) {
 	if factory == nil {
 		util.Logger.Debugf("Provider factory %s can not be nil.", name)

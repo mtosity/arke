@@ -3,9 +3,10 @@ package amqp091
 import (
 	"context"
 	"crypto/tls"
-	"sassoftware.io/viya/arke/internal/util"
 	"sync"
 	"time"
+
+	"sassoftware.io/viya/arke/internal/util"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/mock"
@@ -243,7 +244,7 @@ func (ch *amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-ch
 	return msgChan, nil
 }
 
-// Publish Publish a message to an exchange
+// Publish Publish a message to an exchange without confirmation
 func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Message) error {
 	err := ch.ensureChannel()
 	if err != nil {

@@ -3,36 +3,39 @@
 
 ## Table of Contents
 
-- [Protocol Documentation](#protocol-documentation)
-  - [Table of Contents](#table-of-contents)
-  - [arke.proto](#arkeproto)
-    - [Address](#address)
-    - [ConnectResponse](#connectresponse)
-    - [ConnectionConfiguration](#connectionconfiguration)
-    - [Consume](#consume)
-    - [ConsumeResponse](#consumeresponse)
-    - [Credentials](#credentials)
-    - [Empty](#empty)
-    - [Error](#error)
-    - [Filter](#filter)
-    - [Health](#health)
-    - [HealthCheck](#healthcheck)
-    - [HealthStatus](#healthstatus)
-    - [Match](#match)
-    - [Message](#message)
-    - [Message.HeadersEntry](#messageheadersentry)
-    - [MessageConsumed](#messageconsumed)
-    - [MessageConsumedResponse](#messageconsumedresponse)
-    - [MessageResponse](#messageresponse)
-    - [Source](#source)
-    - [Source.OptionsEntry](#sourceoptionsentry)
-    - [Address.TargetType](#addresstargettype)
-    - [Filter.MatchType](#filtermatchtype)
-    - [HealthStatus.Code](#healthstatuscode)
-    - [Consumer](#consumer)
-    - [Healthz](#healthz)
-    - [Producer](#producer)
-  - [Scalar Value Types](#scalar-value-types)
+- [arke.proto](#arke-proto)
+    - [Address](#arke-Address)
+    - [ConnectResponse](#arke-ConnectResponse)
+    - [ConnectionConfiguration](#arke-ConnectionConfiguration)
+    - [Consume](#arke-Consume)
+    - [ConsumeResponse](#arke-ConsumeResponse)
+    - [Credentials](#arke-Credentials)
+    - [Empty](#arke-Empty)
+    - [Error](#arke-Error)
+    - [Filter](#arke-Filter)
+    - [Health](#arke-Health)
+    - [HealthCheck](#arke-HealthCheck)
+    - [HealthStatus](#arke-HealthStatus)
+    - [Match](#arke-Match)
+    - [Message](#arke-Message)
+    - [Message.HeadersEntry](#arke-Message-HeadersEntry)
+    - [MessageConsumed](#arke-MessageConsumed)
+    - [MessageConsumedResponse](#arke-MessageConsumedResponse)
+    - [MessageResponse](#arke-MessageResponse)
+    - [Source](#arke-Source)
+    - [Source.OptionsEntry](#arke-Source-OptionsEntry)
+  
+    - [Address.TargetType](#arke-Address-TargetType)
+    - [Filter.MatchType](#arke-Filter-MatchType)
+    - [HealthStatus.Code](#arke-HealthStatus-Code)
+  
+    - [Consumer](#arke-Consumer)
+    - [Healthz](#arke-Healthz)
+    - [Producer](#arke-Producer)
+  
+- [Scalar Value Types](#scalar-value-types)
+
+
 
 <a name="arke-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
@@ -388,9 +391,13 @@ Represents the source for consumer subscriptions.
 
 
 
+ 
+
+
 <a name="arke-Address-TargetType"></a>
 
 ### Address.TargetType
+
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
@@ -398,18 +405,24 @@ Represents the source for consumer subscriptions.
 | QUEUE | 1 | The address is a message queue. |
 | FILTER | 2 | The address is a filtered queue. |
 
+
+
 <a name="arke-Filter-MatchType"></a>
 
 ### Filter.MatchType
+
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
 | ALL | 0 | All matches must match for a successful filter. |
 | ANY | 1 | Any match can match for a successful filter. |
 
+
+
 <a name="arke-HealthStatus-Code"></a>
 
 ### HealthStatus.Code
+
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
@@ -417,10 +430,15 @@ Represents the source for consumer subscriptions.
 | UNHEALTHY | 1 | Everything is not fine (cpu/memory high) but we are operational. |
 | GOAWAY | 2 | Please go away and come back. |
 
+
+ 
+
+ 
+
+
 <a name="arke-Consumer"></a>
 
 ### Consumer
-
 Service for consuming messages
 
 | Method Name | Request Type | Response Type | Description |
@@ -429,28 +447,29 @@ Service for consuming messages
 | Consume | [Consume](#arke-Consume) stream | [ConsumeResponse](#arke-ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
+
 <a name="arke-Healthz"></a>
 
 ### Healthz
-
 Service for health checks and communication
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | Check | [Health](#arke-Health) stream | [Health](#arke-Health) stream |  |
 
+
 <a name="arke-Producer"></a>
 
 ### Producer
-
 Service for producing messages
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | Connect | [ConnectionConfiguration](#arke-ConnectionConfiguration) | [ConnectResponse](#arke-ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
-| Publish | [Message](#arke-Message) stream | [MessageResponse](#arke-MessageResponse) stream | Send messages to the message broker. |
+| Publish | [Message](#arke-Message) stream | [MessageResponse](#arke-MessageResponse) stream | Send a stream of messages to the message broker. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
+ 
 
 
 
@@ -473,3 +492,4 @@ Service for producing messages
 | <a name="bool" /> bool |  | bool | boolean | boolean | bool | bool | boolean | TrueClass/FalseClass |
 | <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode | string | string | string | String (UTF-8) |
 | <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str | []byte | ByteString | string | String (ASCII-8BIT) |
+
