@@ -27,10 +27,10 @@ type amqp091ChannelShim interface {
 	Close() error
 	IsClosed() bool
 	Publish(string, string, amqp091Message) error
-	ExchangeDeclare(string, string, bool, bool) error
+	ExchangeDeclare(string, string, bool) error
 	ExchangeBind(string, string, string) error
 	SetPrefetch(int) error
-	QueueDeclare(string, bool, bool, bool, amqp091Table) error
+	QueueDeclare(string, bool, bool, amqp091Table) error
 	QueueBind(string, string, string, amqp091Table) error
 	Consume(string, bool, bool) (<-chan amqp091Message, error)
 	NotifyClose(chan amqp091Error) chan amqp091Error
@@ -174,13 +174,14 @@ func (ch *amqp091Channel) ensureChannel() error {
 }
 
 // ExchangeDeclare Declare a new exchange
-func (ch *amqp091Channel) ExchangeDeclare(addressName, exchangeType string, durable, autoDelete bool) error {
+func (ch *amqp091Channel) ExchangeDeclare(addressName, exchangeType string, autoDelete bool) error {
 	err := ch.ensureChannel()
 	if err != nil {
 		return err
 	}
 
-	return ch.channel.ExchangeDeclare(addressName, exchangeType, durable, autoDelete, false, false, nil)
+	// RabbitMQ has issues with transient queues, therefore we always set Durable to true PSGO-649
+	return ch.channel.ExchangeDeclare(addressName, exchangeType, true, autoDelete, false, false, nil)
 }
 
 // ExchangeBind Bind an exchange to another exchange
@@ -194,13 +195,14 @@ func (ch *amqp091Channel) ExchangeBind(addressName, subject, parentName string) 
 }
 
 // QueueDeclare Create a queue
-func (ch *amqp091Channel) QueueDeclare(name string, durable, autoDelete, exclusive bool, args amqp091Table) error {
+func (ch *amqp091Channel) QueueDeclare(name string, autoDelete, exclusive bool, args amqp091Table) error {
 	err := ch.ensureChannel()
 	if err != nil {
 		return err
 	}
 
-	_, err = ch.channel.QueueDeclare(name, durable, autoDelete, exclusive, false, toAmqpTable(args))
+	// RabbitMQ has issues with transient queues, therefore we always pass Durable=true (PSGO-649)
+	_, err = ch.channel.QueueDeclare(name, true, autoDelete, exclusive, false, toAmqpTable(args))
 	return err
 }
 

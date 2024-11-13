@@ -12,13 +12,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
-	"sassoftware.io/viya/arke/internal/util/tracing"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
+	"sassoftware.io/viya/arke/internal/util/tracing"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -417,6 +418,7 @@ func (prov *amqp091provider) setupDeadLetter(ctx context.Context, origSource *pb
 
 	source := &pb.Source{
 		Name: sourceName,
+		Type: pb.Source_TEMPORARY,
 		Address: &pb.Address{
 			Subjects: subjects,
 			Type:     pb.Address_TOPIC,
@@ -451,6 +453,22 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 		return "", fmt.Errorf("%s is not a valid address type", aType)
 	}
 	return exchangeType, nil
+}
+
+func sourceTypeToAmqpType(source *pb.Source) (string, error) {
+	var queueType string
+	if source.GetAutoDelete() {
+		return "classic", nil
+	}
+	switch source.GetType() {
+	case pb.Source_QUEUE:
+		queueType = "quorum"
+	case pb.Source_TEMPORARY:
+		queueType = "classic"
+	default:
+		return "", fmt.Errorf("%s is not a valid source type", source.GetType())
+	}
+	return queueType, nil
 }
 
 func (bd *BrokerDetails) exchangeKnown(name string) bool {
@@ -503,7 +521,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 		}
 		util.Logger.InfoI(i18n.ExchangeDeclare, address.GetName())
 
-		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetDurable(), address.GetAutoDelete())
+		err = amqpChannel.ExchangeDeclare(address.GetName(), exchangeType, address.GetAutoDelete())
 		if err != nil {
 			util.Logger.WarnI(i18n.ExchangeDeclareError, err.Error())
 			return err
@@ -543,10 +561,10 @@ func sourceName(source *pb.Source) string {
 }
 
 func isQuorum(source *pb.Source) bool {
-	if source.AutoDelete || !source.Durable {
+	if source.GetAutoDelete() {
 		return false
 	}
-	return true
+	return source.GetType() == pb.Source_QUEUE
 }
 
 func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
@@ -557,9 +575,11 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 
 	args := make(amqp091Table)
 
-	if isQuorum(source) {
-		args["x-queue-type"] = "quorum"
+	tmpType, mapErr := sourceTypeToAmqpType(source)
+	if mapErr != nil {
+		return errors.New(mapErr.Error())
 	}
+	args["x-queue-type"] = tmpType
 
 	for option, value := range source.GetOptions() {
 		switch option {
@@ -595,7 +615,7 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 	// libraries will remove Exclusive and change it to AutoDelete with a UUID appended to the source.Name.
 	// A better alternative for how we use rabbit is to set both of these to false and set the x-expires
 	// header like we do above.
-	qErr := amqpChannel.QueueDeclare(source.GetName(), source.GetDurable(), false, false, args)
+	qErr := amqpChannel.QueueDeclare(source.GetName(), false, false, args)
 	if qErr != nil {
 		util.Logger.WarnI(i18n.QueueDeclareError, qErr.Error())
 	}
@@ -814,6 +834,11 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
+	// AutoDelete queues are temporary, override what
+	// we get from the client
+	if source.GetAutoDelete() {
+		source.Type = pb.Source_TEMPORARY
+	}
 	source.Name = sourceName(source)
 
 	newCtx, cancel := context.WithCancel(ctx)

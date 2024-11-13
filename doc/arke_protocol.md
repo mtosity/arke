@@ -28,6 +28,7 @@
     - [Address.TargetType](#arke-Address-TargetType)
     - [Filter.MatchType](#arke-Filter-MatchType)
     - [HealthStatus.Code](#arke-HealthStatus-Code)
+    - [Source.TargetType](#arke-Source-TargetType)
   
     - [Consumer](#arke-Consumer)
     - [Healthz](#arke-Healthz)
@@ -57,7 +58,6 @@ Represents the publishing destination for a message.
 | name | [string](#string) |  | The name of this destination address. |
 | subjects | [string](#string) | repeated | The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish. |
 | type | [Address.TargetType](#arke-Address-TargetType) |  | Target type, default is TOPIC. |
-| durable | [bool](#bool) |  | Should the address be durable. |
 | auto_delete | [bool](#bool) |  | Should the address automatically delete. |
 | parent_address | [Address](#arke-Address) |  | A parent Address. Usage includes Address to Address binding. |
 
@@ -364,12 +364,12 @@ Represents the source for consumer subscriptions.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The name of this source. |
 | address | [Address](#arke-Address) |  | The Address associated with this source. |
-| durable | [bool](#bool) |  | Should this Source be durable. |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
 | options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
 | filters | [Filter](#arke-Filter) | repeated | Filters for this Source. |
+| type | [Source.TargetType](#arke-Source-TargetType) |  | Target type, default is QUEUE. |
 
 
 
@@ -430,6 +430,17 @@ Represents the source for consumer subscriptions.
 | UNHEALTHY | 1 | Everything is not fine (cpu/memory high) but we are operational. |
 | GOAWAY | 2 | Please go away and come back. |
 
+
+
+<a name="arke-Source-TargetType"></a>
+
+### Source.TargetType
+
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| QUEUE | 0 | The Source is a HA queue |
+| TEMPORARY | 1 | The Source is a temporary queue |
 
  
 

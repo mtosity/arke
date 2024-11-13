@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 	"time"
+
+	"sassoftware.io/viya/arke/internal/util"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
@@ -1423,7 +1424,6 @@ func Test_generateRules_with_filters(t *testing.T) {
 		Address:       address,
 		Options:       options,
 		Filters:       filters,
-		Durable:       true,
 		Exclusive:     true,
 		AutoDelete:    true,
 		PrefetchCount: 4}
@@ -1446,7 +1446,6 @@ func Test_generateRules_no_filters(t *testing.T) {
 	address := &pb.Address{Name: "topicName", Subjects: subjects, ParentAddress: parent, Type: pb.Address_FILTER}
 	src := &pb.Source{Name: "srcname",
 		Address:       address,
-		Durable:       true,
 		Exclusive:     true,
 		AutoDelete:    true,
 		PrefetchCount: 4}
@@ -1500,7 +1499,6 @@ func Test_Subscribe_Options(t *testing.T) {
 		Address:       address,
 		Options:       options,
 		Filters:       filters,
-		Durable:       true,
 		Exclusive:     true,
 		AutoDelete:    true,
 		PrefetchCount: 4}
