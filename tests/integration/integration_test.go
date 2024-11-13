@@ -19,12 +19,12 @@ import (
 	"time"
 
 	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/internal/util"
 	cfg "sassoftware.io/viya/arke/test/config"
 )
 
@@ -1311,7 +1311,7 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 
 func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	t.Skip("This test is flaky. Skipping for now.")
-	expectedMsgBodyUUID := util.GenUUID()
+	expectedMsgBodyUUID := uuid.New().String()
 
 	// Set up the consumer
 	// Produce a single message
@@ -1682,7 +1682,7 @@ func TestDeadLetteringRejectDurable(t *testing.T) {
 		return delay, err
 	}
 
-	testUUID := util.GenUUID()
+	testUUID := uuid.New().String()
 
 	consumerConnection1 := connect()
 	deadLetterExchange := "sas.dlq"
