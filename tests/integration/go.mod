@@ -6,8 +6,8 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.7.1
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/grpc v1.65.0
-	sassoftware.io/viya/arke v1.21.1-0.20240807174511-2199d500a607
-	sassoftware.io/viya/arke/api v1.2.0
+	sassoftware.io/viya/arke v1.24.4
+	sassoftware.io/viya/arke/api v1.3.0
 )
 
 require (
