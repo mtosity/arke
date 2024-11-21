@@ -1,6 +1,8 @@
 module sassoftware.io/viya/arke/tests/integration
 
-go 1.22.6
+go 1.22.7
+
+toolchain go1.23.2
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.7.1
@@ -8,7 +10,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/grpc v1.67.1
 	sassoftware.io/viya/arke v1.24.4
-	sassoftware.io/viya/arke/api v1.3.0
+	sassoftware.io/viya/arke/api v1.3.1
 )
 
 require (
@@ -18,7 +20,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241113202542-65e8d215514f // indirect
