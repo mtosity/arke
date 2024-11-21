@@ -84,11 +84,9 @@ message Address {
         FILTER = 2; // The address is a filtered queue.
     }
     TargetType type = 3; // Target type, default is TOPIC.
+    bool durable = 4 [deprecated = true];
     bool auto_delete = 5; // Should the address automatically delete.
     Address parent_address = 6; // A parent Address. Usage includes Address to Address binding.
-
-    reserved 4;
-    reserved "durable";
 }
 
 /**
@@ -97,6 +95,7 @@ message Address {
 message Source {
     string name = 1; // The name of this source.
     Address address = 3; // The Address associated with this source.
+    bool durable = 4 [deprecated = true];
     bool auto_delete = 5; // Should this Source automatically delete.
     map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
@@ -108,8 +107,8 @@ message Source {
     }
     TargetType type = 11; // Target type, default is QUEUE.
 
-    reserved 4, 6;
-    reserved "filter", "durable";
+    reserved 6;
+    reserved "filter";
 }
 
 /**

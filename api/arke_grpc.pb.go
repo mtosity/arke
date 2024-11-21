@@ -38,7 +38,7 @@ type ProducerClient interface {
 	// Connect to a message broker. Pass in a ConnectionConfiguration with broker
 	// specific connection information.
 	Connect(ctx context.Context, in *ConnectionConfiguration, opts ...grpc.CallOption) (*ConnectResponse, error)
-	// Send messages to the message broker.
+	// Send a stream of messages to the message broker.
 	Publish(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, MessageResponse], error)
 	// Disconnect from the proxy and the message broker.
 	Disconnect(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
@@ -94,7 +94,7 @@ type ProducerServer interface {
 	// Connect to a message broker. Pass in a ConnectionConfiguration with broker
 	// specific connection information.
 	Connect(context.Context, *ConnectionConfiguration) (*ConnectResponse, error)
-	// Send messages to the message broker.
+	// Send a stream of messages to the message broker.
 	Publish(grpc.BidiStreamingServer[Message, MessageResponse]) error
 	// Disconnect from the proxy and the message broker.
 	Disconnect(context.Context, *Empty) (*Empty, error)

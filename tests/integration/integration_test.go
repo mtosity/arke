@@ -368,7 +368,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TPSCR")
 	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5, Durable: true}
+	source := &pb.Source{Name: "sas.test.proxy.TPSCR.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -1661,7 +1661,7 @@ func TestDeadLetteringReject(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
-func TestDeadLetteringRejectDurable(t *testing.T) {
+func TestDeadLetteringRejectAutoDelete(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()
 	expectedMessageCount := 1
@@ -1691,7 +1691,7 @@ func TestDeadLetteringRejectDurable(t *testing.T) {
 	subjects = append(subjects, "sas.test.proxy.TDL."+testUUID)
 	srcName := "sas.test.proxy.TDL.Consumer." + testUUID
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: srcName, Address: address, PrefetchCount: 1, Durable: true}
+	source := &pb.Source{Name: srcName, Address: address, PrefetchCount: 1, AutoDelete: true}
 	source.Options = make(map[string]string)
 	source.Options["DeadLetterAddress"] = deadLetterExchange
 	source.Options["DeadLetterSubject"] = deadLetterSubject
@@ -1730,7 +1730,7 @@ func TestDeadLetteringRejectDurable(t *testing.T) {
 	source.Address.Name = deadLetterExchange
 	source.Options = make(map[string]string)
 	source.Name = srcName + ".dlq"
-	source.Durable = false
+	source.Type = pb.Source_TEMPORARY
 	subjects = append(subjects, deadLetterSubject)
 	source.Address.Subjects = subjects
 	go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
@@ -1897,7 +1897,7 @@ func TestSubscribeAckNackInvalidID(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TAIID")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TAIID", Address: address, PrefetchCount: 5, Durable: true}
+	source := &pb.Source{Name: "sas.test.proxy.TAIID", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
@@ -1961,7 +1961,7 @@ func TestSubscribeAckInvalidIDNoConnect(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TAIIDNC")
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
-	source := &pb.Source{Name: "sas.test.proxy.TAIIDNC", Address: address, PrefetchCount: 5, Durable: true}
+	source := &pb.Source{Name: "sas.test.proxy.TAIIDNC", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()

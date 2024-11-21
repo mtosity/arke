@@ -58,6 +58,7 @@ Represents the publishing destination for a message.
 | name | [string](#string) |  | The name of this destination address. |
 | subjects | [string](#string) | repeated | The subjects of the address. Multiple subjects are allowed on Subscribe, but not on Publish. |
 | type | [Address.TargetType](#arke-Address-TargetType) |  | Target type, default is TOPIC. |
+| durable | [bool](#bool) |  | **Deprecated.**  |
 | auto_delete | [bool](#bool) |  | Should the address automatically delete. |
 | parent_address | [Address](#arke-Address) |  | A parent Address. Usage includes Address to Address binding. |
 
@@ -364,6 +365,7 @@ Represents the source for consumer subscriptions.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | The name of this source. |
 | address | [Address](#arke-Address) |  | The Address associated with this source. |
+| durable | [bool](#bool) |  | **Deprecated.**  |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
 | options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
@@ -441,6 +443,7 @@ Represents the source for consumer subscriptions.
 | ---- | ------ | ----------- |
 | QUEUE | 0 | The Source is a HA queue |
 | TEMPORARY | 1 | The Source is a temporary queue |
+
 
  
 
