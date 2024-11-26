@@ -1682,7 +1682,23 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	subjects = append(subjects, "subject1")
 	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
 
+	msg := &pb.Message{Address: address, Body: []byte("thebody")}
+	msg.Headers = make(map[string]string)
+	msg.Headers["Content-Type"] = "application/json"
+	msg.Headers["Content-Encoding"] = "utf8"
+	msg.Persistent = true
+
+	expectedMsg := amqp091Message{}
+	expectedMsg.Body = msg.GetBody()
+	expectedMsg.DeliveryMode = 2 // persistent
+	expectedMsg.ContentType = msg.Headers["Content-Type"]
+	expectedMsg.ContentEncoding = msg.Headers["Content-Encoding"]
+	expectedMsg.Headers = amqp091Table{}
+	expectedMsg.Headers["Content-Type"] = msg.Headers["Content-Type"]
+	expectedMsg.Headers["Content-Encoding"] = msg.Headers["Content-Encoding"]
+
 	cmock := &amqpChannelMock{}
+	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(errors.New("declareerr")).Once()
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
@@ -1698,12 +1714,6 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 
 	mc := make(chan *pb.Message)
 	errchan := make(chan *pb.Error)
-
-	msg := &pb.Message{Address: address, Body: []byte("thebody"), Persistent: true}
-
-	msg.Headers = make(map[string]string)
-	msg.Headers["Content-Type"] = "application/json"
-	msg.Headers["Content-Encoding"] = "utf8"
 
 	go func() {
 		mc <- msg
@@ -1726,8 +1736,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	err = <-errchan
-	assert.NotNil(t, err)
-	assert.Contains(t, err.GetMessage(), "declareerr")
+	assert.Nil(t, err)
 
 	cmock.AssertExpectations(t)
 	amock.AssertExpectations(t)

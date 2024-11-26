@@ -293,14 +293,11 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 			return nil
 		}(bd)
 
-		declareErr := prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
-		if declareErr != nil {
-			util.Logger.Debugf("Failed to declare retry exchange [%s]", retrySource.GetAddress().GetName())
-		}
+		_ = prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
 
 		retrySpan.AddEvent("retry address created")
 
-		declareErr = prov.declareQueue(retrySource, bd, amqpChannel, false)
+		declareErr := prov.declareQueue(retrySource, bd, amqpChannel, false)
 		if declareErr != nil {
 			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
 		}
@@ -855,10 +852,7 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	}
 	defer amqpChannel.Close()
 
-	err = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
-	if err != nil {
-		return &pb.Error{Message: err.Error()}
-	}
+	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
 
 	subSpan.AddEvent("address created")
 
@@ -1148,15 +1142,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 				deliveryMode = 2
 			}
 
-			err = prov.declareExchange(message.GetAddress(), bd, amqpChannel, false)
-			if err != nil {
-				errChan <- &pb.Error{
-					Message: err.Error(),
-					IsFatal: true,
-				}
-				span.End()
-				continue
-			}
+			_ = prov.declareExchange(message.GetAddress(), bd, amqpChannel, false)
 			span.AddEvent("address created")
 
 			amqpMessage := amqp091Message{}
