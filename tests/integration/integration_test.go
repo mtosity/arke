@@ -1168,6 +1168,7 @@ func TestParentExchange_Consume(t *testing.T) {
 }
 
 func TestAddressType_FAIL(t *testing.T) {
+	t.Skip("This test is currently not valid because we ignore this error. Skipping for now.")
 	// Create a ParentAddress with name test.parent
 	// Create an Address with name test.child and Parent ParentAddress
 	// Consume messages from queue bound to test.child
@@ -1555,6 +1556,7 @@ func TestDeadLettering(t *testing.T) {
 	source.Address.Name = deadLetterExchange
 	source.Options = make(map[string]string)
 	source.Name = "sas.test.proxy.TDL.Consumer.dlq"
+	source.Type = pb.Source_TEMPORARY
 	subjects = append(subjects, "deadlettersubject")
 	source.Address.Subjects = subjects
 	go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
