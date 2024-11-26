@@ -1644,6 +1644,7 @@ func TestDeadLetteringReject(t *testing.T) {
 	source.Options = make(map[string]string)
 	source.Name = "sas.test.proxy.TDL.Consumer.dlq"
 	subjects = append(subjects, "deadlettersubject")
+	source.Type = pb.Source_TEMPORARY
 	source.Address.Subjects = subjects
 	go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
 	<-clientConnected2
