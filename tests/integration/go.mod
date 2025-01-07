@@ -9,8 +9,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/grpc v1.68.0
-	sassoftware.io/viya/arke v1.24.4
-	sassoftware.io/viya/arke/api v1.3.1
+	sassoftware.io/viya/arke v1.25.0
+	sassoftware.io/viya/arke/api v1.4.0
 )
 
 require (
