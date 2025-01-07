@@ -481,6 +481,7 @@ Service for producing messages
 | ----------- | ------------ | ------------- | ------------|
 | Connect | [ConnectionConfiguration](#arke-ConnectionConfiguration) | [ConnectResponse](#arke-ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
 | Publish | [Message](#arke-Message) stream | [MessageResponse](#arke-MessageResponse) stream | Send a stream of messages to the message broker. |
+| PublishOne | [Message](#arke-Message) | [MessageResponse](#arke-MessageResponse) | Send one message to the message broker. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
  

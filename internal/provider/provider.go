@@ -17,6 +17,7 @@ import (
 // would implement this interface.
 type Provider interface {
 	Publish(context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error
+	PublishOne(context.Context, *pb.Message) *pb.Error
 	Subscribe(context.Context, *pb.Source, chan<- *pb.Message) *pb.Error
 	Ack(context.Context, string) *pb.Error
 	Nack(context.Context, string) *pb.Error

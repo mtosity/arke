@@ -59,7 +59,11 @@ func (m *amqpConnectionMock) IsClosed() bool {
 
 func (m *amqpConnectionMock) NewChannel() (amqp091ChannelShim, error) {
 	args := m.Called()
-	return args.Get(0).(amqp091ChannelShim), args.Error(1)
+	ret := args.Get(0)
+	if ret == nil {
+		return nil, args.Error(1)
+	}
+	return ret.(amqp091ChannelShim), args.Error(1)
 }
 
 func (m *amqpConnectionMock) NotifyClose(chan amqp091Error) chan amqp091Error {
@@ -1542,24 +1546,9 @@ func Test_Publish(t *testing.T) {
 		return "1234", nil
 	}
 
-	subjects := make([]string, 0)
-	subjects = append(subjects, "subject1")
-	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
-
-	msg := &pb.Message{Address: address, Body: []byte("thebody")}
-	msg.Headers = make(map[string]string)
-	msg.Headers["Content-Type"] = "application/json"
-	msg.Headers["Content-Encoding"] = "utf8"
-	msg.Persistent = true
-
-	expectedMsg := amqp091Message{}
-	expectedMsg.Body = msg.GetBody()
-	expectedMsg.DeliveryMode = 2 // persistent
-	expectedMsg.ContentType = msg.Headers["Content-Type"]
-	expectedMsg.ContentEncoding = msg.Headers["Content-Encoding"]
-	expectedMsg.Headers = amqp091Table{}
-	expectedMsg.Headers["Content-Type"] = msg.Headers["Content-Type"]
-	expectedMsg.Headers["Content-Encoding"] = msg.Headers["Content-Encoding"]
+	address := stockAddress()
+	msg := stockMessage(address)
+	expectedMsg := stockAmqpMessage(msg)
 
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
@@ -1614,9 +1603,7 @@ func Test_Publish_Error(t *testing.T) {
 		return "1234", nil
 	}
 
-	subjects := make([]string, 0)
-	subjects = append(subjects, "subject1")
-	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
+	address := stockAddress()
 
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], mock.Anything).Return(errors.New("puberr"))
@@ -1636,11 +1623,7 @@ func Test_Publish_Error(t *testing.T) {
 	mc := make(chan *pb.Message)
 	errchan := make(chan *pb.Error)
 
-	msg := &pb.Message{Address: address, Body: []byte("thebody")}
-
-	msg.Headers = make(map[string]string)
-	msg.Headers["Content-Type"] = "application/json"
-	msg.Headers["Content-Encoding"] = "utf8"
+	msg := stockMessage(address)
 
 	go func() {
 		mc <- msg
@@ -1670,6 +1653,204 @@ func Test_Publish_Error(t *testing.T) {
 	amock.AssertExpectations(t)
 }
 
+func Test_PublishOne(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	msg := stockMessage(address)
+	expectedMsg := stockAmqpMessage(msg)
+
+	cmock := &amqpChannelMock{}
+	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
+	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	suberr := prov.PublishOne(ctx, msg)
+	assert.Nil(t, suberr)
+
+	time.Sleep(100 * time.Millisecond)
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_PublishOneFailed(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	msg := stockMessage(address)
+	expectedMsg := stockAmqpMessage(msg)
+
+	cmock := &amqpChannelMock{}
+	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(errors.New("puberr"))
+	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(cmock, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	suberr := prov.PublishOne(ctx, msg)
+	assert.NotNil(t, suberr)
+	assert.Equal(t, "puberr", suberr.GetMessage())
+
+	time.Sleep(100 * time.Millisecond)
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_PublishOneFailedNewChannel(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	msg := stockMessage(address)
+
+	cmock := &amqpChannelMock{}
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(false)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	amock.On("NewChannel").Return(nil, nil)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	suberr := prov.PublishOne(ctx, msg)
+	assert.NotNil(t, suberr)
+	assert.Equal(t, "connected to broker, but failed to create a channel", suberr.GetMessage())
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_PublishOneFailedConnClosed(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	msg := stockMessage(address)
+
+	cmock := &amqpChannelMock{}
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+	amock.On("IsClosed").Return(true)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	suberr := prov.PublishOne(ctx, msg)
+	assert.NotNil(t, suberr)
+	assert.Equal(t, "connection to broker is closed", suberr.GetMessage())
+
+	cmock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_PublishOneFailedNotConnected(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	address := stockAddress()
+	msg := stockMessage(address)
+
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		assert.Fail(t, "Call to NewAmqpConn091 not expected")
+		return nil
+	}
+
+	defer func() {
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	suberr := prov.PublishOne(ctx, msg)
+	assert.NotNil(t, suberr)
+	assert.Equal(t, "Could not retrieve client-id from context", suberr.GetMessage())
+}
+
 func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	prov := NewAMQP091Provider()
 
@@ -1678,24 +1859,9 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 		return "1234", nil
 	}
 
-	subjects := make([]string, 0)
-	subjects = append(subjects, "subject1")
-	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
-
-	msg := &pb.Message{Address: address, Body: []byte("thebody")}
-	msg.Headers = make(map[string]string)
-	msg.Headers["Content-Type"] = "application/json"
-	msg.Headers["Content-Encoding"] = "utf8"
-	msg.Persistent = true
-
-	expectedMsg := amqp091Message{}
-	expectedMsg.Body = msg.GetBody()
-	expectedMsg.DeliveryMode = 2 // persistent
-	expectedMsg.ContentType = msg.Headers["Content-Type"]
-	expectedMsg.ContentEncoding = msg.Headers["Content-Encoding"]
-	expectedMsg.Headers = amqp091Table{}
-	expectedMsg.Headers["Content-Type"] = msg.Headers["Content-Type"]
-	expectedMsg.Headers["Content-Encoding"] = msg.Headers["Content-Encoding"]
+	address := stockAddress()
+	msg := stockMessage(address)
+	expectedMsg := stockAmqpMessage(msg)
 
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
@@ -2107,4 +2273,37 @@ func Test_declareQueueAutoDelete(t *testing.T) {
 			cmock.AssertExpectations(t)
 		})
 	}
+}
+
+func stockMessage(address *pb.Address) *pb.Message {
+	msg := &pb.Message{Address: address, Body: []byte("thebody")}
+	msg.Headers = make(map[string]string)
+	msg.Headers["Content-Type"] = "application/json"
+	msg.Headers["Content-Encoding"] = "utf8"
+	msg.Headers["Additional-Header"] = "HeaderValue"
+	msg.Persistent = true
+
+	return msg
+}
+
+func stockAddress() *pb.Address {
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1")
+	address := &pb.Address{Name: "addressname", Subjects: subjects, Type: pb.Address_FILTER}
+
+	return address
+}
+
+func stockAmqpMessage(msg *pb.Message) amqp091Message {
+	expectedMsg := amqp091Message{}
+	expectedMsg.Body = msg.GetBody()
+	expectedMsg.DeliveryMode = 2 // persistent
+	expectedMsg.ContentType = msg.Headers["Content-Type"]
+	expectedMsg.ContentEncoding = msg.Headers["Content-Encoding"]
+	expectedMsg.Headers = amqp091Table{}
+	expectedMsg.Headers["Content-Type"] = msg.Headers["Content-Type"]
+	expectedMsg.Headers["Content-Encoding"] = msg.Headers["Content-Encoding"]
+	expectedMsg.Headers["Additional-Header"] = msg.Headers["Additional-Header"]
+
+	return expectedMsg
 }

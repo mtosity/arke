@@ -195,6 +195,8 @@ service Producer {
     rpc Connect(arke.ConnectionConfiguration) returns (arke.ConnectResponse) {}
     // Send a stream of messages to the message broker.
     rpc Publish(stream arke.Message) returns (stream arke.MessageResponse) {}
+    // Send one message to the message broker.
+    rpc PublishOne(arke.Message) returns (arke.MessageResponse) {}
     // Disconnect from the proxy and the message broker.
     rpc Disconnect(arke.Empty) returns (arke.Empty){}
 }

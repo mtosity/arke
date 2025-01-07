@@ -152,7 +152,9 @@ integration_azure: ## Runs integration tests for Azure Service bus
 lint: ## Run golangci-lint tool
 	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=typecheck --enable=unused --enable=revive --enable=gocritic  --allow-parallel-runners ./...
 
-compose: linux ## Builds and runs docker image(s) for integration tests
+compose: linux compose_only ## Builds and runs docker image(s) for integration tests
+
+compose_only: ## runs docker image(s) for integration tests
 	cp ./build/linux/arke tests/integration/
 	$(RUN_COMPOSE) || (cd tests/integration && \
 		docker compose -f docker-compose-certs.yml down && \

@@ -41,7 +41,6 @@ var NewAmqpConn091 = NewAmqp091Connection
 var GetClientIdentifier = util.GetClientIdentifier
 
 type amqp091provider struct {
-	provider.Provider
 	tlsConfig   *tls.Config
 	connections *util.ConcurrentMap
 }
@@ -52,6 +51,7 @@ type BrokerDetails struct {
 	Connection       amqp091ConnectionShim
 	ErrorChannel     chan amqp091Error
 	RetryChannel     *amqp091ChannelShim
+	pubChannels      *sync.Pool
 	ClientIdentifier string
 	knownExchanges   *util.ConcurrentMap
 	knownQueues      *util.ConcurrentMap
@@ -374,6 +374,15 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 		shutdownChan:     make(chan bool, 1),
 	}
 
+	bd.pubChannels = &sync.Pool{
+		New: func() any {
+			newChan, _ := bd.Connection.NewChannel()
+			if newChan == nil {
+				return nil
+			}
+			return &newChan
+		},
+	}
 	_, bdErr := bd.connect()
 	if bdErr != nil {
 		util.Logger.WarnI(i18n.BrokerConnectError, bdErr.Error())
@@ -1130,63 +1139,89 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 				return nil
 			}
 			mCtx := context.Background()
-
-			_, span := tracing.SpanFromHeaders(mCtx, message.GetHeaders(), message.GetAddress().GetName()+" publish", trace.SpanKindProducer)
-
-			span.SetAttributes(attribute.String("subject.name", message.GetAddress().GetSubjects()[0]),
-				attribute.String("messaging.client_id", bd.ClientIdentifier))
-
-			address := message.GetAddress()
-			deliveryMode := 1
-			if message.GetPersistent() {
-				deliveryMode = 2
-			}
-
-			_ = prov.declareExchange(message.GetAddress(), bd, amqpChannel, false)
-			span.AddEvent("address created")
-
-			amqpMessage := amqp091Message{}
-			amqpMessage.Body = message.GetBody()
-			amqpMessage.DeliveryMode = deliveryMode
-
-			headers := amqp091Table{}
-
-			for headerName, headerValue := range message.GetHeaders() {
-				headers[headerName] = headerValue
-				switch headerName {
-				case "Content-Type":
-					amqpMessage.ContentType = headerValue
-				case "Content-Encoding":
-					amqpMessage.ContentEncoding = headerValue
-				}
-			}
-
-			amqpMessage.Headers = headers
-
-			err = amqpChannel.Publish(
-				address.GetName(),        // exchange
-				address.GetSubjects()[0], // routing key
-				amqpMessage)
-
-			span.AddEvent("message published to broker")
-
-			if err != nil {
-				util.Logger.WarnI(i18n.PublishError, err.Error())
-
-				errMsg := &pb.Error{
-					Message: err.Error(),
-					IsFatal: true,
-				}
-				errChan <- errMsg
-			} else {
-				util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
-				bd.produced++
-				errChan <- nil
-			}
-			span.End()
+			errChan <- prov.prepareAndSend(mCtx, message, bd, amqpChannel)
 		}
 	}
 
+}
+
+func (prov *amqp091provider) PublishOne(ctx context.Context, msg *pb.Message) *pb.Error {
+	bd, err := prov.getBrokerDetails(ctx)
+	if err != nil {
+		return &pb.Error{Message: err.Error()}
+	}
+
+	bd.updateLastPubSubEvent()
+
+	if bd.Connection.IsClosed() {
+		return &pb.Error{Message: "connection to broker is closed"}
+	}
+
+	amc := bd.pubChannels.Get()
+	if amc == nil {
+		return &pb.Error{Message: "connected to broker, but failed to create a channel"}
+	}
+	amqpChannel := amc.(*amqp091ChannelShim)
+	defer bd.pubChannels.Put(amqpChannel)
+
+	return prov.prepareAndSend(ctx, msg, bd, *amqpChannel)
+}
+
+func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message, bd *BrokerDetails, amqpChannel amqp091ChannelShim) *pb.Error {
+	_, span := tracing.SpanFromHeaders(ctx, msg.GetHeaders(), msg.GetAddress().GetName()+" publish", trace.SpanKindProducer)
+
+	span.SetAttributes(attribute.String("subject.name", msg.GetAddress().GetSubjects()[0]),
+		attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+	address := msg.GetAddress()
+	deliveryMode := 1
+	if msg.GetPersistent() {
+		deliveryMode = 2
+	}
+
+	_ = prov.declareExchange(msg.GetAddress(), bd, amqpChannel, false)
+	span.AddEvent("address created")
+
+	amqpMessage := amqp091Message{}
+	amqpMessage.Body = msg.GetBody()
+	amqpMessage.DeliveryMode = deliveryMode
+
+	headers := amqp091Table{}
+
+	for headerName, headerValue := range msg.GetHeaders() {
+		headers[headerName] = headerValue
+		switch headerName {
+		case "Content-Type":
+			amqpMessage.ContentType = headerValue
+		case "Content-Encoding":
+			amqpMessage.ContentEncoding = headerValue
+		}
+	}
+
+	amqpMessage.Headers = headers
+
+	err := amqpChannel.Publish(
+		address.GetName(),        // exchange
+		address.GetSubjects()[0], // routing key
+		amqpMessage)
+
+	span.AddEvent("message published to broker")
+
+	if err != nil {
+		util.Logger.WarnI(i18n.PublishError, err.Error())
+
+		errMsg := &pb.Error{
+			Message: err.Error(),
+			IsFatal: true,
+		}
+		return errMsg
+	}
+
+	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
+	bd.produced++
+	span.End()
+
+	return nil
 }
 
 // SupportSourceOptions returns a map[string]bool of support options for Source.Options

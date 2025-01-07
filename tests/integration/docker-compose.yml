@@ -18,7 +18,7 @@ services:
     volumes:
       - ./certs:/certs
   rabbitmq:
-    image: rabbitmq:3.9-management
+    image: rabbitmq:3.12-management
     ports:
       - "5672:5672"
       - "5671:5671"

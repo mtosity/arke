@@ -135,6 +135,33 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 	return nil
 }
 
+func produceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message) error { //nolint
+
+	connConfig := connectConfig()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	authResp, err := c.Connect(ctx, connConfig)
+
+	if err != nil {
+		return err
+	}
+	if !authResp.GetSuccess() {
+		return errors.New(authResp.GetError().GetMessage())
+	}
+
+	for i := 0; i < cnt; i++ {
+		resp, err := c.PublishOne(ctx, message)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		if resp != nil && !resp.GetSuccess() {
+			return errors.New(resp.GetError().GetMessage())
+		}
+	}
+	return nil
+}
+
 // TODO: pass in a message handler to control ack/nack
 func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Context, messages chan<- *pb.Message, done chan bool, clientConnected chan bool, source *pb.Source, handler MsgHandler, t *testing.T) error { //nolint
 
@@ -261,7 +288,7 @@ func connect() *grpc.ClientConn {
 		conn, _ = grpc.NewClient(arkeAddress(), grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))) // , grpc.WithInsecure()
 
 		c := healthpb.NewHealthClient(conn)
-		resp, _ = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
+		resp, err = c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
 	}
 
 	if err != nil && resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
@@ -327,6 +354,132 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceOneConsumeOne(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.PubOne.Consumer", Address: address, PrefetchCount: 1}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceOneRepeatedConsumeOne(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 50
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.PubOne.Consumer", Address: address, PrefetchCount: 1}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceOneFailsWithoutConnect(t *testing.T) {
+	conn := connect()
+	defer conn.Close()
+	c := pb.NewProducerClient(conn)
+	ctx := context.Background()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPFWC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+
+	msg := &pb.Message{Body: []byte("message"), Address: address, Persistent: true}
+	_, err := c.PublishOne(ctx, msg)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Could not find client identifier")
+
+	// TODO: Why is the MessageResponse nil?
+	//assert.NotNil(t, resp)
+	//assert.False(t, resp.GetSuccess())
+	//assert.Contains(t, resp.GetError(), "Could not find client identifier")
 }
 
 func TestProduceSingleConsumeRetry(t *testing.T) {

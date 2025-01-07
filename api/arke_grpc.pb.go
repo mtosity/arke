@@ -26,6 +26,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Producer_Connect_FullMethodName    = "/arke.Producer/Connect"
 	Producer_Publish_FullMethodName    = "/arke.Producer/Publish"
+	Producer_PublishOne_FullMethodName = "/arke.Producer/PublishOne"
 	Producer_Disconnect_FullMethodName = "/arke.Producer/Disconnect"
 )
 
@@ -40,6 +41,8 @@ type ProducerClient interface {
 	Connect(ctx context.Context, in *ConnectionConfiguration, opts ...grpc.CallOption) (*ConnectResponse, error)
 	// Send a stream of messages to the message broker.
 	Publish(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, MessageResponse], error)
+	// Send one message to the message broker.
+	PublishOne(ctx context.Context, in *Message, opts ...grpc.CallOption) (*MessageResponse, error)
 	// Disconnect from the proxy and the message broker.
 	Disconnect(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
@@ -75,6 +78,16 @@ func (c *producerClient) Publish(ctx context.Context, opts ...grpc.CallOption) (
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Producer_PublishClient = grpc.BidiStreamingClient[Message, MessageResponse]
 
+func (c *producerClient) PublishOne(ctx context.Context, in *Message, opts ...grpc.CallOption) (*MessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MessageResponse)
+	err := c.cc.Invoke(ctx, Producer_PublishOne_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *producerClient) Disconnect(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Empty)
@@ -96,6 +109,8 @@ type ProducerServer interface {
 	Connect(context.Context, *ConnectionConfiguration) (*ConnectResponse, error)
 	// Send a stream of messages to the message broker.
 	Publish(grpc.BidiStreamingServer[Message, MessageResponse]) error
+	// Send one message to the message broker.
+	PublishOne(context.Context, *Message) (*MessageResponse, error)
 	// Disconnect from the proxy and the message broker.
 	Disconnect(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedProducerServer()
@@ -113,6 +128,9 @@ func (UnimplementedProducerServer) Connect(context.Context, *ConnectionConfigura
 }
 func (UnimplementedProducerServer) Publish(grpc.BidiStreamingServer[Message, MessageResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method Publish not implemented")
+}
+func (UnimplementedProducerServer) PublishOne(context.Context, *Message) (*MessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublishOne not implemented")
 }
 func (UnimplementedProducerServer) Disconnect(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Disconnect not implemented")
@@ -163,6 +181,24 @@ func _Producer_Publish_Handler(srv interface{}, stream grpc.ServerStream) error 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Producer_PublishServer = grpc.BidiStreamingServer[Message, MessageResponse]
 
+func _Producer_PublishOne_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Message)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProducerServer).PublishOne(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Producer_PublishOne_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProducerServer).PublishOne(ctx, req.(*Message))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Producer_Disconnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -191,6 +227,10 @@ var Producer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Connect",
 			Handler:    _Producer_Connect_Handler,
+		},
+		{
+			MethodName: "PublishOne",
+			Handler:    _Producer_PublishOne_Handler,
 		},
 		{
 			MethodName: "Disconnect",

@@ -343,6 +343,37 @@ consumeLoop:
 	return returnError
 }
 
+// PublishOne send a single message to the server
+func (s *ProducerServer) PublishOne(ctx context.Context, msg *pb.Message) (*pb.MessageResponse, error) {
+	prov, findErr := findProvider(ctx)
+	if prov == nil {
+		ftlError := errors.New(findErr.GetMessage())
+		msgResp := &pb.MessageResponse{Success: false, Error: findErr}
+		return msgResp, ftlError
+	}
+
+	if len(msg.GetAddress().GetSubjects()) != 1 {
+
+		errMsg := &pb.Error{
+			Message: "exactly one subject allowed in an Address with Publish",
+			IsFatal: false,
+		}
+		subjectError := errors.New(errMsg.GetMessage())
+		return &pb.MessageResponse{Success: false, Error: errMsg}, subjectError
+	}
+
+	resp := &pb.MessageResponse{Success: true}
+	var respErr error
+	pubErr := prov.PublishOne(ctx, msg)
+	if pubErr != nil {
+		resp.Success = false
+		resp.Error = pubErr
+		respErr = errors.New(pubErr.GetMessage())
+	}
+
+	return resp, respErr
+}
+
 // Publish sends message to the server
 func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	ctx := stream.Context()

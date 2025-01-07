@@ -7,11 +7,12 @@ import (
 	"io"
 	"regexp"
 	"runtime"
+	"testing"
+	"time"
+
 	"sassoftware.io/viya/arke/internal/provider"
 	s "sassoftware.io/viya/arke/internal/server"
 	"sassoftware.io/viya/arke/internal/util"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
@@ -313,6 +314,18 @@ func (prov *MockProvider) Publish(ctx context.Context, messageChannel <-chan *pb
 	}
 }
 
+func (prov *MockProvider) PublishOne(ctx context.Context, cf *pb.Message) *pb.Error {
+	args := prov.Called(ctx, cf)
+
+	errArg := args.Get(0)
+	if errArg != nil {
+		err := errArg.(*pb.Error)
+		return err
+	}
+
+	return nil
+}
+
 func (prov *MockProvider) WaitForConnect(ctx context.Context) bool {
 	args := prov.Called(ctx)
 
@@ -487,6 +500,67 @@ func TestProducerServerPublishRecv_Fail(t *testing.T) {
 	err := proSrv.Publish(stream)
 	assert.NotNil(t, err)
 	assert.Equal(t, "recverror", err.Error())
+
+	mockp.AssertExpectations(t)
+}
+
+func TestProducerServerPublishOneNoConnect(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	msg := &pb.Message{Body: []byte("pub recv")}
+	oldGetClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
+		return "", errors.New("Can't get Client UUID")
+	}
+
+	resp, err := proSrv.PublishOne(context.Background(), msg)
+	s.GetClientIdentifier = oldGetClientIdentifier
+	assert.NotNil(t, err)
+	assert.NotNil(t, resp)
+	assert.False(t, resp.GetSuccess())
+}
+
+func TestProducerServerPublishOne(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1")
+	msg := &pb.Message{Body: []byte("pub recv"), Address: &pb.Address{Name: "pubaddress", Subjects: subjects}}
+	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+
+	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	proSrv.Connect(ctx, cf) //nolint errcheck
+
+	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(nil).Once()
+
+	resp, err := proSrv.PublishOne(ctx, msg)
+	assert.Nil(t, err)
+	assert.NotNil(t, resp)
+	assert.True(t, resp.GetSuccess())
+
+	mockp.On("PublishOne", mock.Anything, mock.Anything).Return(&pb.Error{Code: 2002, Message: "Failed"}).Once()
+	resp, err = proSrv.PublishOne(ctx, msg)
+	assert.NotNil(t, err)
+	assert.NotNil(t, resp)
+	assert.False(t, resp.GetSuccess())
+
+	mockp.AssertExpectations(t)
+}
+
+func TestProducerServerPublishOneWithTwoSubjects(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1", "subject2")
+	msg := &pb.Message{Body: []byte("pub recv"), Address: &pb.Address{Name: "pubaddress", Subjects: subjects}}
+	ctx := context.WithValue(context.Background(), peer.Peer{}, "")
+
+	mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+
+	proSrv.Connect(ctx, cf) //nolint errcheck
+
+	resp, err := proSrv.PublishOne(ctx, msg)
+	assert.NotNil(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "exactly one subject allowed in an Address with Publish", resp.GetError().GetMessage())
 
 	mockp.AssertExpectations(t)
 }
