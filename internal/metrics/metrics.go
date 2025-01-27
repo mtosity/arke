@@ -11,14 +11,15 @@ type LabelSet struct {
 
 // Stats global Stats variable for access to the sinks
 var (
-	ClientActMessageGauge = []string{"arke", "client", "active", "messages"}
-	ClientStreamsGauge    = []string{"arke", "client", "streams"}
-	ClientConsumedGauge   = []string{"arke", "client", "consumed"}
-	ClientProducedGauge   = []string{"arke", "client", "produced"}
-	RequestElapsedSummary = []string{"arke", "request", "elapsed"}
-	RequestTotalCounter   = []string{"arke", "request", "total"}
-	RecvMsgCounter        = []string{"arke", "recvmsg", "total"}
-	SendMsgCounter        = []string{"arke", "sendmsg", "total"}
+	ClientActMessageGauge    = []string{"arke", "client", "active", "messages"}
+	ClientStreamsGauge       = []string{"arke", "client", "streams"}
+	ClientConsumedGauge      = []string{"arke", "client", "consumed"}
+	ClientProducedGauge      = []string{"arke", "client", "produced"}
+	RequestElapsedSummary    = []string{"arke", "request", "elapsed"}
+	RequestTotalCounter      = []string{"arke", "request", "total"}
+	RecvMsgCounter           = []string{"arke", "recvmsg", "total"}
+	SendMsgCounter           = []string{"arke", "sendmsg", "total"}
+	RateLimitEnforcedSummary = []string{"arke", "rate", "limit", "enforced", "summary"}
 )
 
 // NewLabelSet Create a new label set

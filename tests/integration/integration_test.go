@@ -24,9 +24,131 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"gopkg.in/yaml.v2"
 	pb "sassoftware.io/viya/arke/api"
 	cfg "sassoftware.io/viya/arke/test/config"
 )
+
+type ComposeFile struct {
+	Services map[string]struct {
+		Environment []string `yaml:"environment"`
+	} `yaml:"services"`
+}
+
+type RateLimitSettings struct {
+	Enforced          bool
+	BucketSize        int
+	RefillSeconds     time.Duration
+	MaxAgeStaleClents time.Duration
+}
+
+func readCompose(composeFile string) (*ComposeFile, error) {
+
+	data, err := os.ReadFile(composeFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var compose ComposeFile
+	err = yaml.Unmarshal(data, &compose)
+	if err != nil {
+		return nil, err
+	}
+	return &compose, nil
+}
+
+func GetEnvMapFromList(nameEqualValue []string) map[string]string {
+	m := make(map[string]string)
+	for _, nvp := range nameEqualValue {
+		if !strings.Contains(nvp, "=") {
+			continue
+		}
+		parts := strings.SplitN(nvp, "=", 2)
+		m[parts[0]] = parts[1]
+	}
+	return m
+}
+
+func GetMapBool(vars map[string]string, varname string) (val bool, ok bool, err error) {
+	sval, ok := vars[varname]
+	if !ok {
+		return false, false, fmt.Errorf("value not set: %s", varname)
+	}
+	val, err = strconv.ParseBool(sval)
+	if err != nil {
+		return false, true, fmt.Errorf("invalid bool value: %s", sval)
+	}
+	return val, true, nil
+}
+
+func GetMapInt(vars map[string]string, varname string) (val int, ok bool, err error) {
+	sval, ok := vars[varname]
+	if !ok {
+		return 0, false, fmt.Errorf("value not set: %s", varname)
+	}
+	val, err = strconv.Atoi(sval)
+	if err != nil {
+		return 0, true, err
+	}
+	return val, true, nil
+}
+
+// GetEnvMap returns a map of env vars from either the docker-compose.yml file if present
+// or os.Environ()
+func GetEnvMap(t *testing.T, composeFile string) map[string]string {
+	var envVars map[string]string
+	compose, err := readCompose(composeFile)
+	if err == nil {
+		t.Logf("Getting environment variables from %s", composeFile)
+		arkeCompose, ok := compose.Services["arke"]
+		assert.True(t, ok, "could not find arke service in %s", composeFile)
+		envVars = GetEnvMapFromList(arkeCompose.Environment)
+	} else {
+		t.Logf("Error reading from docker-compose.yml -- probably in viya-oci-arke: %v", err)
+		envVars = GetEnvMapFromList(os.Environ())
+	}
+	return envVars
+}
+
+func GetRateLimitValues(t *testing.T, composeFile string) (*RateLimitSettings, error) {
+	vars := GetEnvMap(t, composeFile)
+	enforced, isSet, err := GetMapBool(vars, "RATE_LIMIT_ENFORCED")
+	if !isSet {
+		return nil, fmt.Errorf("rate limit enforcement not set")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	bktSize, isSet, err := GetMapInt(vars, "RATE_LIMIT_BUCKET_SIZE")
+	if !isSet {
+		return nil, fmt.Errorf("rate limit bucket size not set")
+	}
+	if err != nil {
+		return nil, err
+	}
+	refill, isSet, err := GetMapInt(vars, "RATE_LIMIT_REFILL_SECONDS")
+	if !isSet {
+		return nil, fmt.Errorf("rate limit refill seconds not set")
+	}
+	if err != nil {
+		return nil, err
+	}
+	maxAge, isSet, err := GetMapInt(vars, "RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
+	if !isSet {
+		return nil, fmt.Errorf("rate limit max age stale clients not set")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &RateLimitSettings{
+		Enforced:          enforced,
+		BucketSize:        bktSize,
+		RefillSeconds:     time.Duration(refill) * time.Second,
+		MaxAgeStaleClents: time.Duration(maxAge) * time.Second,
+	}, nil
+}
 
 func cleanupAzure() {
 	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
@@ -615,9 +737,21 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 }
 
 func TestProduceManyConsumeMany(t *testing.T) {
+	composeFile := "docker-compose.yml"
+	rlSettings, err := GetRateLimitValues(t, composeFile)
+
+	expectedMessageCount := 30
+	if err == nil && rlSettings != nil && rlSettings.BucketSize > 0 {
+		// By using the rate limit settings, we can also test that
+		// publishing/consuming messages are _not_ rate limited
+		expectedMessageCount = rlSettings.BucketSize * 3
+	} else {
+		t.Logf("Did not get rate limit settings, but testing can proceed: %v", err)
+	}
+	t.Logf("Expected message count: %d", expectedMessageCount)
+
 	producerConnection := connect()
 	defer producerConnection.Close()
-	expectedMessageCount := 30
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
@@ -643,7 +777,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
+	err = produceMessages(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -2171,4 +2305,43 @@ func TestSubscribeAckInvalidIDNoConnect(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, strings.HasPrefix(msg.GetConsumedResponse().GetError().GetMessage(), "could not retrieve broker details for this connection"))
 	assert.False(t, msg.GetConsumedResponse().GetSuccess())
+}
+
+func TestRateLimits(t *testing.T) {
+
+	// Collect rate limit values either from docker-compose or the env vars
+	composeFile := "docker-compose.yml"
+	rlSettings, err := GetRateLimitValues(t, composeFile)
+	if err != nil {
+		t.Skipf("rate values not available: %v", err)
+	}
+	t.Logf("rate limit: %+v", rlSettings)
+
+	conn := connect()
+	assert.NotNil(t, conn, "should get a connection")
+	c := pb.NewConsumerClient(conn)
+	ctx := context.Background()
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer conn.Close()
+	connConfig := connectConfig()
+
+	// Use all tokens in the bucket
+	t.Run("Connect", func(t *testing.T) {
+		for i := 0; i < rlSettings.BucketSize; i++ {
+			// Attempt a non-TLS connection to arke first
+			_, err = c.Connect(ctx, connConfig)
+			assert.Nil(t, err, "should not get an error connecting")
+		}
+	})
+
+	// Attempt to connect with no tokens left in the bucket
+	t.Run("ConnectExceedBucketSize", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			_, err = c.Connect(ctx, connConfig)
+			if err != nil {
+				break
+			}
+		}
+		assert.NotNil(t, err, "should get an error when exceeding bucket size")
+	})
 }

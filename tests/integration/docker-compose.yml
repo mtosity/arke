@@ -15,6 +15,11 @@ services:
       - CERT_FILE=/certs/server/arke.pem
       - CERT_KEY=/certs/server/arke.key
       - CA_BUNDLE=/certs/testca/ca_certificate.pem
+      - RATE_LIMIT_ENFORCED=true
+      - RATE_LIMIT_BUCKET_SIZE=10
+      - RATE_LIMIT_REFILL_SECONDS=10
+      - RATE_LIMIT_MAX_AGE_STALE_CLIENTS=600
+      - RATE_LIMIT_DEBUG_METHODS=true
     volumes:
       - ./certs:/certs
   rabbitmq:

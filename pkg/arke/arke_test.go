@@ -135,7 +135,7 @@ func testHealth(port int) error {
 }
 
 func Test_Serve_cancelCtxNoErr(t *testing.T) {
-	a := DefaultArkeServer().WithPort(50059)
+	a := DefaultArkeServer().WithPort(50059).Build()
 	ctx, cancel := context.WithCancel(context.Background())
 	// sleep half a second and cancel, assert no error
 	go func() {
@@ -149,7 +149,7 @@ func Test_Serve_cancelCtxNoErr(t *testing.T) {
 }
 
 func Test_Serve_muxClose(t *testing.T) {
-	a := DefaultArkeServer().WithPort(50059)
+	a := DefaultArkeServer().WithPort(50059).Build()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// sleep half a second and close the mux, assert no error

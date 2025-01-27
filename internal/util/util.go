@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,6 +51,21 @@ func GetClientIdentifier(ctx context.Context) (string, error) {
 	}
 
 	return "", errors.New("Could not find client identifier")
+}
+
+// ServceNameFromClientAddr returns the service name from the client address.
+// The client address typically looks like <service-name>-<random-string>.
+// The random string almost always contain numbers, so we can use that to
+// to determine the service it came from.
+func ServceNameFromClientAddr(clientAddr string) string {
+	var serviceName []string
+	for _, token := range strings.Split(clientAddr, "-") {
+		if strings.ContainsAny(token, "0123456789") {
+			break
+		}
+		serviceName = append(serviceName, token)
+	}
+	return strings.Join(serviceName, "-")
 }
 
 // GetClientAddr gets the client-id from the context metadata
@@ -141,4 +157,16 @@ func GetConfig(key string, def interface{}) interface{} {
 	// If we don't have a case for the type or if we have
 	// an error parsing, then return the default value
 	return def
+}
+
+func GetDurationSecondsFromEnv(key string, def time.Duration) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		return def
+	}
+	seconds, err := strconv.Atoi(val)
+	if err != nil || seconds < 0 {
+		return def
+	}
+	return time.Duration(seconds) * time.Second
 }

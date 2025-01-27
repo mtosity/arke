@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"time"
+
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/pkg/arke"
 
@@ -52,7 +54,19 @@ func run(ctx context.Context) error {
 	certFile := os.Getenv("CERT_FILE")
 	certKey := os.Getenv("CERT_KEY")
 
-	svr := arke.DefaultArkeServer().WithTLSSkipVerify(*tlsSkipVerify).WithCertFilePath(certFile).WithCertKeyPath(certKey)
+	rateLimitEnforced := util.GetConfig("RATE_LIMIT_ENFORCED", false)
+	bsEnv := util.GetConfig("RATE_LIMIT_BUCKET_SIZE", 0)
+	maxAgeDuration := util.GetDurationSecondsFromEnv("RATE_LIMIT_MAX_AGE_STALE_CLIENTS", time.Duration(0))
+	refillDuration := util.GetDurationSecondsFromEnv("RATE_LIMIT_REFILL_SECONDS", time.Duration(0))
+
+	svr := arke.DefaultArkeServer().
+		WithTLSSkipVerify(*tlsSkipVerify).
+		WithCertFilePath(certFile).
+		WithCertKeyPath(certKey).
+		WithPrometheus().
+		WithRateLimit(bsEnv.(int), refillDuration, maxAgeDuration, rateLimitEnforced.(bool)).
+		Build()
+
 	err := svr.Serve(ctx)
 	if err != nil {
 		switch err.(type) { //nolint gocritic

@@ -11,13 +11,17 @@ import (
 	"strconv"
 	"time"
 
+	"sassoftware.io/viya/zlog"
 	metrics "sassoftware.io/viya/arke/internal/metrics/prometheus"
 	"sassoftware.io/viya/arke/internal/server"
 	"sassoftware.io/viya/arke/internal/server/prometheus"
+	"sassoftware.io/viya/arke/internal/server/ratelimiter"
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/internal/util/tracing"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/ratelimit"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
@@ -38,6 +42,57 @@ type Arke struct {
 	serverOptions  []grpc.ServerOption
 	tracerProvider *trace.TracerProvider
 	mux            cmux.CMux
+	ratelimiter    *ratelimiter.ClientLimitManager
+	interceptors   struct {
+		chainUnary  []grpc.UnaryServerInterceptor
+		chainStream []grpc.StreamServerInterceptor
+	}
+}
+
+// Build must be called before Serve. The grpc.Chain*Interceptors can only be added once.
+// Would it be better to move these three statements to the Serve method? Is there any
+// reason to call anything else before Serve that should go in Build?
+func (a *Arke) Build() *Arke {
+	a.serverOptions = append(a.serverOptions, grpc.ChainUnaryInterceptor(a.interceptors.chainUnary...))
+	a.serverOptions = append(a.serverOptions, grpc.ChainStreamInterceptor(a.interceptors.chainStream...))
+	a.server = grpc.NewServer(a.serverOptions...)
+	return a
+}
+
+func (a *Arke) WithPrometheus() *Arke {
+	a.interceptors.chainUnary = append(a.interceptors.chainUnary, prometheus.UnaryInterceptor)
+	a.interceptors.chainStream = append(a.interceptors.chainStream, prometheus.StreamInterceptor)
+	return a
+}
+
+func (a *Arke) WithRateLimit(bucketSize int, refillInterval time.Duration, maxAgeStaleClients time.Duration, enforced bool) *Arke {
+	if bucketSize <= 0 || refillInterval <= time.Duration(0) || maxAgeStaleClients <= time.Duration(0) {
+		util.Logger.Warn(i18n.InvalidRateParameters)
+		return a
+	}
+
+	rl, err := ratelimiter.NewClientLimitManager(bucketSize, refillInterval, maxAgeStaleClients, enforced)
+	if err != nil {
+		util.Logger.WarnI(i18n.CouldNotCreateRateLimiter, err.Error())
+		return a
+	}
+	util.Logger.Info(i18n.RateLimiterInitialized, zlog.P{"bucketSize": bucketSize, "refillInterval": refillInterval, "maxAgeStaleClients": maxAgeStaleClients})
+	a.ratelimiter = rl
+
+	a.interceptors.chainUnary = append(
+		a.interceptors.chainUnary,
+		selector.UnaryServerInterceptor(
+			ratelimit.UnaryServerInterceptor(a.ratelimiter), selector.MatchFunc(ratelimiter.LimitMethods),
+		),
+	)
+	a.interceptors.chainStream = append(
+		a.interceptors.chainStream,
+		selector.StreamServerInterceptor(
+			ratelimit.StreamServerInterceptor(a.ratelimiter), selector.MatchFunc(ratelimiter.LimitMethods),
+		),
+	)
+
+	return a
 }
 
 func (a *Arke) WithTLSSkipVerify(tlsSkipVerify bool) *Arke {
@@ -113,11 +168,7 @@ func DefaultArkeServer() *Arke {
 
 	a.serverOptions = append(a.serverOptions, grpc.KeepaliveEnforcementPolicy(kaep))
 	a.serverOptions = append(a.serverOptions, grpc.KeepaliveParams(kp))
-	// Add two Prometheus server options
-	a.serverOptions = append(a.serverOptions, grpc.UnaryInterceptor(prometheus.UnaryInterceptor))
-	a.serverOptions = append(a.serverOptions, grpc.StreamInterceptor(prometheus.StreamInterceptor))
 
-	a.server = grpc.NewServer(a.serverOptions...)
 	return a
 }
 
@@ -228,7 +279,9 @@ func (a *Arke) Serve(ctx context.Context) error {
 	go a.server.Serve(grpcListener) // nolint errcheck
 	// To emit prometeus metrics for arke
 	go metrics.Serve(ctx, &httpListener)
-
+	if a.ratelimiter != nil {
+		go a.ratelimiter.StartClientCull(ctx)
+	}
 	serveErrChan := make(chan error)
 	go func(as *Arke) {
 		if err := as.mux.Serve(); err != nil {
