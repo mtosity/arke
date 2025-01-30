@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"time"
 
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/pkg/arke"
@@ -54,20 +53,25 @@ func run(ctx context.Context) error {
 	certFile := os.Getenv("CERT_FILE")
 	certKey := os.Getenv("CERT_KEY")
 
-	rateLimitEnforced := util.GetConfig("RATE_LIMIT_ENFORCED", false)
-	bsEnv := util.GetConfig("RATE_LIMIT_BUCKET_SIZE", 0)
-	maxAgeDuration := util.GetDurationSecondsFromEnv("RATE_LIMIT_MAX_AGE_STALE_CLIENTS", time.Duration(0))
-	refillDuration := util.GetDurationSecondsFromEnv("RATE_LIMIT_REFILL_SECONDS", time.Duration(0))
+	rateLimitEnforced := os.Getenv("RATE_LIMIT_ENFORCED")
+	bsEnv := os.Getenv("RATE_LIMIT_BUCKET_SIZE")
+	maxAgeDuration := os.Getenv("RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
+	refillDuration := os.Getenv("RATE_LIMIT_REFILL_SECONDS")
+
+	rlp, err := arke.GetRateLimitParameters(bsEnv, refillDuration, maxAgeDuration, rateLimitEnforced)
+	if err != nil {
+		util.Logger.WarnI(i18n.InvalidRateParameters, err)
+	}
 
 	svr := arke.DefaultArkeServer().
 		WithTLSSkipVerify(*tlsSkipVerify).
 		WithCertFilePath(certFile).
 		WithCertKeyPath(certKey).
 		WithPrometheus().
-		WithRateLimit(bsEnv.(int), refillDuration, maxAgeDuration, rateLimitEnforced.(bool)).
+		WithRateLimit(rlp).
 		Build()
 
-	err := svr.Serve(ctx)
+	err = svr.Serve(ctx)
 	if err != nil {
 		switch err.(type) { //nolint gocritic
 		case *net.OpError:

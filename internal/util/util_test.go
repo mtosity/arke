@@ -133,26 +133,3 @@ func Test_GetConfig(t *testing.T) {
 	strVal = GetConfig(testVar, "bar")
 	assert.Equal(t, "foo", strVal)
 }
-
-func Test_GetDurationSecondsFromEnv(t *testing.T) {
-	testVar := "TEST_DURATION_ENV_VAR"
-	defer os.Unsetenv(testVar)
-
-	defaultDuration := 5 * time.Second
-	cases := []struct {
-		Value    string
-		Expected time.Duration
-	}{
-		{"10", 10 * time.Second},
-		{"invalid", defaultDuration},
-		{"", defaultDuration},
-		{"-5", defaultDuration},
-	}
-	for _, c := range cases {
-		t.Run(c.Value, func(t *testing.T) {
-			os.Setenv(testVar, c.Value)
-			duration := GetDurationSecondsFromEnv(testVar, defaultDuration)
-			assert.Equal(t, c.Expected, duration)
-		})
-	}
-}

@@ -158,15 +158,3 @@ func GetConfig(key string, def interface{}) interface{} {
 	// an error parsing, then return the default value
 	return def
 }
-
-func GetDurationSecondsFromEnv(key string, def time.Duration) time.Duration {
-	val := os.Getenv(key)
-	if val == "" {
-		return def
-	}
-	seconds, err := strconv.Atoi(val)
-	if err != nil || seconds < 0 {
-		return def
-	}
-	return time.Duration(seconds) * time.Second
-}

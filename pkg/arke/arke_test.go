@@ -162,3 +162,82 @@ func Test_Serve_muxClose(t *testing.T) {
 	err := a.Serve(ctx)
 	assert.Nil(t, err)
 }
+func Test_GetRateLimitParameters(t *testing.T) {
+	tests := []struct {
+		name                 string
+		bucketSize           string
+		refillIntervalSec    string
+		maxAgeStaleClientSec string
+		enforced             string
+		expectedParams       *RateLimitParameters
+		expectError          bool
+	}{
+		{
+			name:                 "Valid parameters",
+			bucketSize:           "10",
+			refillIntervalSec:    "30",
+			maxAgeStaleClientSec: "60",
+			enforced:             "true",
+			expectedParams: &RateLimitParameters{
+				BucketSize:        10,
+				RefillInterval:    30 * time.Second,
+				MaxAgeStaleClient: 60 * time.Second,
+				Enforced:          true,
+			},
+			expectError: false,
+		},
+		{
+			name:                 "Invalid bucket size",
+			bucketSize:           "invalid",
+			refillIntervalSec:    "30",
+			maxAgeStaleClientSec: "60",
+			enforced:             "true",
+			expectedParams:       nil,
+			expectError:          true,
+		},
+		{
+			name:                 "Invalid refill interval",
+			bucketSize:           "10",
+			refillIntervalSec:    "invalid",
+			maxAgeStaleClientSec: "60",
+			enforced:             "true",
+			expectedParams:       nil,
+			expectError:          true,
+		},
+		{
+			name:                 "Invalid max age stale client",
+			bucketSize:           "10",
+			refillIntervalSec:    "30",
+			maxAgeStaleClientSec: "invalid",
+			enforced:             "true",
+			expectedParams:       nil,
+			expectError:          true,
+		},
+		{
+			name:                 "Enforced false",
+			bucketSize:           "10",
+			refillIntervalSec:    "30",
+			maxAgeStaleClientSec: "60",
+			enforced:             "false",
+			expectedParams: &RateLimitParameters{
+				BucketSize:        10,
+				RefillInterval:    30 * time.Second,
+				MaxAgeStaleClient: 60 * time.Second,
+				Enforced:          false,
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			params, err := GetRateLimitParameters(tt.bucketSize, tt.refillIntervalSec, tt.maxAgeStaleClientSec, tt.enforced)
+			if tt.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, tt.expectedParams, params)
+			}
+		})
+	}
+}

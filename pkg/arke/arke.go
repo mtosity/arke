@@ -65,18 +65,22 @@ func (a *Arke) WithPrometheus() *Arke {
 	return a
 }
 
-func (a *Arke) WithRateLimit(bucketSize int, refillInterval time.Duration, maxAgeStaleClients time.Duration, enforced bool) *Arke {
-	if bucketSize <= 0 || refillInterval <= time.Duration(0) || maxAgeStaleClients <= time.Duration(0) {
+func (a *Arke) WithRateLimit(rlp *RateLimitParameters) *Arke {
+	if rlp == nil {
+		util.Logger.Warn(i18n.InvalidRateParameters)
+		return a
+	}
+	if rlp.BucketSize <= 0 || rlp.RefillInterval <= time.Duration(0) || rlp.MaxAgeStaleClient <= time.Duration(0) {
 		util.Logger.Warn(i18n.InvalidRateParameters)
 		return a
 	}
 
-	rl, err := ratelimiter.NewClientLimitManager(bucketSize, refillInterval, maxAgeStaleClients, enforced)
+	rl, err := ratelimiter.NewClientLimitManager(rlp.BucketSize, rlp.RefillInterval, rlp.MaxAgeStaleClient, rlp.Enforced)
 	if err != nil {
 		util.Logger.WarnI(i18n.CouldNotCreateRateLimiter, err.Error())
 		return a
 	}
-	util.Logger.Info(i18n.RateLimiterInitialized, zlog.P{"bucketSize": bucketSize, "refillInterval": refillInterval, "maxAgeStaleClients": maxAgeStaleClients})
+	util.Logger.Info(i18n.RateLimiterInitialized, zlog.P{"bucketSize": rlp.BucketSize, "refillInterval": rlp.RefillInterval, "maxAgeStaleClients": rlp.MaxAgeStaleClient})
 	a.ratelimiter = rl
 
 	a.interceptors.chainUnary = append(
@@ -118,6 +122,53 @@ func (a *Arke) WithCertKeyPath(path string) *Arke {
 func (a *Arke) WithHpaName(name string) *Arke {
 	a.hpaName = name
 	return a
+}
+
+type RateLimitParameters struct {
+	BucketSize        int
+	RefillInterval    time.Duration
+	MaxAgeStaleClient time.Duration
+	Enforced          bool
+}
+
+// GetRateLimitParameters parses the rate limit parameters from the
+// string values. It is expected that this is called using environment
+// variable values, which will always be strings. If the parsing fails,
+// an error is returned.
+func GetRateLimitParameters(bucketSize string, refillIntervalSec string, maxAgeStaleClientSec string, enforced string) (*RateLimitParameters, error) {
+	p := RateLimitParameters{
+		Enforced: enforced == "true",
+	}
+	settingsOK := true
+
+	bsEnv, err := strconv.Atoi(bucketSize)
+	if err == nil {
+		p.BucketSize = bsEnv
+	} else {
+		util.Logger.WarnI(i18n.InvalidBucketSize, bucketSize)
+		settingsOK = false
+	}
+
+	maxAgeDuration, err := strconv.Atoi(maxAgeStaleClientSec)
+	if err == nil {
+		p.MaxAgeStaleClient = time.Duration(maxAgeDuration) * time.Second
+	} else {
+		util.Logger.WarnI(i18n.InvalidMaxAge, maxAgeStaleClientSec)
+		settingsOK = false
+	}
+
+	refillDuration, err := strconv.Atoi(refillIntervalSec)
+	if err == nil {
+		p.RefillInterval = time.Duration(refillDuration) * time.Second
+	} else {
+		util.Logger.WarnI(i18n.InvalidRefillInterval, refillIntervalSec)
+		settingsOK = false
+	}
+
+	if settingsOK {
+		return &p, nil
+	}
+	return nil, fmt.Errorf(i18n.InvalidRateParameters)
 }
 
 func defaultKeepAliveParams() keepalive.ServerParameters {

@@ -65,4 +65,7 @@ const (
 	CouldNotCreateRateLimiter        = BundleID + ".warn.couldNotCreateRateLimiter.log"
 	CouldNotCreateRateLimiterFromEnv = BundleID + ".warn.couldNotCreateRateLimiterFromEnv.log"
 	InvalidRateParameters            = BundleID + ".warn.invalidRateParameters.log"
+	InvalidBucketSize                = BundleID + ".warn.invalidBucketSize.log"
+	InvalidMaxAge                    = BundleID + ".warn.invalidMaxAge.log"
+	InvalidRefillInterval            = BundleID + ".warn.invalidRefillInterval.log"
 )
