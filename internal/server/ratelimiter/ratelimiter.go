@@ -130,7 +130,7 @@ func (clm *ClientLimitManager) cullStaleClients() {
 func (clm *ClientLimitManager) Limit(ctx context.Context) error {
 	clientIdentifier, err := util.GetClientIdentifier(ctx)
 
-	if err != nil {
+	if err != nil && clm.enforced {
 		// If we can't get the client identifier, we can't rate limit
 		// Use a global limiter?
 		util.Logger.Warn(i18n.RateLimiterNoClientIdentifier)
