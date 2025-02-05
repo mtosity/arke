@@ -1498,6 +1498,7 @@ func Test_SupportedSourceOptions(t *testing.T) {
 	expected["DeadLetterAddress"] = true
 	expected["DeadLetterSubject"] = true
 	expected["Expires"] = true
+	expected["Offset"] = true
 
 	assert.Equal(t, opts, expected)
 }

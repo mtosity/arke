@@ -82,6 +82,7 @@ message Address {
         TOPIC = 0; // The address is a message topic.
         QUEUE = 1; // The address is a message queue.
         FILTER = 2; // The address is a filtered queue.
+        STREAM = 3; // The address is a stream.
     }
     TargetType type = 3; // Target type, default is TOPIC.
     bool durable = 4 [deprecated = true];
@@ -90,20 +91,23 @@ message Address {
 }
 
 /**
- * Represents the source for consumer subscriptions.
+ * Represents the source for consumer subscriptions. The Stream TargetType
+ * does not support exclusive or auto_delete. Streams also do not support the
+ * following Options: Exclusive, DeadLetterAdress or DeadLetterSubject.
  */
 message Source {
     string name = 1; // The name of this source.
     Address address = 3; // The Address associated with this source.
     bool durable = 4 [deprecated = true];
     bool auto_delete = 5; // Should this Source automatically delete.
-    map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject.
+    map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer).
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
     int32 prefetch_count = 9; // Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
     repeated Filter filters = 10; // Filters for this Source.
     enum TargetType {
         QUEUE = 0; // The Source is a HA queue
         TEMPORARY = 1; // The Source is a temporary queue
+        STREAM = 2; // The Source is a stream
     }
     TargetType type = 11; // Target type, default is QUEUE.
 

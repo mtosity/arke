@@ -25,8 +25,12 @@ services:
       - ./certs:/certs
       - ./coverage:/coverage
   rabbitmq:
-    image: rabbitmq:3.12-management
+    build:
+      dockerfile: Dockerfile.rabbitmq
+      context: .
+    image: tests_rabbitmq:latest
     ports:
+      - "5552:5552"
       - "5672:5672"
       - "5671:5671"
       - "15672:15672"

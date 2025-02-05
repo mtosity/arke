@@ -358,7 +358,9 @@ Represents the response from publishing a message.
 <a name="arke-Source"></a>
 
 ### Source
-Represents the source for consumer subscriptions.
+Represents the source for consumer subscriptions. The Stream TargetType
+does not support exclusive or auto_delete. Streams also do not support the
+following Options: Exclusive, DeadLetterAdress or DeadLetterSubject.
 
 
 | Field | Type | Label | Description |
@@ -367,7 +369,7 @@ Represents the source for consumer subscriptions.
 | address | [Address](#arke-Address) |  | The Address associated with this source. |
 | durable | [bool](#bool) |  | **Deprecated.**  |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
-| options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject. |
+| options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer). |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
 | filters | [Filter](#arke-Filter) | repeated | Filters for this Source. |
@@ -406,6 +408,7 @@ Represents the source for consumer subscriptions.
 | TOPIC | 0 | The address is a message topic. |
 | QUEUE | 1 | The address is a message queue. |
 | FILTER | 2 | The address is a filtered queue. |
+| STREAM | 3 | The address is a stream. |
 
 
 
@@ -443,6 +446,7 @@ Represents the source for consumer subscriptions.
 | ---- | ------ | ----------- |
 | QUEUE | 0 | The Source is a HA queue |
 | TEMPORARY | 1 | The Source is a temporary queue |
+| STREAM | 2 | The Source is a stream |
 
 
  

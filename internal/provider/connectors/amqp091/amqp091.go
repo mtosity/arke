@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 	"sassoftware.io/viya/arke/internal/provider"
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/internal/util/tracing"
@@ -30,12 +32,16 @@ import (
 const providerName string = "amqp091"
 const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 
-var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires"}
+var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset"}
 
 var supportedSourceOptions map[string]bool
+var supportedStreamSourceOptions = map[string]bool{"Offset": true, "MessageTTL": true}
 
 // NewAmqpConn091 allow overriding the connection for mocking in tests
 var NewAmqpConn091 = NewAmqp091Connection
+
+// NewStreamConn allow overriding the connection for mocking in tests
+var NewStreamConn = NewStreamConnection
 
 // GetClientIdentifier Set function as a variable so we can replace the GetClientIdentifier method in unit tests
 var GetClientIdentifier = util.GetClientIdentifier
@@ -52,6 +58,8 @@ type BrokerDetails struct {
 	ErrorChannel     chan amqp091Error
 	RetryChannel     *amqp091ChannelShim
 	pubChannels      *sync.Pool
+	StreamConnection streamConnectionShim
+	streamPublishers *sync.Pool
 	ClientIdentifier string
 	knownExchanges   *util.ConcurrentMap
 	knownQueues      *util.ConcurrentMap
@@ -139,7 +147,7 @@ func (prov *amqp091provider) ClientExists(clientIdentifier string) bool {
 func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 	defer func() *pb.Error {
 		if err := recover(); err != nil {
-			util.Logger.Debugf("recovered: %v", err)
+			util.Logger.Debugf("recovered durring Ack: %v", err)
 			return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
 		}
 		return nil
@@ -158,14 +166,18 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 	}()
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		rm := rmu.(amqp091Message)
-		util.Logger.Tracef("Acking message %s with tag %d", msgid, rm.DeliveryTag)
-		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindInternal)
-		span.SetAttributes(attribute.String("messaging.message.id", msgid),
-			attribute.String("messaging.client_id", bd.ClientIdentifier))
-		span.AddEvent("provider acking message")
+		switch rm := rmu.(type) {
+		case amqp091Message:
+			util.Logger.Tracef("Acking message %s with tag %d", msgid, rm.DeliveryTag)
+			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindInternal)
+			span.SetAttributes(attribute.String("messaging.message.id", msgid),
+				attribute.String("messaging.client_id", bd.ClientIdentifier))
+			span.AddEvent("provider acking message")
 
-		err = rm.Ack()
+			err = rm.Ack()
+		case streamMessage:
+			// Check if we are automatically or manually tracking our offset
+		}
 	} else {
 		util.Logger.TraceI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -178,11 +190,15 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 		errMsg := &pb.Error{
 			Message: err.Error(),
 		}
-		span.RecordError(err)
+		if span != nil {
+			span.RecordError(err)
+		}
 		return errMsg
 	}
 	util.Logger.TraceI(i18n.AckMessage, bd.ClientIdentifier, msgid)
-	span.AddEvent("provider acked message successfully")
+	if span != nil {
+		span.AddEvent("provider acked message successfully")
+	}
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -202,14 +218,17 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 	}()
 
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
+		switch rm := rmu.(type) {
+		case amqp091Message:
+			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindInternal)
+			span.SetAttributes(attribute.String("messaging.message.id", msgid),
+				attribute.String("messaging.client_id", bd.ClientIdentifier))
+			span.AddEvent("provider nacking message")
 
-		rm := rmu.(amqp091Message)
-		_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindInternal)
-		span.SetAttributes(attribute.String("messaging.message.id", msgid),
-			attribute.String("messaging.client_id", bd.ClientIdentifier))
-		span.AddEvent("provider nacking message")
-
-		err = rm.Nack(false)
+			err = rm.Nack(false)
+		case streamMessage:
+			// Check if we are automatically or manually tracking our offset
+		}
 	} else {
 		util.Logger.DebugI(i18n.NackNoMessage, bd.ClientIdentifier, msgid)
 		return &pb.Error{Message: fmt.Sprintf("No message with uuid %s", msgid)}
@@ -222,11 +241,15 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 		errMsg := &pb.Error{
 			Message: err.Error(),
 		}
-		span.RecordError(err)
+		if span != nil {
+			span.RecordError(err)
+		}
 		return errMsg
 	}
 	util.Logger.DebugI(i18n.NackMessage, bd.ClientIdentifier, msgid)
-	span.AddEvent("provider nacked message successfully")
+	if span != nil {
+		span.AddEvent("provider nacked message successfully")
+	}
 	bd.activeMessages.Delete(msgid)
 	return nil
 }
@@ -250,76 +273,79 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 	retrySpan.SetAttributes(attribute.String("source.name", origSource.GetName()),
 		attribute.String("messaging.client_id", bd.ClientIdentifier))
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
-		retrySpan.AddEvent("setting up retry")
+		switch rm := rmu.(type) {
+		case streamMessage:
+			// We may have work when we manually track offsets
+		case amqp091Message:
+			retrySpan.AddEvent("setting up retry")
 
-		rm := rmu.(amqp091Message)
+			// setup exchange/queue/binding
+			subjects := make([]string, 0)
+			subjects = append(subjects, "#")
+			options := map[string]string{"MessageTTL": strconv.Itoa(int(delay) * 1000), "DeadLetterAddress": ""}
+			sourceName := fmt.Sprintf("%s.retry.%ds", origSource.GetAddress().GetName(), delay)
 
-		// setup exchange/queue/binding
-		subjects := make([]string, 0)
-		subjects = append(subjects, "#")
-		options := map[string]string{"MessageTTL": strconv.Itoa(int(delay) * 1000), "DeadLetterAddress": ""}
-		sourceName := fmt.Sprintf("%s.retry.%ds", origSource.GetAddress().GetName(), delay)
-
-		retrySource := &pb.Source{
-			Name:    sourceName,
-			Options: options,
-			Address: &pb.Address{
-				Subjects: subjects,
-				Type:     pb.Address_TOPIC,
-				Name:     sourceName,
-			},
-		}
-
-		if bd.RetryChannel == nil {
-			bd.Lock()
-			retryChannel, err := bd.Connection.NewChannel()
-			if err != nil {
-				bd.Unlock()
-				return &pb.Error{Message: err.Error()}
+			retrySource := &pb.Source{
+				Name:    sourceName,
+				Options: options,
+				Address: &pb.Address{
+					Subjects: subjects,
+					Type:     pb.Address_TOPIC,
+					Name:     sourceName,
+				},
 			}
-			bd.RetryChannel = &retryChannel
-			bd.Unlock()
-		}
-		amqpChannel := *bd.RetryChannel
 
-		defer func(bd *BrokerDetails) *pb.Error {
-			if err := recover(); err != nil {
+			if bd.RetryChannel == nil {
 				bd.Lock()
-				bd.RetryChannel = nil
+				retryChannel, err := bd.Connection.NewChannel()
+				if err != nil {
+					bd.Unlock()
+					return &pb.Error{Message: err.Error()}
+				}
+				bd.RetryChannel = &retryChannel
 				bd.Unlock()
-				util.Logger.Debugf("recovered: %v", err)
-				return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
 			}
-			return nil
-		}(bd)
+			amqpChannel := *bd.RetryChannel
 
-		_ = prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
+			defer func(bd *BrokerDetails) *pb.Error {
+				if err := recover(); err != nil {
+					bd.Lock()
+					bd.RetryChannel = nil
+					bd.Unlock()
+					util.Logger.Debugf("recovered: %v", err)
+					return &pb.Error{Message: fmt.Sprintf("%v", err), IsFatal: true}
+				}
+				return nil
+			}(bd)
 
-		retrySpan.AddEvent("retry address created")
+			_ = prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
 
-		declareErr := prov.declareQueue(retrySource, bd, amqpChannel, false)
-		if declareErr != nil {
-			util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
+			retrySpan.AddEvent("retry address created")
+
+			declareErr := prov.declareQueue(retrySource, bd, amqpChannel, false)
+			if declareErr != nil {
+				util.Logger.Debugf("Failed to declare retry queue [%s]", retrySource.GetName())
+			}
+
+			retrySpan.AddEvent("retry queue created")
+
+			declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
+			if declareErr != nil {
+				util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
+			}
+
+			retrySpan.AddEvent("retry binding created")
+
+			retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
+
+			if retryErr != nil {
+				util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
+				_ = rm.Nack(true)
+			} else {
+				_ = rm.Ack() // We ack the message to prevent it from requeueing or dead lettering
+			}
+			retrySpan.AddEvent("retry ack/nack complete")
 		}
-
-		retrySpan.AddEvent("retry queue created")
-
-		declareErr = prov.declareBinding(retrySource, bd, amqpChannel, false)
-		if declareErr != nil {
-			util.Logger.Debugf("Failed to bind retry queue [%s] to exchange [%s]", retrySource.GetName(), retrySource.GetAddress().GetName())
-		}
-
-		retrySpan.AddEvent("retry binding created")
-
-		retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
-
-		if retryErr != nil {
-			util.Logger.Debugf("Failed to publish retry message [%s], requeueing instead.", msgid)
-			_ = rm.Nack(true)
-		} else {
-			_ = rm.Ack() // We ack the message to prevent it from requeueing or dead lettering
-		}
-		retrySpan.AddEvent("retry ack/nack complete")
 		util.Logger.DebugI(i18n.RetryMessage, bd.ClientIdentifier, msgid, delay)
 		bd.activeMessages.Delete(msgid)
 	} else {
@@ -383,6 +409,17 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 			return &newChan
 		},
 	}
+	bd.streamPublishers = &sync.Pool{
+		New: func() any {
+			pub, err := bd.StreamConnection.NewPublisher()
+			if pub == nil {
+				util.Logger.Error(err.Error())
+				return nil
+			}
+			return &pub
+		},
+	}
+
 	_, bdErr := bd.connect()
 	if bdErr != nil {
 		util.Logger.WarnI(i18n.BrokerConnectError, bdErr.Error())
@@ -454,6 +491,8 @@ func addressTypeToAmqpType(aType pb.Address_TargetType) (string, error) {
 		exchangeType = "headers"
 	case pb.Address_QUEUE:
 		exchangeType = "direct"
+	case pb.Address_STREAM:
+		exchangeType = "stream"
 	default:
 		util.Logger.WarnI(i18n.AddressTypeError, aType.String())
 		return "", fmt.Errorf("%s is not a valid address type", aType)
@@ -835,6 +874,13 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	}
 
 	bd.updateLastPubSubEvent()
+	if source.GetType() == pb.Source_STREAM {
+		return prov.streamSubscribe(ctx, bd, source, messageChannel)
+	}
+	return prov.queueSubscribe(ctx, bd, source, messageChannel)
+}
+
+func (prov *amqp091provider) queueSubscribe(ctx context.Context, bd *BrokerDetails, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
 
 	if bd.Connection.IsClosed() {
 		return &pb.Error{Message: "connection to broker is closed"}
@@ -1023,6 +1069,73 @@ func (prov *amqp091provider) Subscribe(ctx context.Context, source *pb.Source, m
 	}
 }
 
+func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDetails, source *pb.Source, messageChannel chan<- *pb.Message) *pb.Error {
+	// Streams have a reduced set of supported options so they
+	// are not validated by server
+	validOptions := supportedStreamSourceOptions
+	unsupported := make([]string, 0)
+	options := source.GetOptions()
+	for option := range options {
+		if _, ok := validOptions[option]; !ok {
+			util.Logger.InfoI(i18n.UnsupportedSourceOption, option)
+			unsupported = append(unsupported, option)
+		}
+	}
+
+	if len(unsupported) > 0 {
+		errMsg := fmt.Sprintf("streams do not support the following source options: %s", unsupported)
+		return &pb.Error{Message: errMsg}
+	}
+
+	if source.GetAutoDelete() || source.GetExclusive() {
+		errMsg := "streams do not support AutoDelete or Exclusive"
+		return &pb.Error{Message: errMsg}
+	}
+
+	strConnErr := prov.getStreamConnection(bd, source.GetName())
+	if strConnErr != nil {
+		return strConnErr
+	}
+
+	if bd.StreamConnection.IsClosed() {
+		return &pb.Error{Message: "connection to broker is closed"}
+	}
+
+	offset := ""
+	opts := source.GetOptions()
+	if _, ok := opts["Offset"]; ok {
+		offset = opts["Offset"]
+	}
+	var ttl int64
+	if sTTL, ok := opts["MessageTTL"]; ok {
+		val, err := strconv.ParseInt(sTTL, 10, 64)
+		if err != nil {
+			return &pb.Error{Message: "value for MessageTTL option must be a quoted integer"}
+		}
+		ttl = val
+	}
+
+	dErr := bd.StreamConnection.DeclareStream(source.GetName(), ttl)
+	if dErr != nil {
+		return &pb.Error{IsFatal: true, Message: fmt.Sprintf("failed to declare stream: %s", dErr.Error())}
+	}
+
+	handleMessages := func(_ stream.ConsumerContext, message *amqp.Message) {
+		messageUUID := util.GenUUID()
+		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
+			Headers: fromStreamHeaders(message.ApplicationProperties), Address: source.GetAddress()}
+		messageChannel <- m
+		bd.activeMessages.Add(messageUUID, m)
+		bd.consumed++
+	}
+
+	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), source.GetName(), offset, handleMessages)
+
+	<-ctx.Done()
+	consumer.Close()
+	return nil
+}
+
 // Disconnect disconnect from the broker
 func (prov *amqp091provider) Disconnect(ctx context.Context) {
 	clientIdentifier, err := GetClientIdentifier(ctx)
@@ -1054,6 +1167,20 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 	// close the client if it is still connected
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
 		bd.Connection.Close()
+	}
+	// close the stream client if it is connected
+	if bd.StreamConnection != nil && !bd.StreamConnection.IsClosed() {
+		bd.StreamConnection.ShuttingDown(true)
+		// Drain the stream publisher pool, Get will return
+		// nil when it tries to create a new publisher
+		for {
+			producer := bd.streamPublishers.Get()
+			if producer == nil {
+				break
+			}
+			producer.(*streamPublisher).Close()
+		}
+		bd.StreamConnection.Close()
 	}
 	prov.connections.Delete(clientIdentifier)
 
@@ -1153,6 +1280,19 @@ func (prov *amqp091provider) PublishOne(ctx context.Context, msg *pb.Message) *p
 
 	bd.updateLastPubSubEvent()
 
+	var pubErr *pb.Error
+	switch msg.GetAddress().GetType() {
+	case pb.Address_STREAM:
+		pubErr = prov.publishOneStream(ctx, msg, bd)
+	default:
+		pubErr = prov.publishOneQueue(ctx, msg, bd)
+	}
+
+	return pubErr
+}
+
+func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Message, bd *BrokerDetails) *pb.Error {
+
 	if bd.Connection.IsClosed() {
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
@@ -1165,6 +1305,43 @@ func (prov *amqp091provider) PublishOne(ctx context.Context, msg *pb.Message) *p
 	defer bd.pubChannels.Put(amqpChannel)
 
 	return prov.prepareAndSend(ctx, msg, bd, *amqpChannel)
+}
+
+func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Message, bd *BrokerDetails) *pb.Error {
+	strConnErr := prov.getStreamConnection(bd, msg.GetAddress().GetName())
+	if strConnErr != nil {
+		return strConnErr
+	}
+
+	if bd.StreamConnection.IsClosed() {
+		return &pb.Error{Message: "connection to broker is closed"}
+	}
+
+	strPub := bd.streamPublishers.Get()
+	if strPub == nil {
+		_, newPubErr := bd.StreamConnection.NewPublisher()
+		return &pb.Error{Message: fmt.Sprintf("connected to broker, but failed to create a stream publisher : %s", newPubErr.Error())}
+	}
+	publisher := strPub.(*streamPublisherShim)
+	defer bd.streamPublishers.Put(publisher)
+
+	return prov.streamPrepareAndSend(ctx, msg, bd, *publisher)
+}
+
+func (prov *amqp091provider) getStreamConnection(bd *BrokerDetails, streamName string) *pb.Error {
+	// Not all of our clients are using streams, so we only connect if streams are used.
+	if bd.StreamConnection == nil {
+		connStr := getStreamConnectionString(bd)
+		bd.Lock()
+		bd.StreamConnection = NewStreamConn(connStr, bd.ClientIdentifier,
+			streamName, bd.tlsConfig)
+		bd.Unlock()
+		connErr := bd.StreamConnection.Connect()
+		if connErr != nil {
+			return &pb.Error{Message: fmt.Sprintf("failed to create stream connection to broker: %s", connErr.Error())}
+		}
+	}
+	return nil
 }
 
 func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message, bd *BrokerDetails, amqpChannel amqp091ChannelShim) *pb.Error {
@@ -1220,6 +1397,35 @@ func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message
 	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
 	bd.produced++
 	span.End()
+
+	return nil
+}
+
+func (prov *amqp091provider) streamPrepareAndSend(ctx context.Context, msg *pb.Message, bd *BrokerDetails, publisher streamPublisherShim) *pb.Error {
+	_, span := tracing.SpanFromHeaders(ctx, msg.GetHeaders(), msg.GetAddress().GetName()+" publish", trace.SpanKindProducer)
+	defer span.End()
+
+	span.SetAttributes(attribute.String("subject.name", msg.GetAddress().GetSubjects()[0]),
+		attribute.String("messaging.client_id", bd.ClientIdentifier))
+
+	strMsg := streamMessage{Body: msg.GetBody()}
+	strMsg.Headers = msg.GetHeaders()
+	err := publisher.Publish(strMsg)
+
+	span.AddEvent("message published to stream")
+
+	if err != nil {
+		util.Logger.WarnI(i18n.PublishError, err.Error())
+
+		errMsg := &pb.Error{
+			Message: err.Error(),
+			IsFatal: true,
+		}
+		return errMsg
+	}
+
+	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
+	bd.produced++
 
 	return nil
 }
@@ -1297,11 +1503,6 @@ func (bd *BrokerDetails) connectionWatcher() {
 	}
 }
 
-func getCaBundlePath() string {
-	caBundlePath := os.Getenv("CA_BUNDLE")
-	return caBundlePath
-}
-
 func (bd *BrokerDetails) connect() (bool, error) {
 
 	if bd.clientDisconnect {
@@ -1367,32 +1568,19 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	}
 
 	var connStr string
-	var tlsConfig = bd.tlsConfig
 
-	// force TLS and also skip verification if true
+	// skip verification if true
 	if bd.tlsEnabled && bd.tlsSkipVerify { //nolint gocritic
 		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
-		tlsConfig.InsecureSkipVerify = true
-	} else if bd.tlsEnabled { // Regular TLS with cert verification against system certs
-		if tlsConfig.RootCAs != nil {
-			util.Logger.Debugf("%s connecting with TLS using system certs: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
-		} else if caBundlePath := getCaBundlePath(); caBundlePath != "" {
-			util.Logger.Debugf("%s connecting with TLS using certs from %s: %s:%d", bd.ClientIdentifier, caBundlePath, cf.GetHost(), cf.GetPort())
-			caBundle, err := os.ReadFile(filepath.FromSlash(filepath.Clean("/" + strings.Trim(caBundlePath, "/"))))
-			if err != nil {
-				return false, fmt.Errorf("could not read CA_BUNDLE %s: %s", caBundlePath, err.Error())
-			}
-			tlsConfig.RootCAs = x509.NewCertPool()
-			tlsConfig.RootCAs.AppendCertsFromPEM(caBundle)
-		}
-	} else { // no tls
+		bd.tlsConfig.InsecureSkipVerify = true
+	} else if !bd.tlsEnabled { // no tls
 		util.Logger.Debugf("%s connecting without TLS: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 	}
 
 	connStr = fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme, cf.GetCredentials().GetUsername(),
 		cf.GetCredentials().GetPassword(), cf.GetHost(), cf.GetPort(), tenant)
 
-	conn = NewAmqpConn091(connStr, bd.ClientIdentifier, tlsConfig)
+	conn = NewAmqpConn091(connStr, bd.ClientIdentifier, bd.tlsConfig)
 	err = conn.Connect()
 
 	if err != nil {
