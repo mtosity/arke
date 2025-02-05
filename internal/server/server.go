@@ -291,6 +291,22 @@ consumeLoop:
 							util.Logger.WarnI(i18n.SubscribeError, err.Message)
 							*returnErr = errors.New(err.GetMessage())
 						}
+
+						if source.GetDeclareOnly() {
+							dor := &pb.DeclareOnlyResponse{Success: true}
+							dor.Error = err
+							if err != nil {
+								dor.Success = false
+							}
+
+							cr := &pb.ConsumeResponse{
+								Resp: &pb.ConsumeResponse_DeclareOnlyResponse{
+									DeclareOnlyResponse: dor,
+								},
+							}
+							_ = sender.Send(cr)
+						}
+
 						if *stopFor != nil {
 							*stopFor <- true
 						}

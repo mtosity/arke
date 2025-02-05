@@ -665,7 +665,6 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 		util.Logger.WarnI(i18n.QueueDeclareError, qErr.Error())
 	}
 	bd.knownQueues.Add(source.GetName(), true)
-
 	return nil
 }
 
@@ -929,6 +928,11 @@ func (prov *amqp091provider) queueSubscribe(ctx context.Context, bd *BrokerDetai
 
 	subSpan.AddEvent("dead letter address created")
 
+	if source.GetDeclareOnly() {
+		// if we reach here, everything has succeeded and we should return from Consume if source.DeclareOnly = true
+		return nil
+	}
+
 	if source.GetPrefetchCount() > 0 {
 		err := amqpChannel.SetPrefetch(int(source.GetPrefetchCount()))
 		// if SetPrefetch fails, we need to get out because this could
@@ -1118,6 +1122,11 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 	dErr := bd.StreamConnection.DeclareStream(source.GetName(), ttl)
 	if dErr != nil {
 		return &pb.Error{IsFatal: true, Message: fmt.Sprintf("failed to declare stream: %s", dErr.Error())}
+	}
+
+	if source.GetDeclareOnly() {
+		// if we reach here, everything has succeeded and we should return from Consume if source.DeclareOnly = true
+		return nil
 	}
 
 	handleMessages := func(_ stream.ConsumerContext, message *amqp.Message) {

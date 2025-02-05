@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -826,4 +827,80 @@ func Test_StreamRetry(t *testing.T) {
 	pmock.AssertExpectations(t)
 	smock.AssertExpectations(t)
 	cmock.AssertExpectations(t)
+}
+
+func Test_Subscribe_Stream_DeclareOnly(t *testing.T) {
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	var declareOnlyTests = []struct {
+		declareError error
+	}{
+		{nil},
+		{errors.New("declareError")},
+	}
+
+	for _, dot := range declareOnlyTests {
+		t.Run(fmt.Sprintf("DeclareOnlyTests declareError %s", dot.declareError),
+			func(t *testing.T) {
+
+				prov := NewAMQP091Provider()
+
+				addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address", Type: pb.Address_STREAM}
+				src := &pb.Source{Address: addr, Name: "queue", Type: pb.Source_STREAM, DeclareOnly: true}
+
+				smock := &streamConnectionMock{}
+				smock.On("Connect").Return(nil)
+				smock.On("IsClosed").Return(false)
+				smock.On("DeclareStream").Return(dot.declareError)
+
+				oldNewStreamConn := NewStreamConn
+				NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+					return smock
+				}
+
+				amock := &amqpConnectionMock{}
+				amock.On("Connect").Return(nil)
+
+				errs := make(chan amqp091Error)
+				amock.On("NotifyClose").Return(errs)
+
+				NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+					return amock
+				}
+
+				defer func() {
+					NewStreamConn = oldNewStreamConn
+				}()
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				cc := &pb.ConnectionConfiguration{}
+				err := prov.Connect(ctx, cc, false)
+				assert.Nil(t, err)
+
+				mc := make(chan *pb.Message)
+				defer close(mc)
+
+				err = prov.Subscribe(ctx, src, mc)
+				if dot.declareError == nil {
+					assert.Nil(t, err)
+				} else {
+					assert.NotNil(t, err)
+				}
+				smock.AssertExpectations(t)
+				amock.AssertExpectations(t)
+			})
+	}
+
 }

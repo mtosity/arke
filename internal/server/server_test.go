@@ -1132,3 +1132,58 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 	stream.AssertExpectations(t)
 	s.GetProcessStats = oldGetProcessStats
 }
+
+func TestConsumerServerConsume_SubscribeDeclareOnly(t *testing.T) {
+
+	var declareOnlyTests = []struct {
+		success bool
+		subErr  *pb.Error
+	}{
+		{true, nil},
+		{false, &pb.Error{Message: "myerror"}},
+	}
+
+	for _, dot := range declareOnlyTests {
+		t.Run(fmt.Sprintf("DeclareOnlyTests subErr %s", dot.subErr),
+			func(t *testing.T) {
+				mockp.ExpectedCalls = make([]*mock.Call, 0)
+				mockp.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
+				mockp.On("WaitForConnect", mock.Anything).Return(true)
+
+				sourceOptions := make(map[string]string)
+				source := &pb.Source{Name: "asdf", Address: &pb.Address{Name: "addressname"}, Options: sourceOptions, DeclareOnly: true}
+				stream := &MockConsumerConsumeServerStream{}
+				cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+
+				cr := &pb.ConsumeResponse{
+					Resp: &pb.ConsumeResponse_DeclareOnlyResponse{
+						DeclareOnlyResponse: &pb.DeclareOnlyResponse{Success: dot.success, Error: dot.subErr},
+					},
+				}
+
+				stream.On("Recv").Return(cnsm, nil).Once()
+				stream.On("Recv").Return(nil, nil).Once().After(1 * time.Second)
+
+				stream.On("Send", cr).Return(nil, nil).Once()
+
+				// We are returning an error after 500 ms as a simple way of exiting the subscribe
+				if dot.subErr != nil {
+					mockp.On("Subscribe", mock.Anything, source, mock.Anything).Return(dot.subErr) // After(250 * time.Millisecond)
+				} else {
+					mockp.On("Subscribe", mock.Anything, source, mock.Anything).Return(nil) // After(250 * time.Millisecond)
+				}
+
+				conSrv.Connect(ctx, cf) //nolint errcheck
+				err := conSrv.Consume(stream)
+				if dot.subErr != nil {
+					assert.NotNil(t, err)
+				} else {
+					assert.Nil(t, err)
+				}
+
+				mockp.AssertExpectations(t)
+				stream.AssertExpectations(t)
+			},
+		)
+	}
+}

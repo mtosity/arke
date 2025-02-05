@@ -40,5 +40,6 @@ services:
     volumes:
       - ./certs:/certs
       - ./rabbitmq.conf:/etc/rabbitmq/conf.d/00-rabbitmq.conf
+    # hostname: localhost
 networks:
   arketest:

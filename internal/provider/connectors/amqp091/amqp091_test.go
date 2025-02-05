@@ -101,6 +101,7 @@ func (m *amqpChannelMock) QueueDeclare(arg1 string, arg2 bool, arg3 bool, arg4 a
 	args := m.Called(arg1, arg2, arg3, arg4)
 	return args.Error(0)
 }
+
 func (m *amqpChannelMock) QueueBind(arg1 string, arg2 string, arg3 string, arg4 amqp091Table) error {
 	args := m.Called(arg1, arg2, arg3, arg4)
 	return args.Error(0)
@@ -2274,6 +2275,79 @@ func Test_declareQueueAutoDelete(t *testing.T) {
 			cmock.AssertExpectations(t)
 		})
 	}
+}
+
+func Test_Subscribe_Queue_DeclareOnly(t *testing.T) {
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	var declareOnlyTests = []struct {
+		channelError error
+	}{
+		{nil},
+		{errors.New("channelError")},
+	}
+
+	for _, dot := range declareOnlyTests {
+		t.Run(fmt.Sprintf("DeclareOnlyTests channelError %s", dot.channelError),
+			func(t *testing.T) {
+
+				prov := NewAMQP091Provider()
+
+				addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address"}
+				src := &pb.Source{Address: addr, Name: "queue", Type: pb.Source_QUEUE, DeclareOnly: true}
+
+				cmock := &amqpChannelMock{}
+				amock := &amqpConnectionMock{}
+
+				if dot.channelError == nil {
+					cmock.On("Close").Return(nil)
+					cmock.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+					cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+					cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				}
+
+				amock.On("Connect").Return(nil)
+
+				NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+					return amock
+				}
+
+				errs := make(chan amqp091Error)
+				amock.On("NotifyClose").Return(errs)
+				amock.On("NewChannel").Return(cmock, dot.channelError)
+				amock.On("IsClosed").Return(false)
+
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				cc := &pb.ConnectionConfiguration{}
+				err := prov.Connect(ctx, cc, false)
+				assert.Nil(t, err)
+
+				mc := make(chan *pb.Message)
+				defer close(mc)
+
+				err = prov.Subscribe(ctx, src, mc)
+				if dot.channelError == nil {
+					assert.Nil(t, err)
+				} else {
+					assert.NotNil(t, err)
+				}
+				cmock.AssertExpectations(t)
+				amock.AssertExpectations(t)
+			})
+	}
+
 }
 
 func stockMessage(address *pb.Address) *pb.Message {

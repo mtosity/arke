@@ -10,6 +10,7 @@
     - [Consume](#arke-Consume)
     - [ConsumeResponse](#arke-ConsumeResponse)
     - [Credentials](#arke-Credentials)
+    - [DeclareOnlyResponse](#arke-DeclareOnlyResponse)
     - [Empty](#arke-Empty)
     - [Error](#arke-Error)
     - [Filter](#arke-Filter)
@@ -136,6 +137,7 @@ Response to a Consume message. Either a Message or a MessageConsumedResponse
 | msg | [Message](#arke-Message) |  |  |
 | consumed_response | [MessageConsumedResponse](#arke-MessageConsumedResponse) |  |  |
 | error | [Error](#arke-Error) |  |  |
+| declare_only_response | [DeclareOnlyResponse](#arke-DeclareOnlyResponse) |  |  |
 
 
 
@@ -152,6 +154,22 @@ Represents the broker authentication information.
 | ----- | ---- | ----- | ----------- |
 | username | [string](#string) |  | Username for authenticating to broker. |
 | password | [string](#string) |  | Password for authenticating to broker. |
+
+
+
+
+
+
+<a name="arke-DeclareOnlyResponse"></a>
+
+### DeclareOnlyResponse
+Response to a Consume request where Source.DeclareOnly is true.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| success | [bool](#bool) |  | Was the source declaration successful. |
+| error | [Error](#arke-Error) |  | Error if the source declaration failed. |
 
 
 
@@ -374,6 +392,7 @@ following Options: Exclusive, DeadLetterAdress or DeadLetterSubject.
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
 | filters | [Filter](#arke-Filter) | repeated | Filters for this Source. |
 | type | [Source.TargetType](#arke-Source-TargetType) |  | Target type, default is QUEUE. |
+| declare_only | [bool](#bool) |  | Declare the source and any bindings but do not actually consume any messages. |
 
 
 

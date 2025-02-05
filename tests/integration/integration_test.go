@@ -26,6 +26,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/yaml.v2"
 	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/internal/util"
 	cfg "sassoftware.io/viya/arke/test/config"
 )
 
@@ -2399,4 +2400,81 @@ func TestRateLimits(t *testing.T) {
 		}
 		assert.NotNil(t, err, "should get an error when exceeding bucket size")
 	})
+}
+
+func TestConsumeDeclareOnlyQueue(t *testing.T) {
+	testUUID := util.GenUUID()
+	uniqueSourceName := fmt.Sprintf("sas.test.proxy.TCDOQWP.%s", testUUID)
+
+	connConfig := connectConfig()
+	subjects := make([]string, 0)
+	subjects = append(subjects, fmt.Sprintf("sas.test.proxy.TCDOQWP.%s", testUUID))
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	source := &pb.Source{Name: uniqueSourceName, Address: address, PrefetchCount: 5, DeclareOnly: true}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	connResp, err := c.Connect(ctx, connConfig)
+	assert.Nil(t, err)
+	assert.NotNil(t, connResp)
+	assert.True(t, connResp.GetSuccess())
+
+	consumerStream, err := c.Consume(ctx)
+	assert.Nil(t, err)
+
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+	err = consumerStream.Send(cnsm)
+	assert.Nil(t, err)
+
+	cr, err := consumerStream.Recv()
+	assert.NotNil(t, cr.GetDeclareOnlyResponse())
+	assert.Nil(t, cr.GetError())
+	dor := cr.GetDeclareOnlyResponse()
+	assert.Nil(t, dor.Error)
+	assert.True(t, dor.GetSuccess())
+}
+
+func TestConsumeDeclareOnlyStream(t *testing.T) {
+	testUUID := util.GenUUID()
+	uniqueSourceName := fmt.Sprintf("sas.test.proxy.TCDOS.%s", testUUID)
+
+	connConfig := connectConfig()
+	subjects := make([]string, 0)
+	subjects = append(subjects, fmt.Sprintf("sas.test.proxy.TCDOS.%s", testUUID))
+	address := &pb.Address{Name: "amq.mystream", Subjects: subjects, Type: pb.Address_STREAM}
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	source := &pb.Source{Name: uniqueSourceName, Address: address, PrefetchCount: 5,
+		DeclareOnly: true, Type: pb.Source_STREAM}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer c.Disconnect(ctx, &pb.Empty{})
+	defer cancel()
+
+	connResp, err := c.Connect(ctx, connConfig)
+	assert.Nil(t, err)
+	assert.NotNil(t, connResp)
+	assert.True(t, connResp.GetSuccess())
+
+	consumerStream, err := c.Consume(ctx)
+	assert.Nil(t, err)
+
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+	err = consumerStream.Send(cnsm)
+	assert.Nil(t, err)
+
+	cr, err := consumerStream.Recv()
+	assert.NotNil(t, cr.GetDeclareOnlyResponse())
+	assert.Nil(t, cr.GetError())
+	dor := cr.GetDeclareOnlyResponse()
+	assert.Nil(t, dor.GetError())
+	assert.True(t, dor.GetSuccess())
 }
