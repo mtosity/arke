@@ -20,8 +20,10 @@ services:
       - RATE_LIMIT_REFILL_SECONDS=10
       - RATE_LIMIT_MAX_AGE_STALE_CLIENTS=600
       - RATE_LIMIT_DEBUG_METHODS=true
+      - GOCOVERDIR=/coverage/integration
     volumes:
       - ./certs:/certs
+      - ./coverage:/coverage
   rabbitmq:
     image: rabbitmq:3.12-management
     ports:

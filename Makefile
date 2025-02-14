@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 OUT_FILE=arke
-GOPKGS:=$(shell go list ./... | grep -v api | tr '\n' ',')
+GOPKGS:=$(shell go list ./... | grep -v api | grep -v tests/integration | tr '\n' ',' | sed 's/,$$//')
 
 HAVE_PROTOC:=$(shell which protoc 2>/dev/null)
 PROTOC=:
@@ -43,6 +43,9 @@ else
 	RUN_COMPOSE=false
 endif
 
+GOCOVERDIR := $(PWD)/coverage
+export GOCOVERDIR
+
 # used for integration test builds
 UNAME_ARCH := $(shell uname -m)
 arch=:arm64
@@ -50,7 +53,8 @@ ifeq ($(UNAME_S),x86_64)
 	arch = amd64
 endif
 
-ci: clean linux-nogen
+ci: clean setup ## Builds binary for linux_amd64 (lax)
+	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE} ./cmd
 
 all: clean setup generate osx # osx windows ## Cleans, installs dependencies, generates I18n resource bundle and builds all binaries
 .PHONY: all
@@ -94,36 +98,35 @@ test-clients-linux: ## Builds test clients
 linux: linux-nogen generate ## Builds binary for linux_amd64 (lax)
 
 linux-nogen: setup ## Builds binary for linux_amd64 (lax)
-	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -o build/linux/${OUT_FILE} ./cmd
+	${BUILD_ENV} GOARCH=amd64 GOOS=linux go build -coverpkg ${GOPKGS} -cover -o build/linux/${OUT_FILE} ./cmd
 
 osx: darwin ## Builds binary for darwin_amd64 (osx)
 
 darwin: setup generate ## Builds binary for darwin_amd64 (osx)
-	${BUILD_ENV} GOARCH=arm64 GOOS=darwin go build -o build/darwin/${OUT_FILE} ./cmd
+	${BUILD_ENV} GOARCH=arm64 GOOS=darwin go build -coverpkg ${GOPKGS} -cover -o build/darwin/${OUT_FILE} ./cmd
 
 windows: setup generate ## Builds binary for windows_amd64 (wx6)
-	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -o build/windows/${OUT_FILE} ./cmd
+	${BUILD_ENV} GOARCH=amd64 GOOS=windows go build -coverpkg ${GOPKGS} -cover -o build/windows/${OUT_FILE} ./cmd
 
 build: $(UNAME_S) ## Builds binary for current platform
 
 run:
-	./build/$(UNAME_S)/${OUT_FILE} &
+	GOCOVERDIR=$(GOCOVERDIR) ./build/$(UNAME_S)/${OUT_FILE} &
 stop:
 	pkill -2 -f build/$(UNAME_S)/${OUT_FILE}
 
 test: generate lint test-nogen ## Executes unit tests
 
 test-nogen: ## Executes unit tests without protoc generation
-	mkdir -p coverage/unit
-	rm -f coverage/unit/*
-	LOG_FORMAT=term go test -cover -v -timeout 30s --coverprofile coverage.out ./... -args -test.gocoverdir=${PWD}/coverage/unit
-
-	go tool cover -html=coverage.out -o coverage.html
+	mkdir -p $(GOCOVERDIR)
+	LOG_FORMAT=term go test -cover -v -timeout 30s --coverprofile unit_coverage.out ./... -args -test.gocoverdir=$(GOCOVERDIR)
+	go tool covdata textfmt -i=$(GOCOVERDIR) -o unit_counter_coverage.out
+	go tool cover -html=unit_coverage.out -o coverage.html
 
 # integration test related
 
 build_test_c:
-	${BUILD_ENV} OTEL_SDK_DISABLED=true go build -cover -o build/$(UNAME_S)/${OUT_FILE}.test ./cmd
+	${BUILD_ENV} OTEL_SDK_DISABLED=true go build -coverpkg ${GOPKGS} -cover -o build/$(UNAME_S)/${OUT_FILE}.test ./cmd
 #${BUILD_ENV} OTEL_SDK_DISABLED=true go test -c ./cmd -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
 
 pre_stop_test_c:
@@ -171,15 +174,15 @@ compose_down: ## Removes integration tests Docker resources
 
 integration_test: ## Runs integration tests
 	echo -e "\033[0;36mNo providerTLS\033[0m"
-	cd tests/integration ; go test -count=1 -v -tags=integration ./
+	cd tests/integration ; go test -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
 
 integration_test_tls: ## Runs integration tests with TLS enabled
 	echo -e "\033[0;31mProvider TLS enabled\033[0m"
-	cd tests/integration ; PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./
+	cd tests/integration ; PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
 
 integration_test_tls_send_ca: ## Runs integraiton tests with TLS enabled by sending TLS certs
 	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
-	cd tests/integration ; PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v -tags=integration ./
+	cd tests/integration ; PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
 
 integration: compose integration_test ## Runs compose and integration_test
 
