@@ -2609,3 +2609,31 @@ func TestConsumeDeclareOnlyStream(t *testing.T) {
 	assert.Nil(t, dor.GetError())
 	assert.True(t, dor.GetSuccess())
 }
+
+func TestProduceFailsIfNoStream(t *testing.T) {
+	ctx := context.Background()
+	conn := connect()
+	defer conn.Close()
+
+	connConfig := connectConfig()
+	c := pb.NewProducerClient(conn)
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	connResp, err := c.Connect(ctx, connConfig)
+	assert.Nil(t, err, "should not get an error connecting: %v", err)
+	assert.True(t, connResp.GetSuccess(), "should get a successful connection")
+
+	name := "sas.test.proxy.ProducerFailsIfNoStream." + util.GenUUID()
+	options := make(map[string]string)
+	options["MessageTTL"] = "120"
+	subjects := make([]string, 0)
+	subjects = append(subjects, name)
+	address := &pb.Address{Name: "sas.test.stream." + util.GenUUID(), Subjects: subjects, Type: pb.Address_STREAM}
+
+	pctx := context.Background()
+	expectedMessageCount := 100
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err = produceMessagesUnary(conn, c, pctx, expectedMessageCount, message)
+	assert.NotNil(t, err, "should get error when no stream: %v", err)
+}

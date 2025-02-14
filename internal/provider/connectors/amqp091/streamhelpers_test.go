@@ -3,8 +3,10 @@ package amqp091
 import (
 	"testing"
 
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 	"github.com/stretchr/testify/assert"
+	pb "sassoftware.io/viya/arke/api"
 )
 
 func Test_toStreamOffset(t *testing.T) {
@@ -34,4 +36,117 @@ func Test_toStreamOffset(t *testing.T) {
 
 	_, err = toStreamOffset("invalid", 100)
 	assert.NotNil(t, err)
+}
+
+func Test_toStreamMessage(t *testing.T) {
+	origMsg := streamMessage{
+		Body:            []byte("test body"),
+		Headers:         map[string]string{"header1": "value1", "header2": "value2"},
+		ContentEncoding: "utf-8",
+		ContentType:     "text/plain",
+	}
+
+	expectedMsg := amqp.NewMessage(origMsg.Body)
+	expectedMsg.ApplicationProperties = map[string]interface{}{"header1": "value1", "header2": "value2"}
+	expectedMsg.Properties = &amqp.MessageProperties{
+		ContentEncoding: "utf-8",
+		ContentType:     "text/plain",
+	}
+
+	resultMsg := toStreamMessage(origMsg)
+
+	assert.Equal(t, expectedMsg.ApplicationProperties, resultMsg.GetApplicationProperties())
+	assert.Equal(t, expectedMsg.Properties.ContentEncoding, resultMsg.GetMessageProperties().ContentEncoding)
+	assert.Equal(t, expectedMsg.Properties.ContentType, resultMsg.GetMessageProperties().ContentType)
+}
+
+func Test_toStreamHeaders(t *testing.T) {
+	origHeaders := map[string]string{
+		"header1": "value1",
+		"header2": "value2",
+		"header3": "value3",
+	}
+
+	expectedHeaders := map[string]interface{}{
+		"header1": "value1",
+		"header2": "value2",
+		"header3": "value3",
+	}
+
+	resultHeaders := toStreamHeaders(origHeaders)
+	assert.Equal(t, expectedHeaders, resultHeaders)
+}
+
+func Test_getStreamConnectionString(t *testing.T) {
+	tests := []struct {
+		name     string
+		bd       *BrokerDetails
+		expected string
+	}{
+		{
+			name: "without tenant and TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host: "localhost",
+				},
+				tlsEnabled: false,
+			},
+			expected: "rabbitmq-stream://user:pass@localhost:5552//",
+		},
+		{
+			name: "with tenant and without TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host:   "localhost",
+					Tenant: "tenant1",
+				},
+				tlsEnabled: false,
+			},
+			expected: "rabbitmq-stream://user:pass@localhost:5552/tenant1",
+		},
+		{
+			name: "without tenant and with TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host: "localhost",
+				},
+				tlsEnabled: true,
+			},
+			expected: "rabbitmq-stream+tls://user:pass@localhost:5552//",
+		},
+		{
+			name: "with tenant and TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host:   "localhost",
+					Tenant: "tenant1",
+				},
+				tlsEnabled: true,
+			},
+			expected: "rabbitmq-stream+tls://user:pass@localhost:5552/tenant1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getStreamConnectionString(tt.bd)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
