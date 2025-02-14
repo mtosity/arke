@@ -5,10 +5,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,9 +31,6 @@ func (m *streamConnectionMock) Connect() error {
 	return args.Error(0)
 }
 
-func (m *streamConnectionMock) ShuttingDown(_ bool) {
-}
-
 func (m *streamConnectionMock) Close() error {
 	args := m.Called()
 	return args.Error(0)
@@ -41,13 +41,17 @@ func (m *streamConnectionMock) IsClosed() bool {
 	return args.Bool(0)
 }
 
-func (m *streamConnectionMock) NewPublisher() (streamPublisherShim, error) {
-	args := m.Called()
+func (m *streamConnectionMock) GetPublisher(confirm bool) streamPublisherShim {
+	args := m.Called(confirm)
 	ret := args.Get(0)
 	if ret == nil {
-		return nil, args.Error(1)
+		return nil
 	}
-	return ret.(streamPublisherShim), args.Error(1)
+	return ret.(streamPublisherShim)
+}
+
+func (m *streamConnectionMock) PutPublisher(confirm bool, _ streamPublisherShim) {
+	m.Called(confirm)
 }
 
 func (m *streamConnectionMock) NewConsumer(streamName string, _ string, _ string, handler stream.MessagesHandler) (streamConsumerShim, error) {
@@ -80,9 +84,13 @@ func (m *streamPublisherMock) Publish(arg1 streamMessage) error {
 	return args.Error(0)
 }
 
-func (m *streamPublisherMock) Close() error {
+func (m *streamPublisherMock) GetPCChannel() chan streamMessageResponseShim {
 	args := m.Called()
-	return args.Error(0)
+	ret := args.Get(0)
+	if ret == nil {
+		return nil
+	}
+	return ret.(chan streamMessageResponseShim)
 }
 
 type streamConsumerMock struct {
@@ -92,6 +100,26 @@ type streamConsumerMock struct {
 func (m *streamConsumerMock) Close() error {
 	args := m.Called()
 	return args.Error(0)
+}
+
+type streamMessageResponseShimMock struct {
+	confirmed bool
+	msg       message.StreamMessage
+	err       error
+	pubID     int64
+}
+
+func (mrs streamMessageResponseShimMock) IsConfirmed() bool {
+	return mrs.confirmed
+}
+func (mrs streamMessageResponseShimMock) GetPublishingId() int64 { //nolint:revive
+	return mrs.pubID
+}
+func (mrs streamMessageResponseShimMock) GetError() error {
+	return mrs.err
+}
+func (mrs streamMessageResponseShimMock) GetMessage() message.StreamMessage {
+	return mrs.msg
 }
 
 func stockStreamMessage(msg *pb.Message) streamMessage {
@@ -109,6 +137,20 @@ func stockAmqp10Message(msg *pb.Message) amqp.Message {
 	sMsg := amqp.Message{}
 	sMsg.Data = [][]byte{msg.GetBody()}
 	return sMsg
+}
+
+func stockMessageConfirm(orig streamMessage) message.StreamMessage {
+	newMsg := toStreamMessage(orig)
+
+	appProps := newMsg.GetApplicationProperties()
+	props := newMsg.GetMessageProperties()
+	amqpMessage := &amqp.Message{Properties: props, ApplicationProperties: appProps, Data: newMsg.GetData()}
+	v := reflect.ValueOf(newMsg).Elem()
+	fieldValue := v.FieldByName("message")
+	fieldValue = reflect.NewAt(fieldValue.Type(), unsafe.Pointer(fieldValue.UnsafeAddr())).Elem()
+	fieldValue.Set(reflect.ValueOf(amqpMessage))
+
+	return newMsg
 }
 
 func Test_PublishStream(t *testing.T) {
@@ -129,8 +171,9 @@ func Test_PublishStream(t *testing.T) {
 	smock := &streamConnectionMock{}
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
+	smock.On("GetPublisher", false).Return(pmock)
+	smock.On("PutPublisher", false)
 
-	smock.On("NewPublisher").Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
 	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
 		return smock
@@ -167,6 +210,135 @@ func Test_PublishStream(t *testing.T) {
 	pmock.AssertExpectations(t)
 	smock.AssertExpectations(t)
 	amock.AssertExpectations(t)
+}
+
+func Test_PublishStreamWithConfirm(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	address.Type = pb.Address_STREAM
+	msg := stockMessage(address)
+	msg.Confirm = true
+	expectedMsg := stockStreamMessage(msg)
+
+	confirmMsg := stockMessageConfirm(expectedMsg)
+	confirmMsg.SetPublishingId(500)
+	resp := streamMessageResponseShimMock{
+		msg:       confirmMsg,
+		confirmed: true,
+		pubID:     500,
+		err:       nil,
+	}
+
+	pcChan := make(chan streamMessageResponseShim, 1)
+	pcChan <- resp
+	pmock := &streamPublisherMock{}
+	pmock.On("Publish", expectedMsg).Return(nil)
+	pmock.On("GetPCChannel").Return(pcChan)
+	smock := &streamConnectionMock{}
+	smock.On("Connect").Return(nil)
+	smock.On("IsClosed").Return(false)
+	smock.On("GetPublisher", true).Return(pmock)
+	smock.On("PutPublisher", true)
+
+	oldNewStreamConn := NewStreamConn
+	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+		return smock
+	}
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewStreamConn = oldNewStreamConn
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	go func() {
+		suberr := prov.PublishOne(ctx, msg)
+		assert.Nil(t, suberr)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	pmock.AssertExpectations(t)
+	smock.AssertExpectations(t)
+	amock.AssertExpectations(t)
+}
+
+func Test_PublishStreamFailed(t *testing.T) {
+	prov := NewAMQP091Provider()
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	address := stockAddress()
+	address.Type = pb.Address_STREAM
+	msg := stockMessage(address)
+	expectedMsg := stockStreamMessage(msg)
+
+	pmock := &streamPublisherMock{}
+	pmock.On("Publish", expectedMsg).Return(errors.New("failed"))
+	smock := &streamConnectionMock{}
+	smock.On("Connect").Return(nil)
+	smock.On("IsClosed").Return(false)
+	smock.On("GetPublisher", false).Return(pmock)
+	smock.On("PutPublisher", false).Return(nil)
+
+	oldNewStreamConn := NewStreamConn
+	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+		return smock
+	}
+
+	amock := &amqpConnectionMock{}
+	amock.On("Connect").Return(nil)
+
+	errs := make(chan amqp091Error)
+	amock.On("NotifyClose").Return(errs)
+	oldNewAmqpConn091 := NewAmqpConn091
+	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+		return amock
+	}
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewStreamConn = oldNewStreamConn
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	ctx := context.Background()
+	cc := &pb.ConnectionConfiguration{}
+	err := prov.Connect(ctx, cc, false)
+	assert.Nil(t, err)
+
+	suberr := prov.PublishOne(ctx, msg)
+	assert.Equal(t, "failed", suberr.Message)
+
+	time.Sleep(100 * time.Millisecond)
+
+	amock.AssertExpectations(t)
+	pmock.AssertExpectations(t)
+	smock.AssertExpectations(t)
 }
 
 func Test_PublishStreamFailedConn(t *testing.T) {
@@ -285,7 +457,6 @@ func Test_SubscribeStream(t *testing.T) {
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
 	smock.On("DeclareStream").Return(nil)
-	smock.On("NewPublisher").Return(nil)
 
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)
@@ -502,7 +673,6 @@ func Test_SubscribeStreamInvalidTTL(t *testing.T) {
 	smock := &streamConnectionMock{}
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
-	smock.On("NewPublisher").Return(nil)
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
@@ -566,7 +736,6 @@ func Test_SubscribeStreamFailedConn(t *testing.T) {
 	}
 	smock := &streamConnectionMock{}
 	smock.On("Connect").Return(errors.New("Failed Connection"))
-	smock.On("IsClosed").Return(nil)
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
@@ -692,7 +861,6 @@ func Test_SubscribeStreamFailedDeclare(t *testing.T) {
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
 	smock.On("DeclareStream").Return(errors.New("Failed stream declare"))
-	smock.On("NewPublisher").Return(nil)
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
@@ -761,7 +929,6 @@ func Test_StreamRetry(t *testing.T) {
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
 	smock.On("DeclareStream").Return(nil)
-	smock.On("NewPublisher").Return(nil)
 
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)

@@ -47,6 +47,7 @@ func toStreamMessage(origMsg streamMessage) message.StreamMessage {
 	msg.Properties = &amqp.MessageProperties{ContentEncoding: origMsg.ContentEncoding,
 		ContentType: origMsg.ContentType}
 
+	_, _ = msg.MarshalBinary()
 	return msg
 }
 

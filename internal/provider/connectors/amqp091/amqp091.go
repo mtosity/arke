@@ -58,8 +58,8 @@ type BrokerDetails struct {
 	ErrorChannel     chan amqp091Error
 	RetryChannel     *amqp091ChannelShim
 	pubChannels      *sync.Pool
+	pubPCChannels    *sync.Pool
 	StreamConnection streamConnectionShim
-	streamPublishers *sync.Pool
 	ClientIdentifier string
 	knownExchanges   *util.ConcurrentMap
 	knownQueues      *util.ConcurrentMap
@@ -297,7 +297,7 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 
 			if bd.RetryChannel == nil {
 				bd.Lock()
-				retryChannel, err := bd.Connection.NewChannel()
+				retryChannel, err := bd.Connection.NewChannel(false)
 				if err != nil {
 					bd.Unlock()
 					return &pb.Error{Message: err.Error()}
@@ -402,21 +402,20 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 
 	bd.pubChannels = &sync.Pool{
 		New: func() any {
-			newChan, _ := bd.Connection.NewChannel()
+			newChan, _ := bd.Connection.NewChannel(false)
 			if newChan == nil {
 				return nil
 			}
 			return &newChan
 		},
 	}
-	bd.streamPublishers = &sync.Pool{
+	bd.pubPCChannels = &sync.Pool{
 		New: func() any {
-			pub, err := bd.StreamConnection.NewPublisher()
-			if pub == nil {
-				util.Logger.Error(err.Error())
+			newChan, _ := bd.Connection.NewChannel(true)
+			if newChan == nil {
 				return nil
 			}
-			return &pub
+			return &newChan
 		},
 	}
 
@@ -443,7 +442,7 @@ func (prov *amqp091provider) setupDeadLetter(ctx context.Context, origSource *pb
 		return &pb.Error{Message: err.Error()}
 	}
 
-	amqpChannel, err := bd.Connection.NewChannel()
+	amqpChannel, err := bd.Connection.NewChannel(false)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -900,7 +899,7 @@ func (prov *amqp091provider) queueSubscribe(ctx context.Context, bd *BrokerDetai
 	subSpan.SetAttributes(attribute.String("source.name", source.GetName()),
 		attribute.String("messaging.client_id", bd.ClientIdentifier))
 
-	amqpChannel, err := bd.Connection.NewChannel()
+	amqpChannel, err := bd.Connection.NewChannel(false)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -1177,18 +1176,8 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 	if bd.Connection != nil && !bd.Connection.IsClosed() {
 		bd.Connection.Close()
 	}
-	// close the stream client if it is connected
-	if bd.StreamConnection != nil && !bd.StreamConnection.IsClosed() {
-		bd.StreamConnection.ShuttingDown(true)
-		// Drain the stream publisher pool, Get will return
-		// nil when it tries to create a new publisher
-		for {
-			producer := bd.streamPublishers.Get()
-			if producer == nil {
-				break
-			}
-			producer.(*streamPublisher).Close()
-		}
+
+	if bd.StreamConnection != nil {
 		bd.StreamConnection.Close()
 	}
 	prov.connections.Delete(clientIdentifier)
@@ -1212,7 +1201,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
-	amqpChannel, err := bd.Connection.NewChannel()
+	amqpChannel, err := bd.Connection.NewChannel(false)
 	if err != nil {
 		return &pb.Error{Message: err.Error()}
 	}
@@ -1274,6 +1263,9 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 				// nil message means shut it down
 				return nil
 			}
+			if message.GetConfirm() {
+				errChan <- &pb.Error{Message: "Unsupported: Publish does not support publish confirmation"}
+			}
 			mCtx := context.Background()
 			errChan <- prov.prepareAndSend(mCtx, message, bd, amqpChannel)
 		}
@@ -1306,12 +1298,21 @@ func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Messag
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
-	amc := bd.pubChannels.Get()
+	var amc any
+	if msg.GetConfirm() {
+		amc = bd.pubChannels.Get()
+	} else {
+		amc = bd.pubPCChannels.Get()
+	}
 	if amc == nil {
 		return &pb.Error{Message: "connected to broker, but failed to create a channel"}
 	}
 	amqpChannel := amc.(*amqp091ChannelShim)
-	defer bd.pubChannels.Put(amqpChannel)
+	if msg.GetConfirm() {
+		defer bd.pubChannels.Put(amqpChannel)
+	} else {
+		defer bd.pubPCChannels.Put(amqpChannel)
+	}
 
 	return prov.prepareAndSend(ctx, msg, bd, *amqpChannel)
 }
@@ -1326,15 +1327,13 @@ func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Messa
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
-	strPub := bd.streamPublishers.Get()
-	if strPub == nil {
-		_, newPubErr := bd.StreamConnection.NewPublisher()
-		return &pb.Error{Message: fmt.Sprintf("connected to broker, but failed to create a stream publisher : %s", newPubErr.Error())}
+	publisher := bd.StreamConnection.GetPublisher(msg.GetConfirm())
+	if publisher == nil {
+		return &pb.Error{Message: "connected to broker, but failed to create a stream publisher"}
 	}
-	publisher := strPub.(*streamPublisherShim)
-	defer bd.streamPublishers.Put(publisher)
+	defer bd.StreamConnection.PutPublisher(msg.GetConfirm(), publisher)
 
-	return prov.streamPrepareAndSend(ctx, msg, bd, *publisher)
+	return prov.streamPrepareAndSend(ctx, msg, bd, publisher)
 }
 
 func (prov *amqp091provider) getStreamConnection(bd *BrokerDetails, streamName string) *pb.Error {
@@ -1420,7 +1419,6 @@ func (prov *amqp091provider) streamPrepareAndSend(ctx context.Context, msg *pb.M
 	strMsg := streamMessage{Body: msg.GetBody()}
 	strMsg.Headers = msg.GetHeaders()
 	err := publisher.Publish(strMsg)
-
 	span.AddEvent("message published to stream")
 
 	if err != nil {
@@ -1433,9 +1431,26 @@ func (prov *amqp091provider) streamPrepareAndSend(ctx context.Context, msg *pb.M
 		return errMsg
 	}
 
+PCLoop:
+	// We do not need to wait for a confirmation if
+	// confirm is false
+	for msg.Confirm {
+		select {
+		// Not setting a timer here because the Publisher should
+		// timeout after 5 seconds
+		case <-ctx.Done():
+			return &pb.Error{Message: "Publish interrupted before confirmation received", IsFatal: true}
+		case status := <-publisher.GetPCChannel():
+			// Should we check message ID here?
+			if status.IsConfirmed() {
+				break PCLoop
+			} else {
+				return &pb.Error{Message: status.GetError().Error()}
+			}
+		}
+	}
 	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
 	bd.produced++
-
 	return nil
 }
 

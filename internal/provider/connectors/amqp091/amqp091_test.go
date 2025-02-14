@@ -57,7 +57,7 @@ func (m *amqpConnectionMock) IsClosed() bool {
 	return args.Bool(0)
 }
 
-func (m *amqpConnectionMock) NewChannel() (amqp091ChannelShim, error) {
+func (m *amqpConnectionMock) NewChannel(bool) (amqp091ChannelShim, error) {
 	args := m.Called()
 	ret := args.Get(0)
 	if ret == nil {

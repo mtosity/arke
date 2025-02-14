@@ -62,6 +62,7 @@ message Message {
     Address address = 4; // The distination for a published message.
     bool persistent = 5; // Indicates whether to persist the message.
     Error error = 6; // Error message if consuming failed.
+    bool confirm = 7; // Enables guaranteed delivery to the broker.
 }
 
 /**

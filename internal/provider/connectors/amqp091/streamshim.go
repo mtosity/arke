@@ -2,10 +2,12 @@ package amqp091
 
 import (
 	"crypto/tls"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/ha"
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
 )
 
@@ -13,10 +15,10 @@ type streamConnectionShim interface {
 	Connect() error
 	Close() error
 	IsClosed() bool
-	NewPublisher() (streamPublisherShim, error)
+	GetPublisher(bool) streamPublisherShim
+	PutPublisher(bool, streamPublisherShim)
 	NewConsumer(string, string, string, stream.MessagesHandler) (streamConsumerShim, error)
 	DeclareStream(string, int64) error
-	ShuttingDown(bool)
 }
 
 type streamConnection struct {
@@ -28,15 +30,23 @@ type streamConnection struct {
 	clientIdentifier string
 	streamName       string
 	clientDisconnect atomic.Bool
+	publishers       *sync.Pool
+	pcPublishers     *sync.Pool
 }
 
 type streamPublisherShim interface {
 	Publish(streamMessage) error
+	GetPCChannel() chan streamMessageResponseShim
+}
+
+type publisherWrapper interface {
+	Send(message.StreamMessage) error
 	Close() error
 }
 
 type streamPublisher struct {
-	publisher *ha.ReliableProducer
+	publisher publisherWrapper
+	pcChannel chan streamMessageResponseShim
 }
 
 type streamConsumerShim interface {
@@ -56,6 +66,13 @@ type streamMessage struct {
 	Headers         map[string]string
 }
 
+type streamMessageResponseShim interface {
+	IsConfirmed() bool
+	GetPublishingId() int64
+	GetError() error
+	GetMessage() message.StreamMessage
+}
+
 func (sc *streamConnection) Connect() error {
 	env, err := stream.NewEnvironment(
 		stream.NewEnvironmentOptions().
@@ -68,14 +85,44 @@ func (sc *streamConnection) Connect() error {
 		return err
 	}
 	sc.env = env
+
+	sc.publishers = &sync.Pool{
+		New: func() any {
+			return sc.newPublisher(false)
+		},
+	}
+	sc.pcPublishers = &sync.Pool{
+		New: func() any {
+			return sc.newPublisher(true)
+		},
+	}
+
 	return nil
 }
 
-func (sc *streamConnection) ShuttingDown(val bool) {
-	sc.clientDisconnect.Store(val)
-}
-
 func (sc *streamConnection) Close() error {
+	sc.clientDisconnect.Store(true)
+	if sc.IsClosed() {
+		return nil
+	}
+
+	// Drain the publisher pool, Get will return
+	// nil when it tries to create a new publisher
+	for {
+		producer := sc.publishers.Get()
+		if producer == nil {
+			break
+		}
+		producer.(*streamPublisher).Close()
+	}
+	// Drain the publish confirms publisher pool
+	for {
+		producer := sc.pcPublishers.Get()
+		if producer == nil {
+			break
+		}
+		producer.(*streamPublisher).Close()
+	}
 	return sc.env.Close()
 }
 
@@ -83,27 +130,54 @@ func (sc *streamConnection) IsClosed() bool {
 	return sc.env.IsClosed()
 }
 
-func (sc *streamConnection) NewPublisher() (streamPublisherShim, error) {
+func (sc *streamConnection) PutPublisher(confirm bool, pub streamPublisherShim) {
+	if confirm {
+		sc.pcPublishers.Put(pub)
+	} else {
+		sc.publishers.Put(pub)
+	}
+}
+
+func (sc *streamConnection) GetPublisher(confirm bool) streamPublisherShim {
+	if confirm {
+		return sc.pcPublishers.Get().(streamPublisher)
+	}
+	return sc.publishers.Get().(streamPublisher)
+}
+
+func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 	if sc.clientDisconnect.Load() {
 		// not returning an error here because we are likely
 		// shutting down this connection
-		return nil, nil
+		return nil
 	}
-	rProducer, err := ha.NewReliableProducer(sc.env,
-		sc.streamName,
-		stream.NewProducerOptions().
-			SetConfirmationTimeOut(5*time.Second).
-			SetClientProvidedName(sc.clientIdentifier),
-		func(messageStatus []*stream.ConfirmationStatus) {
-			// implement this later
-			for _, msgStatus := range messageStatus {
-				msgStatus.IsConfirmed()
-			}
-		})
-	if err != nil {
-		return nil, err
+	var producer publisherWrapper
+	var err error
+	var pcChan chan streamMessageResponseShim
+	if confirm {
+		pcChan = make(chan streamMessageResponseShim, 1)
+		producer, err = ha.NewReliableProducer(sc.env, sc.streamName,
+			stream.NewProducerOptions().
+				SetConfirmationTimeOut(5*time.Second).
+				SetClientProvidedName(sc.clientIdentifier),
+			func(messageStatus []*stream.ConfirmationStatus) {
+				for _, msgStatus := range messageStatus {
+					pcChan <- msgStatus
+				}
+			})
+		if err != nil {
+			return nil
+		}
+	} else {
+		producer, err = sc.env.NewProducer(sc.streamName,
+			stream.NewProducerOptions().
+				SetClientProvidedName(sc.clientIdentifier))
+		if err != nil {
+			return nil
+		}
 	}
-	return &streamPublisher{publisher: rProducer}, nil
+
+	return streamPublisher{publisher: producer, pcChannel: pcChan}
 }
 
 func (sc *streamConnection) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
@@ -151,12 +225,16 @@ func (sc *streamConnection) getMaxConsumers() int {
 	return sc.maxConsumers
 }
 
-func (sp *streamPublisher) Publish(msg streamMessage) error {
+func (sp streamPublisher) Publish(msg streamMessage) error {
 	return sp.publisher.Send(toStreamMessage(msg))
 }
 
-func (sp *streamPublisher) Close() error {
+func (sp streamPublisher) Close() error {
 	return sp.publisher.Close()
+}
+
+func (sp streamPublisher) GetPCChannel() chan streamMessageResponseShim {
+	return sp.pcChannel
 }
 
 func (scc *streamConsumer) Close() error {

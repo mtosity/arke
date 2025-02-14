@@ -301,6 +301,7 @@ the consumer process.
 | address | [Address](#arke-Address) |  | The distination for a published message. |
 | persistent | [bool](#bool) |  | Indicates whether to persist the message. |
 | error | [Error](#arke-Error) |  | Error message if consuming failed. |
+| confirm | [bool](#bool) |  | Enables guaranteed delivery to the broker. |
 
 
 

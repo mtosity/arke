@@ -3,6 +3,7 @@ package amqp091
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"sync"
 	"time"
 
@@ -18,7 +19,7 @@ type amqp091ConnectionShim interface {
 	Connect() error
 	Close() error
 	IsClosed() bool
-	NewChannel() (amqp091ChannelShim, error)
+	NewChannel(bool) (amqp091ChannelShim, error)
 	NotifyClose(chan amqp091Error) chan amqp091Error
 }
 
@@ -54,6 +55,7 @@ type amqp091Channel struct {
 	connection         *amqp091Connection
 	channelLock        sync.Mutex
 	prefetch           int
+	confirm            bool
 }
 
 // amqp091Error Error
@@ -88,14 +90,18 @@ func (ac *amqp091Connection) Connect() error {
 }
 
 // NewChannel Create a new channel on the connection
-func (ac *amqp091Connection) NewChannel() (amqp091ChannelShim, error) {
+func (ac *amqp091Connection) NewChannel(confirm bool) (amqp091ChannelShim, error) {
 	ac.channelLock.Lock()
 	defer ac.channelLock.Unlock()
 	ch, err := ac.connection.Channel()
 	if err != nil {
 		return nil, err
 	}
-	ach := &amqp091Channel{channel: ch, connection: ac}
+	if confirm {
+		err := ch.Confirm(false)
+		util.Logger.Debugf("Error setting confirm on channel : %v", err)
+	}
+	ach := &amqp091Channel{channel: ch, connection: ac, confirm: confirm}
 	return ach, nil
 }
 
@@ -158,7 +164,7 @@ func (ch *amqp091Channel) ensureChannel() error {
 	ch.channelLock.Lock()
 	defer ch.channelLock.Unlock()
 	if ch.channel.IsClosed() {
-		newCh, err := ch.connection.NewChannel()
+		newCh, err := ch.connection.NewChannel(ch.confirm)
 		if err != nil {
 			util.Logger.DebugI(i18n.EnsureChannelError, ch.connection.clientIdentifier, err)
 			return err
@@ -246,7 +252,7 @@ func (ch *amqp091Channel) Consume(subject string, autoAck, exclusive bool) (<-ch
 	return msgChan, nil
 }
 
-// Publish Publish a message to an exchange without confirmation
+// Publish Publish a message to an exchange, if msg.Confirm is set we wait for publish confirmation
 func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Message) error {
 	err := ch.ensureChannel()
 	if err != nil {
@@ -255,7 +261,26 @@ func (ch *amqp091Channel) Publish(addressName, subject string, msg amqp091Messag
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return ch.channel.PublishWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
+
+	if !ch.confirm {
+		return ch.channel.PublishWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
+	}
+
+	dc, pErr := ch.channel.PublishWithDeferredConfirmWithContext(ctx, addressName, subject, false, false, toAmqpMessage(&msg))
+	if pErr != nil {
+		return pErr
+	}
+	if dc == nil {
+		util.Logger.Debugf("Requested publish confirmation but was denied %v", ch.connection.clientIdentifier)
+		return nil
+	}
+	// Wait for confirmation from the server
+	recv := dc.Wait()
+	if !recv {
+		util.Logger.Debugf("Publish confirmation failed %v", ch.connection.clientIdentifier)
+		return errors.New("Publish confirmation failed")
+	}
+	return nil
 }
 
 // NotifyClose be notified of deleted queues, or channel closures

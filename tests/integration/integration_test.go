@@ -531,6 +531,58 @@ func TestProduceOneConsumeOne(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestProduceOneConsumeOneWithConfirm(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 100
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	source := &pb.Source{Name: "sas.test.proxy.PubOne.Consumer", Address: address, PrefetchCount: 1}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
 func TestProduceOneRepeatedConsumeOne(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()
@@ -637,6 +689,61 @@ func TestProduceOneStreamConsumeOne(t *testing.T) {
 	<-clientConnected
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	msgCount := 0
+
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceOneStreamConsumeOneWithConfirm(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 100
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	options := make(map[string]string)
+	options["MessageTTL"] = "120"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "sas.test.stream", Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: "sas.test.stream", Address: address, PrefetchCount: 1,
+		Type: pb.Source_STREAM, Options: options}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
 
 	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
 	assert.Nil(t, err)
@@ -853,6 +960,30 @@ func TestProduceManyConsumeMany(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceFailsWithConfirm(t *testing.T) {
+	conn := connect()
+	defer conn.Close()
+	c := pb.NewProducerClient(conn)
+	connConfig := connectConfig()
+
+	ctx := context.Background()
+	_, _ = c.Connect(ctx, connConfig)
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.TPFWC")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+
+	stream, _ := c.Publish(ctx)
+	err := stream.Send(&pb.Message{Body: []byte("message"), Address: address, Confirm: true, Persistent: true})
+	assert.Nil(t, err)
+	r, err := stream.Recv()
+	assert.Nil(t, err)
+	assert.NotNil(t, r)
+	assert.False(t, false, r.GetSuccess())
+	assert.Contains(t, r.GetError().GetMessage(), "Unsupported: Publish does not support publish confirmation")
 }
 
 func TestProduceFailsWithoutConnect(t *testing.T) {
