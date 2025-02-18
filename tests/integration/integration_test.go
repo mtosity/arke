@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -765,6 +766,55 @@ func TestProduceOneStreamConsumeOneWithConfirm(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestProduceStreamConsumePrefetch(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 25
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	options := make(map[string]string)
+	options["MessageTTL"] = "120"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	streamName := fmt.Sprintf("sas.test.stream.%s", util.GenUUID())
+	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: streamName, Address: address, PrefetchCount: 10,
+		Type: pb.Source_STREAM, Options: options}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	var counter uint32
+	prefetchHandler := func(msg *pb.Message) (int, error) {
+		atomic.AddUint32(&counter, 1)
+		time.Sleep(3 * time.Second)
+		return 0, nil
+	}
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, prefetchHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message)
+	assert.Nil(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, 10, int(counter))
+	time.Sleep(1500 * time.Millisecond)
+	assert.Equal(t, 20, int(counter))
 }
 
 func TestProduceSingleConsumeRetry(t *testing.T) {

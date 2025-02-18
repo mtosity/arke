@@ -64,6 +64,8 @@ type streamMessage struct {
 	ContentType     string
 	ContentEncoding string
 	Headers         map[string]string
+	Ack             func()
+	Nack            func()
 }
 
 type streamMessageResponseShim interface {
@@ -140,9 +142,17 @@ func (sc *streamConnection) PutPublisher(confirm bool, pub streamPublisherShim) 
 
 func (sc *streamConnection) GetPublisher(confirm bool) streamPublisherShim {
 	if confirm {
-		return sc.pcPublishers.Get().(streamPublisher)
+		pub := sc.pcPublishers.Get()
+		if pub == nil {
+			return nil
+		}
+		return pub.(streamPublisher)
 	}
-	return sc.publishers.Get().(streamPublisher)
+	pub := sc.publishers.Get()
+	if pub == nil {
+		return nil
+	}
+	return pub.(streamPublisher)
 }
 
 func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {

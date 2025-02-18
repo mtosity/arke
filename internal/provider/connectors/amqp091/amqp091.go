@@ -176,7 +176,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 
 			err = rm.Ack()
 		case streamMessage:
-			// Check if we are automatically or manually tracking our offset
+			rm.Ack()
 		}
 	} else {
 		util.Logger.TraceI(i18n.AckNoMessage, bd.ClientIdentifier, msgid)
@@ -227,7 +227,7 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 
 			err = rm.Nack(false)
 		case streamMessage:
-			// Check if we are automatically or manually tracking our offset
+			rm.Nack()
 		}
 	} else {
 		util.Logger.DebugI(i18n.NackNoMessage, bd.ClientIdentifier, msgid)
@@ -1128,12 +1128,20 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		return nil
 	}
 
+	latch := util.NewBlockingLatch(uint(source.GetPrefetchCount()))
+
 	handleMessages := func(_ stream.ConsumerContext, message *amqp.Message) {
 		messageUUID := util.GenUUID()
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
 			Headers: fromStreamHeaders(message.ApplicationProperties), Address: source.GetAddress()}
+		// Increment the latch before we put the message on the channel
+		// Increment will wait for Decrement to be called if we have hit the ceiling
+		latch.Increment()
 		messageChannel <- m
-		bd.activeMessages.Add(messageUUID, m)
+		stm := streamMessage{Body: message.GetData(), Headers: m.GetHeaders()}
+		stm.Ack = func() { latch.Decrement() }
+		stm.Nack = func() { latch.Decrement() }
+		bd.activeMessages.Add(messageUUID, stm)
 		bd.consumed++
 	}
 
