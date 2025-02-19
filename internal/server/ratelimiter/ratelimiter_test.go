@@ -1,3 +1,6 @@
+//go:build ratelimit
+// +build ratelimit
+
 package ratelimiter
 
 import (

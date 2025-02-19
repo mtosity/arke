@@ -388,12 +388,13 @@ following Options: Exclusive, DeadLetterAdress or DeadLetterSubject.
 | address | [Address](#arke-Address) |  | The Address associated with this source. |
 | durable | [bool](#bool) |  | **Deprecated.**  |
 | auto_delete | [bool](#bool) |  | Should this Source automatically delete. |
-| options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer). |
+| options | [Source.OptionsEntry](#arke-Source-OptionsEntry) | repeated | Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer), ConsumerGroup. |
 | exclusive | [bool](#bool) |  | Should this source be exclusive to the subscriber. |
 | prefetch_count | [int32](#int32) |  | Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1. |
 | filters | [Filter](#arke-Filter) | repeated | Filters for this Source. |
 | type | [Source.TargetType](#arke-Source-TargetType) |  | Target type, default is QUEUE. |
 | declare_only | [bool](#bool) |  | Declare the source and any bindings but do not actually consume any messages. |
+| single_active_consumer | [bool](#bool) |  | Only one consumer should be allowed to subscribe to this source. For queues, this applies to all consumers on the queue. For streams this option must be paired with the ConsumerGroup option. |
 
 
 

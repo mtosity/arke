@@ -1500,6 +1500,7 @@ func Test_SupportedSourceOptions(t *testing.T) {
 	expected["DeadLetterSubject"] = true
 	expected["Expires"] = true
 	expected["Offset"] = true
+	expected["ConsumerGroup"] = true
 
 	assert.Equal(t, opts, expected)
 }
@@ -2264,6 +2265,43 @@ func Test_declareQueueAutoDelete(t *testing.T) {
 				expectedArgs["x-queue-type"] = "classic"
 			} else {
 				expectedArgs["x-queue-type"] = "quorum"
+			}
+
+			cmock := &amqpChannelMock{}
+			cmock.On("QueueDeclare", src.GetName(), false, false, expectedArgs).Return(nil)
+
+			prov := NewAMQP091Provider().(*amqp091provider)
+			err := prov.declareQueue(src, bd, cmock, false)
+			assert.Nil(t, err)
+			cmock.AssertExpectations(t)
+		})
+	}
+}
+
+func Test_singleActiveConsumer(t *testing.T) {
+
+	var sacTests = []struct {
+		singleActiveConsumer bool
+	}{
+		{true},
+		{false},
+	}
+
+	for _, sac := range sacTests {
+		t.Run(fmt.Sprintf("SingleActiveConsumerTest singleActiveConsumer:%t",
+			sac.singleActiveConsumer), func(t *testing.T) {
+
+			bd := &BrokerDetails{
+				knownQueues: util.NewConcurrentMap(),
+			}
+			addr := &pb.Address{Subjects: []string{"routingkey"}, Name: "address"}
+			src := &pb.Source{Address: addr, Name: "queue", SingleActiveConsumer: sac.singleActiveConsumer}
+
+			expectedArgs := make(amqp091Table)
+			expectedArgs["x-queue-type"] = "quorum"
+
+			if sac.singleActiveConsumer {
+				expectedArgs["x-single-active-consumer"] = true
 			}
 
 			cmock := &amqpChannelMock{}

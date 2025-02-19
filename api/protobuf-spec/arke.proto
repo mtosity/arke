@@ -101,7 +101,7 @@ message Source {
     Address address = 3; // The Address associated with this source.
     bool durable = 4 [deprecated = true];
     bool auto_delete = 5; // Should this Source automatically delete.
-    map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer).
+    map<string,string> options = 7; // Additional options for this Source. Option keys include: MessageTTL, Expires, DeadLetterAddress, DeadLetterSubject, Offset(Valid values: first, continue, next, or a quoted integer), ConsumerGroup.
     bool exclusive = 8; // Should this source be exclusive to the subscriber.
     int32 prefetch_count = 9; // Set the prefetch count for this subscriber. Must be greater than 0. Defaults to 1.
     repeated Filter filters = 10; // Filters for this Source.
@@ -112,6 +112,7 @@ message Source {
     }
     TargetType type = 11; // Target type, default is QUEUE.
     bool declare_only = 12; // Declare the source and any bindings but do not actually consume any messages.
+    bool single_active_consumer = 13; // Only one consumer should be allowed to subscribe to this source. For queues, this applies to all consumers on the queue. For streams this option must be paired with the ConsumerGroup option.
 
     reserved 6;
     reserved "filter";

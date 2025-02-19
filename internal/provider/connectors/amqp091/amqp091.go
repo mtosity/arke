@@ -32,10 +32,10 @@ import (
 const providerName string = "amqp091"
 const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 
-var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset"}
+var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset", "ConsumerGroup"}
 
 var supportedSourceOptions map[string]bool
-var supportedStreamSourceOptions = map[string]bool{"Offset": true, "MessageTTL": true}
+var supportedStreamSourceOptions = map[string]bool{"Offset": true, "MessageTTL": true, "ConsumerGroup": true}
 
 // NewAmqpConn091 allow overriding the connection for mocking in tests
 var NewAmqpConn091 = NewAmqp091Connection
@@ -648,6 +648,10 @@ func (prov *amqp091provider) declareQueue(source *pb.Source, bd *BrokerDetails, 
 		}
 	}
 
+	if source.SingleActiveConsumer {
+		args["x-single-active-consumer"] = true
+	}
+
 	// if an AutoDelete source and x-expires is not set, set it to 5 minutes
 	if _, hasExpires := args["x-expires"]; (source.GetAutoDelete() || source.GetExclusive()) && !hasExpires {
 		args["x-expires"] = int(time.Duration(5 * time.Minute).Milliseconds())
@@ -1130,6 +1134,18 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 
 	latch := util.NewBlockingLatch(uint(source.GetPrefetchCount()))
 
+	consumerName := source.GetName()
+	if source.GetSingleActiveConsumer() {
+		if cg, ok := source.GetOptions()["ConsumerGroup"]; ok && cg != "" {
+			consumerName = cg
+		} else {
+			util.Logger.Debugf("%s requested single active consumer on stream %s but source.Options['ConsumerGroup'] was not set",
+				bd.ClientIdentifier, source.GetName())
+			emsg := "single active consumer requested but no ConsumerGroup option set"
+			return &pb.Error{Message: emsg}
+		}
+	}
+
 	handleMessages := func(_ stream.ConsumerContext, message *amqp.Message) {
 		messageUUID := util.GenUUID()
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
@@ -1145,8 +1161,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		bd.consumed++
 	}
 
-	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), source.GetName(), offset, handleMessages)
-
+	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), consumerName, offset, handleMessages)
 	<-ctx.Done()
 	consumer.Close()
 	return nil

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	pb "sassoftware.io/viya/arke/api"
+	"sassoftware.io/viya/arke/internal/util"
 )
 
 type streamConnectionMock struct {
@@ -54,8 +55,8 @@ func (m *streamConnectionMock) PutPublisher(confirm bool, _ streamPublisherShim)
 	m.Called(confirm)
 }
 
-func (m *streamConnectionMock) NewConsumer(streamName string, _ string, _ string, handler stream.MessagesHandler) (streamConsumerShim, error) {
-	args := m.Called()
+func (m *streamConnectionMock) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
+	args := m.Called(streamName, consumerName, offset, handler)
 	addr := stockAddress()
 	addr.Name = streamName
 	cCtx := stream.ConsumerContext{}
@@ -458,9 +459,19 @@ func Test_SubscribeStream(t *testing.T) {
 	smock.On("IsClosed").Return(false)
 	smock.On("DeclareStream").Return(nil)
 
+	subjects := make([]string, 0)
+	subjects = append(subjects, "subject1")
+	address := stockAddress()
+	address.Type = pb.Address_STREAM
+	src := &pb.Source{Name: "srcname",
+		Address:       address,
+		Options:       map[string]string{"Offset": "0", "MessageTTL": "500"},
+		Type:          pb.Source_STREAM,
+		PrefetchCount: 4}
+
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)
-	smock.On("NewConsumer").Return(pmock, nil)
+	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
 	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
 		return smock
@@ -485,16 +496,6 @@ func Test_SubscribeStream(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 		NewStreamConn = oldNewStreamConn
 	}()
-
-	subjects := make([]string, 0)
-	subjects = append(subjects, "subject1")
-	address := stockAddress()
-	address.Type = pb.Address_STREAM
-	src := &pb.Source{Name: "srcname",
-		Address:       address,
-		Options:       map[string]string{"Offset": "0", "MessageTTL": "500"},
-		Type:          pb.Source_STREAM,
-		PrefetchCount: 4}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
@@ -589,6 +590,99 @@ func Test_SubscribeStreamBadOpt(t *testing.T) {
 	pmock.AssertExpectations(t)
 	smock.AssertExpectations(t)
 	cmock.AssertExpectations(t)
+}
+
+func Test_streamSubscribe(t *testing.T) {
+
+	prov := NewAMQP091Provider().(*amqp091provider)
+
+	origNewAmqpConn091 := NewAmqpConn091
+	origNewStreamConn := NewStreamConn
+	origGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	defer func() {
+		GetClientIdentifier = origGetClientIdentifier
+		NewAmqpConn091 = origNewAmqpConn091
+		NewStreamConn = origNewStreamConn
+	}()
+
+	address := stockAddress()
+	address.Type = pb.Address_STREAM
+	source := &pb.Source{Name: "srcname",
+		Address:       address,
+		Options:       map[string]string{"Offset": "0"},
+		Type:          pb.Source_STREAM,
+		PrefetchCount: 4}
+
+	var subTests = []struct {
+		singleActiveConsumerEnabled bool
+		consumerGroupCalled         string
+		consumerGroupOpt            string
+		returnError                 string
+	}{
+		{false, source.GetName(), "", ""},
+		{true, "myConsumerGroup", "myConsumerGroup", ""},
+		{true, "", "", "no ConsumerGroup option set"},
+	}
+	for _, subt := range subTests {
+		src := source
+		src.SingleActiveConsumer = subt.singleActiveConsumerEnabled
+
+		if subt.singleActiveConsumerEnabled {
+			src.Options["ConsumerGroup"] = subt.consumerGroupOpt
+		}
+
+		bd := &BrokerDetails{}
+		bd.activeMessages = util.NewConcurrentMap()
+		ctx, cancel := context.WithCancel(context.Background())
+
+		mc := make(chan *pb.Message)
+		go func() {
+			<-mc
+		}()
+		defer close(mc)
+
+		errs := make(chan amqp091Error)
+
+		amock := &amqpConnectionMock{}
+		amock.On("Connect").Return(nil)
+		amock.On("IsClosed").Return(false)
+		amock.On("Close").Return(nil)
+		amock.On("NotifyClose").Return(errs)
+		NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+			return amock
+		}
+
+		pmock := &streamConsumerMock{}
+		pmock.On("Close").Return(nil)
+
+		smock := &streamConnectionMock{}
+		smock.On("Connect").Return(nil)
+		smock.On("IsClosed").Return(false)
+		smock.On("DeclareStream").Return(nil)
+		smock.On("NewConsumer", src.GetName(), subt.consumerGroupCalled, "0", mock.Anything).Return(pmock, nil)
+
+		NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+			return smock
+		}
+
+		go func() {
+			time.Sleep(1 * time.Second)
+			cancel()
+		}()
+
+		err := prov.streamSubscribe(ctx, bd, src, mc)
+
+		if subt.returnError == "" {
+			assert.Nil(t, err)
+		} else {
+			assert.NotNil(t, err)
+			assert.Contains(t, err.GetMessage(), subt.returnError)
+		}
+	}
 }
 
 func Test_SubscribeStreamAutoDeleteOrExclusive(t *testing.T) {
@@ -925,6 +1019,15 @@ func Test_StreamRetry(t *testing.T) {
 	GetClientIdentifier = func(context.Context) (string, error) {
 		return "1234", nil
 	}
+
+	address := stockAddress()
+	address.Type = pb.Address_STREAM
+	src := &pb.Source{Name: "srcname",
+		Address:       address,
+		Options:       map[string]string{"Offset": "0", "MessageTTL": "500"},
+		Type:          pb.Source_STREAM,
+		PrefetchCount: 4}
+
 	smock := &streamConnectionMock{}
 	smock.On("Connect").Return(nil)
 	smock.On("IsClosed").Return(false)
@@ -932,7 +1035,7 @@ func Test_StreamRetry(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)
-	smock.On("NewConsumer").Return(pmock, nil)
+	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
 	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
 		return smock
@@ -957,14 +1060,6 @@ func Test_StreamRetry(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 		NewStreamConn = oldNewStreamConn
 	}()
-
-	address := stockAddress()
-	address.Type = pb.Address_STREAM
-	src := &pb.Source{Name: "srcname",
-		Address:       address,
-		Options:       map[string]string{"Offset": "0", "MessageTTL": "500"},
-		Type:          pb.Source_STREAM,
-		PrefetchCount: 4}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}

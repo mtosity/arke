@@ -15,10 +15,10 @@ type streamConnectionShim interface {
 	Connect() error
 	Close() error
 	IsClosed() bool
-	GetPublisher(bool) streamPublisherShim
-	PutPublisher(bool, streamPublisherShim)
-	NewConsumer(string, string, string, stream.MessagesHandler) (streamConsumerShim, error)
-	DeclareStream(string, int64) error
+	GetPublisher(confirm bool) streamPublisherShim
+	PutPublisher(confirm bool, publisher streamPublisherShim)
+	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error)
+	DeclareStream(streamName string, ttl int64) error
 }
 
 type streamConnection struct {
