@@ -1320,6 +1320,9 @@ func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Messag
 	if bd.Connection.IsClosed() {
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
+	if msg.GetPublishId() > 0 {
+		return &pb.Error{Message: "Message deduplication is not supported by Queue types"}
+	}
 
 	var amc any
 	if msg.GetConfirm() {
@@ -1350,6 +1353,10 @@ func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Messa
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
+	if msg.GetPublishId() > 0 && bd.StreamConnection.GetPublisherName() == "" {
+		return &pb.Error{Message: "PublisherName not set on connection, PublisherName is required when PublishID is set"}
+	}
+
 	publisher := bd.StreamConnection.GetPublisher(msg.GetConfirm())
 	if publisher == nil {
 		return &pb.Error{Message: "connected to broker, but failed to create a stream publisher"}
@@ -1363,9 +1370,11 @@ func (prov *amqp091provider) getStreamConnection(bd *BrokerDetails, streamName s
 	// Not all of our clients are using streams, so we only connect if streams are used.
 	if bd.StreamConnection == nil {
 		connStr := getStreamConnectionString(bd)
+		cf := bd.connectionConfig
+		pubName := cf.GetPublisherName()
 		bd.Lock()
 		bd.StreamConnection = NewStreamConn(connStr, bd.ClientIdentifier,
-			streamName, bd.tlsConfig)
+			streamName, pubName, bd.tlsConfig)
 		bd.Unlock()
 		connErr := bd.StreamConnection.Connect()
 		if connErr != nil {
@@ -1441,6 +1450,7 @@ func (prov *amqp091provider) streamPrepareAndSend(ctx context.Context, msg *pb.M
 
 	strMsg := streamMessage{Body: msg.GetBody()}
 	strMsg.Headers = msg.GetHeaders()
+	strMsg.PublishID = msg.GetPublishId()
 	err := publisher.Publish(strMsg)
 	span.AddEvent("message published to stream")
 

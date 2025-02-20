@@ -16,10 +16,10 @@ const maxConsumers = 10
 const port = 5552
 
 // NewStreamConnection Create a new streamConnection object with a connection string and tls config
-func NewStreamConnection(connStr string, clientIdentifier string, streamName string, tlsCfg *tls.Config) streamConnectionShim {
+func NewStreamConnection(connStr string, clientIdentifier string, streamName string, publisherName string, tlsCfg *tls.Config) streamConnectionShim {
 	return &streamConnection{maxProducers: maxProducers, maxConsumers: maxConsumers,
 		connStr: connStr, tlsCfg: tlsCfg, clientIdentifier: clientIdentifier,
-		streamName: streamName}
+		streamName: streamName, publisherName: publisherName}
 }
 
 func getStreamConnectionString(bd *BrokerDetails) string {
@@ -46,7 +46,9 @@ func toStreamMessage(origMsg streamMessage) message.StreamMessage {
 	msg.ApplicationProperties = toStreamHeaders(origMsg.Headers)
 	msg.Properties = &amqp.MessageProperties{ContentEncoding: origMsg.ContentEncoding,
 		ContentType: origMsg.ContentType}
-
+	if origMsg.PublishID > 0 {
+		msg.SetPublishingId(origMsg.PublishID)
+	}
 	_, _ = msg.MarshalBinary()
 	return msg
 }

@@ -2,6 +2,7 @@ package amqp091
 
 import (
 	"crypto/tls"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,19 +20,23 @@ type streamConnectionShim interface {
 	PutPublisher(confirm bool, publisher streamPublisherShim)
 	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error)
 	DeclareStream(streamName string, ttl int64) error
+	GetPublisherName() string
 }
 
 type streamConnection struct {
-	env              *stream.Environment
-	maxProducers     int
-	maxConsumers     int
-	connStr          string
-	tlsCfg           *tls.Config
-	clientIdentifier string
-	streamName       string
-	clientDisconnect atomic.Bool
-	publishers       *sync.Pool
-	pcPublishers     *sync.Pool
+	env                *stream.Environment
+	maxProducers       int
+	maxConsumers       int
+	connStr            string
+	tlsCfg             *tls.Config
+	clientIdentifier   string
+	streamName         string
+	clientDisconnect   atomic.Bool
+	publishers         *sync.Pool
+	pcPublishers       *sync.Pool
+	publisherName      string
+	namedPublisherLock sync.Mutex
+	namedPublisher     streamPublisherShim
 }
 
 type streamPublisherShim interface {
@@ -66,6 +71,7 @@ type streamMessage struct {
 	Headers         map[string]string
 	Ack             func()
 	Nack            func()
+	PublishID       int64
 }
 
 type streamMessageResponseShim interface {
@@ -133,14 +139,26 @@ func (sc *streamConnection) IsClosed() bool {
 }
 
 func (sc *streamConnection) PutPublisher(confirm bool, pub streamPublisherShim) {
-	if confirm {
+	switch {
+	case sc.publisherName != "":
+		sc.namedPublisherLock.Unlock()
+	case confirm:
 		sc.pcPublishers.Put(pub)
-	} else {
+	default:
 		sc.publishers.Put(pub)
 	}
 }
 
 func (sc *streamConnection) GetPublisher(confirm bool) streamPublisherShim {
+	// We only support a single named publisher, and the named publisher can
+	// only be used by one goroutine at a time
+	if sc.publisherName != "" {
+		sc.namedPublisherLock.Lock()
+		if sc.namedPublisher == nil {
+			sc.namedPublisher = sc.newPublisher(confirm)
+		}
+		return sc.namedPublisher
+	}
 	if confirm {
 		pub := sc.pcPublishers.Get()
 		if pub == nil {
@@ -164,25 +182,27 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 	var producer publisherWrapper
 	var err error
 	var pcChan chan streamMessageResponseShim
+	options := stream.NewProducerOptions().SetClientProvidedName(sc.clientIdentifier)
+	if sc.publisherName != "" {
+		options.SetProducerName(sc.publisherName)
+	}
 	if confirm {
+		options.SetConfirmationTimeOut(5 * time.Second)
 		pcChan = make(chan streamMessageResponseShim, 1)
-		producer, err = ha.NewReliableProducer(sc.env, sc.streamName,
-			stream.NewProducerOptions().
-				SetConfirmationTimeOut(5*time.Second).
-				SetClientProvidedName(sc.clientIdentifier),
+		producer, err = ha.NewReliableProducer(sc.env, sc.streamName, options,
 			func(messageStatus []*stream.ConfirmationStatus) {
 				for _, msgStatus := range messageStatus {
 					pcChan <- msgStatus
 				}
 			})
 		if err != nil {
+			fmt.Printf("Error creating publisher : %v\n", err)
 			return nil
 		}
 	} else {
-		producer, err = sc.env.NewProducer(sc.streamName,
-			stream.NewProducerOptions().
-				SetClientProvidedName(sc.clientIdentifier))
+		producer, err = sc.env.NewProducer(sc.streamName, options)
 		if err != nil {
+			fmt.Printf("Error creating publisher : %v\n", err)
 			return nil
 		}
 	}
@@ -233,6 +253,10 @@ func (sc *streamConnection) getMaxConsumers() int {
 		return 1
 	}
 	return sc.maxConsumers
+}
+
+func (sc *streamConnection) GetPublisherName() string {
+	return sc.publisherName
 }
 
 func (sp streamPublisher) Publish(msg streamMessage) error {

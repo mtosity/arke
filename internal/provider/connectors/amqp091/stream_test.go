@@ -76,6 +76,10 @@ func (m *streamConnectionMock) DeclareStream(_ string, _ int64) error {
 	return args.Error(0)
 }
 
+func (m *streamConnectionMock) GetPublisherName() string {
+	return ""
+}
+
 type streamPublisherMock struct {
 	mock.Mock
 }
@@ -176,7 +180,7 @@ func Test_PublishStream(t *testing.T) {
 	smock.On("PutPublisher", false)
 
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -248,7 +252,7 @@ func Test_PublishStreamWithConfirm(t *testing.T) {
 	smock.On("PutPublisher", true)
 
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -307,7 +311,7 @@ func Test_PublishStreamFailed(t *testing.T) {
 	smock.On("PutPublisher", false).Return(nil)
 
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -359,7 +363,7 @@ func Test_PublishStreamFailedConn(t *testing.T) {
 	smock.On("Connect").Return(errors.New("Failed connection"))
 
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -412,7 +416,7 @@ func Test_PublishStreamNotConn(t *testing.T) {
 	smock.On("IsClosed").Return(true)
 
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -473,7 +477,7 @@ func Test_SubscribeStream(t *testing.T) {
 	pmock.On("Close").Return(nil)
 	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -541,7 +545,7 @@ func Test_SubscribeStreamBadOpt(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -665,7 +669,7 @@ func Test_streamSubscribe(t *testing.T) {
 		smock.On("DeclareStream").Return(nil)
 		smock.On("NewConsumer", src.GetName(), subt.consumerGroupCalled, "0", mock.Anything).Return(pmock, nil)
 
-		NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+		NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 			return smock
 		}
 
@@ -696,7 +700,7 @@ func Test_SubscribeStreamAutoDeleteOrExclusive(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -770,7 +774,7 @@ func Test_SubscribeStreamInvalidTTL(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -833,7 +837,7 @@ func Test_SubscribeStreamFailedConn(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -895,7 +899,7 @@ func Test_SubscribeStreamNotConn(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -958,7 +962,7 @@ func Test_SubscribeStreamFailedDeclare(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -1037,7 +1041,7 @@ func Test_StreamRetry(t *testing.T) {
 	pmock.On("Close").Return(nil)
 	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
-	NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 
@@ -1127,7 +1131,7 @@ func Test_Subscribe_Stream_DeclareOnly(t *testing.T) {
 				smock.On("DeclareStream").Return(dot.declareError)
 
 				oldNewStreamConn := NewStreamConn
-				NewStreamConn = func(string, string, string, *tls.Config) streamConnectionShim {
+				NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
 					return smock
 				}
 
