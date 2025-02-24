@@ -682,8 +682,25 @@ func (bd *BrokerDetails) getManagementClient() *http.Client {
 }
 
 func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]interface{}, error) {
+
 	var results []map[string]interface{}
 
+	body, err := bd.doManagementRequestWithoutMarshal(method, urn)
+
+	if err != nil {
+		return results, err
+	}
+
+	if len(body) > 0 {
+		if marshErr := json.Unmarshal(body, &results); marshErr != nil {
+			return results, marshErr
+		}
+	}
+
+	return results, nil
+}
+
+func (bd *BrokerDetails) doManagementRequestWithoutMarshal(method, urn string) ([]byte, error) {
 	client := bd.getManagementClient()
 	proto := "http"
 	if bd.tlsEnabled {
@@ -704,30 +721,26 @@ func (bd *BrokerDetails) doManagementRequest(method, urn string) ([]map[string]i
 
 	if respErr != nil { //nolint gocritic
 		err := fmt.Errorf("Error retrieving bindings: %s", respErr.Error())
-		return results, err
+		return nil, err
 	} else if resp == nil {
 		err := fmt.Errorf("Error %s binding %s: no response", method, rurl)
-		return results, err
+		return nil, err
 	} else if resp.StatusCode >= 300 || resp.StatusCode < 200 {
 		err := fmt.Errorf("Error %s binding %s: request returned a %d", method, rurl, resp.StatusCode)
-		return results, err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 	body, bodyErr := io.ReadAll(resp.Body)
 	if bodyErr != nil {
-		return results, bodyErr
+		return body, bodyErr
 	}
 
 	if resp.StatusCode == 204 {
-		return results, nil
+		return body, nil
 	}
 
-	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
-		return results, marshErr
-	}
-
-	return results, nil
+	return body, nil
 }
 
 func (bd *BrokerDetails) getBindingKeysForSource(source *pb.Source) []map[string]interface{} {
@@ -1519,6 +1532,63 @@ func (prov *amqp091provider) WaitForConnect(ctx context.Context) bool {
 
 	}
 	return false
+}
+
+func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStats {
+	stats := &pb.SourceStats{}
+	var results map[string]interface{}
+
+	queue := url.QueryEscape(sourceName(source))
+	vhost := bd.connectionConfig.GetTenant()
+	if vhost == "" {
+		vhost = "/"
+	}
+	vhost = url.QueryEscape(vhost)
+
+	urn := fmt.Sprintf("/api/queues/%s/%s", vhost, queue)
+	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
+
+	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
+		stats.Error = &pb.Error{Message: marshErr.Error()}
+		return stats
+	}
+
+	var messageCount int64
+	var consumerCount int32
+
+	if consumersCountRaw, ok := results["consumers"]; ok {
+		consumerCount = int32(consumersCountRaw.(float64))
+	}
+	if messageCountRaw, ok := results["messages"]; ok {
+		messageCount = int64(messageCountRaw.(float64))
+	}
+
+	stats.ConsumerCount = consumerCount
+	stats.MessageCount = messageCount
+
+	if err != nil {
+		util.Logger.Debugf("Error retrieving queue/stream from management API %s: %s", queue, err.Error())
+		stats.Error = &pb.Error{Message: err.Error()}
+		return stats
+	}
+
+	return stats
+}
+
+func (prov *amqp091provider) SourceStats(ctx context.Context, source *pb.Source) *pb.SourceStats {
+	sourceStats := &pb.SourceStats{}
+	if source.GetAddress().GetName() == "" {
+		sourceStats.Error = &pb.Error{Message: "address name not defined"}
+		return sourceStats
+	}
+
+	bd, err := prov.getBrokerDetails(ctx)
+	if err != nil {
+		sourceStats.Error = &pb.Error{Message: err.Error()}
+		return sourceStats
+	}
+
+	return bd.getStreamOrQueueStats(source)
 }
 
 func sleepRandomReconnect() {

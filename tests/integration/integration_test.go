@@ -2686,81 +2686,144 @@ func TestRateLimits(t *testing.T) {
 	})
 }
 
-func TestConsumeDeclareOnlyQueue(t *testing.T) {
-	testUUID := util.GenUUID()
-	uniqueSourceName := fmt.Sprintf("sas.test.proxy.TCDOQWP.%s", testUUID)
+func TestConsumeDeclareOnly(t *testing.T) {
+	var declareOnlyTests = []struct {
+		addressType pb.Address_TargetType
+		sourceType  pb.Source_TargetType
+		addressName string
+		sourceName  string
+	}{
+		{pb.Address_TOPIC, pb.Source_QUEUE, "amq.topic", "sas.test.proxy.TCDO.queue"},
+		{pb.Address_STREAM, pb.Source_STREAM, "amq.mystream", "sas.test.proxy.TCDO.stream"},
+	}
 
-	connConfig := connectConfig("")
-	subjects := make([]string, 0)
-	subjects = append(subjects, fmt.Sprintf("sas.test.proxy.TCDOQWP.%s", testUUID))
-	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	for _, dot := range declareOnlyTests {
+		testUUID := util.GenUUID()
+		uniqueSourceName := fmt.Sprintf("%s.%s", dot.sourceName, testUUID)
 
-	consumerConnection := connect()
-	defer consumerConnection.Close()
+		connConfig := connectConfig("")
+		subjects := make([]string, 0)
+		subjects = append(subjects, uniqueSourceName)
+		address := &pb.Address{Name: dot.addressName, Subjects: subjects, Type: dot.addressType}
 
-	source := &pb.Source{Name: uniqueSourceName, Address: address, PrefetchCount: 5, DeclareOnly: true}
-	c := pb.NewConsumerClient(consumerConnection)
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	defer c.Disconnect(ctx, &pb.Empty{})
+		consumerConnection := connect()
+		defer consumerConnection.Close()
 
-	connResp, err := c.Connect(ctx, connConfig)
-	assert.Nil(t, err)
-	assert.NotNil(t, connResp)
-	assert.True(t, connResp.GetSuccess())
+		source := &pb.Source{Name: uniqueSourceName, Address: address, PrefetchCount: 5, DeclareOnly: true, Type: dot.sourceType}
+		c := pb.NewConsumerClient(consumerConnection)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		defer c.Disconnect(ctx, &pb.Empty{})
 
-	consumerStream, err := c.Consume(ctx)
-	assert.Nil(t, err)
+		connResp, err := c.Connect(ctx, connConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, connResp)
+		assert.True(t, connResp.GetSuccess())
 
-	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
-	err = consumerStream.Send(cnsm)
-	assert.Nil(t, err)
+		consumerStream, err := c.Consume(ctx)
+		assert.Nil(t, err)
 
-	cr, err := consumerStream.Recv()
-	assert.NotNil(t, cr.GetDeclareOnlyResponse())
-	assert.Nil(t, cr.GetError())
-	dor := cr.GetDeclareOnlyResponse()
-	assert.Nil(t, dor.Error)
-	assert.True(t, dor.GetSuccess())
+		cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+		err = consumerStream.Send(cnsm)
+		assert.Nil(t, err)
+
+		cr, err := consumerStream.Recv()
+		assert.NotNil(t, cr.GetDeclareOnlyResponse())
+		assert.Nil(t, cr.GetError())
+		dor := cr.GetDeclareOnlyResponse()
+		assert.Nil(t, dor.Error)
+		assert.True(t, dor.GetSuccess())
+	}
 }
 
-func TestConsumeDeclareOnlyStream(t *testing.T) {
-	testUUID := util.GenUUID()
-	uniqueSourceName := fmt.Sprintf("sas.test.proxy.TCDOS.%s", testUUID)
+func TestConsumeSourceStats(t *testing.T) {
+	var declareOnlyTests = []struct {
+		addressType           pb.Address_TargetType
+		sourceType            pb.Source_TargetType
+		name                  string
+		expectedConsumerCount int32
+		expectedMessageCount  int64
+	}{
+		{pb.Address_TOPIC, pb.Source_QUEUE, "sas.test.proxy.TCSS.queue", 0, 4},
+		{pb.Address_STREAM, pb.Source_STREAM, "sas.test.proxy.TCSS.stream", 0, 5},
+	}
 
-	connConfig := connectConfig("")
-	subjects := make([]string, 0)
-	subjects = append(subjects, fmt.Sprintf("sas.test.proxy.TCDOS.%s", testUUID))
-	address := &pb.Address{Name: "amq.mystream", Subjects: subjects, Type: pb.Address_STREAM}
+	for _, dot := range declareOnlyTests {
+		// set up the consumer with DeclareOnly=true because we don't want to consume anything
+		timeout := 15 * time.Second
+		testUUID := util.GenUUID()
+		uniqueName := fmt.Sprintf("%s.%s", dot.name, testUUID)
 
-	consumerConnection := connect()
-	defer consumerConnection.Close()
+		connConfig := connectConfig("")
+		consumerConnection := connect()
+		defer consumerConnection.Close()
 
-	source := &pb.Source{Name: uniqueSourceName, Address: address, PrefetchCount: 5,
-		DeclareOnly: true, Type: pb.Source_STREAM}
-	c := pb.NewConsumerClient(consumerConnection)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer c.Disconnect(ctx, &pb.Empty{})
-	defer cancel()
+		// must publish to Address.Name equal to Source.Name of the consumer
+		subjects := make([]string, 0)
+		subjects = append(subjects, uniqueName)
+		address := &pb.Address{Name: uniqueName, Subjects: subjects, Type: dot.addressType}
+		source := &pb.Source{Name: uniqueName, Address: address, PrefetchCount: 5,
+			DeclareOnly: true, Type: dot.sourceType}
 
-	connResp, err := c.Connect(ctx, connConfig)
-	assert.Nil(t, err)
-	assert.NotNil(t, connResp)
-	assert.True(t, connResp.GetSuccess())
+		c := pb.NewConsumerClient(consumerConnection)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		defer c.Disconnect(ctx, &pb.Empty{})
 
-	consumerStream, err := c.Consume(ctx)
-	assert.Nil(t, err)
+		connResp, err := c.Connect(ctx, connConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, connResp)
+		assert.True(t, connResp.GetSuccess())
 
-	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
-	err = consumerStream.Send(cnsm)
-	assert.Nil(t, err)
+		consumerStream, err := c.Consume(ctx)
+		assert.Nil(t, err)
 
-	cr, err := consumerStream.Recv()
-	assert.NotNil(t, cr.GetDeclareOnlyResponse())
-	assert.Nil(t, cr.GetError())
-	dor := cr.GetDeclareOnlyResponse()
-	assert.Nil(t, dor.GetError())
-	assert.True(t, dor.GetSuccess())
+		cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+		err = consumerStream.Send(cnsm)
+		assert.Nil(t, err)
+
+		cr, err := consumerStream.Recv()
+		assert.NotNil(t, cr.GetDeclareOnlyResponse())
+		assert.Nil(t, cr.GetError())
+		dor := cr.GetDeclareOnlyResponse()
+		assert.Nil(t, dor.Error)
+		assert.True(t, dor.GetSuccess())
+
+		// set up the producer so we can send messages
+		producerConnection := connect()
+		defer producerConnection.Close()
+		pc := pb.NewProducerClient(producerConnection)
+		pctx := context.Background()
+		defer pc.Disconnect(pctx, &pb.Empty{})
+
+		message := &pb.Message{Body: []byte("mybody1"), Address: address}
+
+		if dot.addressType == pb.Address_TOPIC {
+			err = produceMessages(producerConnection, pc, pctx, int(dot.expectedMessageCount), message)
+		} else {
+			err = produceMessagesUnary(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, "", false)
+		}
+		assert.Nil(t, err)
+
+		// request SourceStats a few times over 20 seconds to see if the rabbit API is available now
+		start := time.Now()
+		var stats *pb.SourceStats
+		var ssErr error
+		for time.Since(start) <= timeout {
+
+			stats, ssErr = c.SourceStats(ctx, source)
+			if err == nil && stats.MessageCount == dot.expectedMessageCount {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		assert.Nil(t, ssErr)
+		assert.NotNil(t, stats)
+		assert.Nil(t, stats.Error)
+		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
+		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
+	}
 }
 
 func TestProduceFailsIfNoStream(t *testing.T) {

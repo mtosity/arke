@@ -573,6 +573,19 @@ func (s *ProducerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.E
 	return retVal, nil
 }
 
+// Disconnect disconnect from the consumer server
+func (s *ConsumerServer) SourceStats(ctx context.Context, source *pb.Source) (*pb.SourceStats, error) {
+
+	prov, findErr := findProvider(ctx)
+	if prov == nil {
+		ftlError := errors.New(findErr.GetMessage())
+		stats := &pb.SourceStats{Error: findErr}
+		return stats, ftlError
+	}
+	stats := prov.SourceStats(ctx, source)
+	return stats, nil
+}
+
 func SetSourceDefaults(source *pb.Source) {
 	// Prefetch can not be less than 1 or it will cause a flood
 	// of messages

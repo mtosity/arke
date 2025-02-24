@@ -2176,11 +2176,19 @@ func mockManagementRequestServer() *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body []byte
 		var status int
-		if r.Method == "GET" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/" {
-			status = http.StatusOK
-			body = []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
-		}
-		if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
+		if r.Method == "GET" {
+			switch r.URL.Path {
+			case "/api/bindings/tenant/e/address/q/queue/":
+				status = http.StatusOK
+				body = []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
+			case "/api/queues/tenant/sourceQueue.quorum":
+				status = http.StatusOK
+				body = []byte(`{"messages": 10, "consumers": 5}`)
+			case "/api/queues/tenant/sourceStream":
+				status = http.StatusOK
+				body = []byte(`{"messages": 9, "consumers": 4}`)
+			}
+		} else if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
 			status = http.StatusNoContent
 		}
 		if body != nil {
@@ -2386,6 +2394,77 @@ func Test_Subscribe_Queue_DeclareOnly(t *testing.T) {
 			})
 	}
 
+}
+
+func Test_SourceStats(t *testing.T) {
+
+	oldGetClientIdentifier := GetClientIdentifier
+	GetClientIdentifier = func(context.Context) (string, error) {
+		return "1234", nil
+	}
+
+	oldNewAmqpConn091 := NewAmqpConn091
+
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+	}()
+
+	prov := NewAMQP091Provider().(*amqp091provider)
+
+	bd := &BrokerDetails{}
+	// bd.Connection = amock
+	prov.connections.Add("1234", bd)
+
+	msrv := mockManagementRequestServer()
+	// msrv.Start()
+	defer msrv.Close()
+	u, err := url.Parse(msrv.URL)
+	assert.Nil(t, err)
+	creds := &pb.Credentials{Username: "user", Password: "password"}
+	bd.connectionConfig = &pb.ConnectionConfiguration{Credentials: creds}
+	bd.connectionConfig.Host = u.Hostname()
+	bd.connectionConfig.Tenant = "tenant"
+	i, _ := strconv.Atoi(u.Port())
+	bd.connectionConfig.AdminPort = int32(i)
+
+	var tests = []struct {
+		addressType pb.Address_TargetType
+		sourceType  pb.Source_TargetType
+		consumerCnt int32
+		messageCnt  int64
+		addressName string
+		sourceName  string
+	}{
+		{pb.Address_QUEUE, pb.Source_QUEUE, int32(5), int64(10), "addressQueue", "sourceQueue"},
+		{pb.Address_STREAM, pb.Source_STREAM, int32(4), int64(9), "addressStream", "sourceStream"},
+	}
+
+	for _, test := range tests {
+		addr := &pb.Address{Subjects: []string{"routingkey"}, Name: test.addressName, Type: test.addressType}
+		src := &pb.Source{Address: addr, Name: test.sourceName, Type: test.sourceType}
+
+		stats := prov.SourceStats(ctx, src)
+		assert.NotNil(t, stats)
+		assert.Equal(t, test.consumerCnt, stats.ConsumerCount)
+		assert.Equal(t, test.messageCnt, stats.MessageCount)
+		fmt.Println(stats)
+	}
+}
+
+func Test_SourceStats_errors(t *testing.T) {
+	prov := NewAMQP091Provider()
+	ctx := context.Background()
+	src := &pb.Source{}
+	stats := prov.SourceStats(ctx, src)
+	assert.NotNil(t, stats)
+	assert.Equal(t, "address name not defined", stats.GetError().GetMessage())
+
+	// no client id so prov.getBrokerDetails fails
+	src.Address = &pb.Address{Name: "myname"}
+	stats = prov.SourceStats(ctx, src)
+	assert.NotNil(t, stats)
+	assert.Equal(t, "Could not retrieve client-id from context", stats.GetError().GetMessage())
 }
 
 func stockMessage(address *pb.Address) *pb.Message {

@@ -29,6 +29,7 @@ type Provider interface {
 	WaitForConnect(context.Context) bool
 	Stats() *Stats
 	ClientExists(string) bool
+	SourceStats(context.Context, *pb.Source) *pb.SourceStats
 }
 
 // Factory method for creating a specific provider

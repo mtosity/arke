@@ -249,9 +249,10 @@ var Producer_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	Consumer_Connect_FullMethodName    = "/arke.Consumer/Connect"
-	Consumer_Consume_FullMethodName    = "/arke.Consumer/Consume"
-	Consumer_Disconnect_FullMethodName = "/arke.Consumer/Disconnect"
+	Consumer_Connect_FullMethodName     = "/arke.Consumer/Connect"
+	Consumer_Consume_FullMethodName     = "/arke.Consumer/Consume"
+	Consumer_Disconnect_FullMethodName  = "/arke.Consumer/Disconnect"
+	Consumer_SourceStats_FullMethodName = "/arke.Consumer/SourceStats"
 )
 
 // ConsumerClient is the client API for Consumer service.
@@ -267,6 +268,8 @@ type ConsumerClient interface {
 	Consume(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Consume, ConsumeResponse], error)
 	// Disconnect from the proxy and the message broker.
 	Disconnect(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	// Ask for and receive information about an arke.Source
+	SourceStats(ctx context.Context, in *Source, opts ...grpc.CallOption) (*SourceStats, error)
 }
 
 type consumerClient struct {
@@ -310,6 +313,16 @@ func (c *consumerClient) Disconnect(ctx context.Context, in *Empty, opts ...grpc
 	return out, nil
 }
 
+func (c *consumerClient) SourceStats(ctx context.Context, in *Source, opts ...grpc.CallOption) (*SourceStats, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SourceStats)
+	err := c.cc.Invoke(ctx, Consumer_SourceStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConsumerServer is the server API for Consumer service.
 // All implementations must embed UnimplementedConsumerServer
 // for forward compatibility.
@@ -323,6 +336,8 @@ type ConsumerServer interface {
 	Consume(grpc.BidiStreamingServer[Consume, ConsumeResponse]) error
 	// Disconnect from the proxy and the message broker.
 	Disconnect(context.Context, *Empty) (*Empty, error)
+	// Ask for and receive information about an arke.Source
+	SourceStats(context.Context, *Source) (*SourceStats, error)
 	mustEmbedUnimplementedConsumerServer()
 }
 
@@ -341,6 +356,9 @@ func (UnimplementedConsumerServer) Consume(grpc.BidiStreamingServer[Consume, Con
 }
 func (UnimplementedConsumerServer) Disconnect(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Disconnect not implemented")
+}
+func (UnimplementedConsumerServer) SourceStats(context.Context, *Source) (*SourceStats, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SourceStats not implemented")
 }
 func (UnimplementedConsumerServer) mustEmbedUnimplementedConsumerServer() {}
 func (UnimplementedConsumerServer) testEmbeddedByValue()                  {}
@@ -406,6 +424,24 @@ func _Consumer_Disconnect_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Consumer_SourceStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Source)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConsumerServer).SourceStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Consumer_SourceStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConsumerServer).SourceStats(ctx, req.(*Source))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Consumer_ServiceDesc is the grpc.ServiceDesc for Consumer service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -420,6 +456,10 @@ var Consumer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Disconnect",
 			Handler:    _Consumer_Disconnect_Handler,
+		},
+		{
+			MethodName: "SourceStats",
+			Handler:    _Consumer_SourceStats_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

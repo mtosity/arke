@@ -345,6 +345,19 @@ func (prov *MockProvider) MockConnect() {
 	prov.On("Connect", mock.Anything, mock.AnythingOfType("*api.ConnectionConfiguration"), mock.AnythingOfType("bool")).Return(&pb.Error{})
 }
 
+func (prov *MockProvider) SourceStats(ctx context.Context, source *pb.Source) *pb.SourceStats {
+	args := prov.Called(ctx, source)
+
+	var stats *pb.SourceStats
+
+	statArg := args.Get(0)
+	if statArg != nil {
+		stats = statArg.(*pb.SourceStats)
+	}
+
+	return stats
+}
+
 // TestProducerServerNew creates a new producer server
 func TestProducerServerNew(t *testing.T) {
 	prov := NewMockProvider()
@@ -1186,4 +1199,50 @@ func TestConsumerServerConsume_SubscribeDeclareOnly(t *testing.T) {
 			},
 		)
 	}
+}
+
+func Test_SourceStats(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	source := &pb.Source{}
+	returnStats := &pb.SourceStats{Error: &pb.Error{}}
+
+	mockp.On("SourceStats", mock.Anything, source).Return(returnStats, nil)
+	mockp.MockConnect()
+
+	_, err := conSrv.Connect(ctx, cf)
+	assert.Nil(t, err)
+
+	stats, err := conSrv.SourceStats(ctx, source)
+	assert.Nil(t, err)
+	assert.Equal(t, returnStats, stats)
+
+	mockp.AssertExpectations(t)
+}
+
+func Test_SourceStats_noProvider(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	expectedError := "noclientidentifier"
+
+	oldClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
+		return "", errors.New(expectedError)
+	}
+	defer func() {
+		s.GetClientIdentifier = oldClientIdentifier
+	}()
+
+	source := &pb.Source{}
+	mockp.MockConnect()
+
+	_, err := conSrv.Connect(ctx, cf)
+	assert.Nil(t, err)
+
+	stats, err := conSrv.SourceStats(ctx, source)
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedError, err.Error())
+	assert.Equal(t, expectedError, stats.GetError().GetMessage())
+
+	mockp.AssertExpectations(t)
 }

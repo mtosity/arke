@@ -25,6 +25,7 @@
     - [MessageResponse](#arke-MessageResponse)
     - [Source](#arke-Source)
     - [Source.OptionsEntry](#arke-Source-OptionsEntry)
+    - [SourceStats](#arke-SourceStats)
   
     - [Address.TargetType](#arke-Address-TargetType)
     - [Filter.MatchType](#arke-Filter-MatchType)
@@ -418,6 +419,23 @@ following Options: Exclusive, DeadLetterAdress or DeadLetterSubject.
 
 
 
+
+<a name="arke-SourceStats"></a>
+
+### SourceStats
+SourceStats includes information about the source from the broker
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| error | [Error](#arke-Error) |  | Any error encountered while retrieving the SourceStats. |
+| message_count | [int64](#int64) |  | Total number of messages in the queue. |
+| consumer_count | [int32](#int32) |  | Number of consumers on the queue. |
+
+
+
+
+
  
 
 
@@ -487,6 +505,7 @@ Service for consuming messages
 | Connect | [ConnectionConfiguration](#arke-ConnectionConfiguration) | [ConnectResponse](#arke-ConnectResponse) | Connect to a message broker. Pass in a ConnectionConfiguration with broker specific connection information. |
 | Consume | [Consume](#arke-Consume) stream | [ConsumeResponse](#arke-ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
+| SourceStats | [Source](#arke-Source) | [SourceStats](#arke-SourceStats) | Ask for and receive information about an arke.Source |
 
 
 <a name="arke-Healthz"></a>

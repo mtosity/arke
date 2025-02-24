@@ -185,20 +185,11 @@ message Consume {
 }
 
 /**
- * SourceStats includes information about the source from the broker
- */
-// message SourceStats {
-//     int64 message_count = 1; // Total number of messages in the queue.
-//     int32 consumer_count = 2; // Number of consumers on the queue.
-// }
-
-/**
  * Response to a Consume request where Source.DeclareOnly is true.
  */
 message DeclareOnlyResponse {
     bool success = 1; // Was the source declaration successful.
     Error error = 2; // Error if the source declaration failed.
-    // arke.SourceStats source_stats = 3; // SourceStats
 }
 
 /**
@@ -211,6 +202,15 @@ message ConsumeResponse {
         arke.Error error = 3;
         arke.DeclareOnlyResponse declare_only_response = 4;
     }
+}
+
+/**
+ * SourceStats includes information about the source from the broker
+ */
+ message SourceStats {
+    arke.Error error = 1; // Any error encountered while retrieving the SourceStats.
+    int64 message_count = 2; // Total number of messages in the queue.
+    int32 consumer_count = 3; // Number of consumers on the queue.
 }
 
 /*
@@ -238,7 +238,9 @@ service Consumer {
     // Subscribe to a message broker source and receive a stream of messages when they are available.
     rpc Consume(stream arke.Consume) returns (stream arke.ConsumeResponse) {}
     // Disconnect from the proxy and the message broker.
-    rpc Disconnect(arke.Empty) returns (arke.Empty){}
+    rpc Disconnect(arke.Empty) returns (arke.Empty) {}
+    // Ask for and receive information about an arke.Source
+    rpc SourceStats(arke.Source) returns (arke.SourceStats) {}
 }
 
 /**
