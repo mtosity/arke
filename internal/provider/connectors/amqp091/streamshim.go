@@ -25,6 +25,7 @@ type streamConnectionShim interface {
 
 type streamConnection struct {
 	env                *stream.Environment
+	envLock            sync.Mutex
 	maxProducers       int
 	maxConsumers       int
 	connStr            string
@@ -82,6 +83,8 @@ type streamMessageResponseShim interface {
 }
 
 func (sc *streamConnection) Connect() error {
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	env, err := stream.NewEnvironment(
 		stream.NewEnvironmentOptions().
 			SetMaxProducersPerClient(sc.getMaxProducers()).
@@ -110,6 +113,8 @@ func (sc *streamConnection) Connect() error {
 
 func (sc *streamConnection) Close() error {
 	sc.clientDisconnect.Store(true)
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	if sc.IsClosed() {
 		return nil
 	}
@@ -135,6 +140,8 @@ func (sc *streamConnection) Close() error {
 }
 
 func (sc *streamConnection) IsClosed() bool {
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	return sc.env.IsClosed()
 }
 
@@ -186,6 +193,8 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 	if sc.publisherName != "" {
 		options.SetProducerName(sc.publisherName)
 	}
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	if confirm {
 		options.SetConfirmationTimeOut(5 * time.Second)
 		pcChan = make(chan streamMessageResponseShim, 1)
@@ -211,6 +220,8 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 }
 
 func (sc *streamConnection) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	// QueryOffset returns an error if the consumer has yet to store an
 	// offset, so we ignore any errors and use the offset returned which
 	// is 0 on error
@@ -238,6 +249,8 @@ func (sc *streamConnection) DeclareStream(streamName string, ttl int64) error {
 		dTTL := time.Duration(ttl * int64(time.Second))
 		opts.SetMaxAge(dTTL)
 	}
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
 	return sc.env.DeclareStream(streamName, opts)
 }
 
