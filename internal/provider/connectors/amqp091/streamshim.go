@@ -2,7 +2,6 @@ package amqp091
 
 import (
 	"crypto/tls"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/ha"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"sassoftware.io/viya/arke/internal/util"
 )
 
 type streamConnectionShim interface {
@@ -115,26 +115,8 @@ func (sc *streamConnection) Close() error {
 	sc.clientDisconnect.Store(true)
 	sc.envLock.Lock()
 	defer sc.envLock.Unlock()
-	if sc.IsClosed() {
+	if sc.env.IsClosed() {
 		return nil
-	}
-
-	// Drain the publisher pool, Get will return
-	// nil when it tries to create a new publisher
-	for {
-		producer := sc.publishers.Get()
-		if producer == nil {
-			break
-		}
-		producer.(*streamPublisher).Close()
-	}
-	// Drain the publish confirms publisher pool
-	for {
-		producer := sc.pcPublishers.Get()
-		if producer == nil {
-			break
-		}
-		producer.(*streamPublisher).Close()
 	}
 	return sc.env.Close()
 }
@@ -205,13 +187,13 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 				}
 			})
 		if err != nil {
-			fmt.Printf("Error creating publisher : %v\n", err)
+			util.Logger.Debugf("Error creating publisher : %v\n", err)
 			return nil
 		}
 	} else {
 		producer, err = sc.env.NewProducer(sc.streamName, options)
 		if err != nil {
-			fmt.Printf("Error creating publisher : %v\n", err)
+			util.Logger.Debugf("Error creating publisher : %v\n", err)
 			return nil
 		}
 	}
