@@ -57,8 +57,8 @@ func (m *amqpConnectionMock) IsClosed() bool {
 	return args.Bool(0)
 }
 
-func (m *amqpConnectionMock) NewChannel(bool) (amqp091ChannelShim, error) {
-	args := m.Called()
+func (m *amqpConnectionMock) NewChannel(confirm bool) (amqp091ChannelShim, error) {
+	args := m.Called(confirm)
 	ret := args.Get(0)
 	if ret == nil {
 		return nil, args.Error(1)
@@ -385,7 +385,7 @@ func Test_Ack_AckErr(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -562,7 +562,7 @@ func Test_Ack(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -639,7 +639,7 @@ func Test_Nack(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -714,7 +714,7 @@ func Test_Nack_NackErr(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -791,7 +791,7 @@ func Test_Retry(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -864,7 +864,7 @@ func Test_RetryFailure(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -954,7 +954,7 @@ func Test_RetryFailure_DeclareErrorsStillSuccess(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1037,7 +1037,7 @@ func Test_DLQ(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1262,7 +1262,7 @@ func Test_Subscribe_Options(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1358,7 +1358,7 @@ func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1430,7 +1430,7 @@ func Test_Subscribe_UnsupportedOptions(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1562,7 +1562,7 @@ func Test_Publish(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1617,7 +1617,7 @@ func Test_Publish_Error(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1664,42 +1664,54 @@ func Test_PublishOne(t *testing.T) {
 		return "1234", nil
 	}
 
-	address := stockAddress()
-	msg := stockMessage(address)
-	expectedMsg := stockAmqpMessage(msg)
-
-	cmock := &amqpChannelMock{}
-	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
-	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
-	amock := &amqpConnectionMock{}
-	amock.On("Connect").Return(nil)
-	amock.On("IsClosed").Return(false)
-
-	errs := make(chan amqp091Error)
-	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
-	oldNewAmqpConn091 := NewAmqpConn091
-	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
-		return amock
-	}
-
 	defer func() {
 		GetClientIdentifier = oldGetClientIdentifier
-		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
-	ctx := context.Background()
-	cc := &pb.ConnectionConfiguration{}
-	err := prov.Connect(ctx, cc, false)
-	assert.Nil(t, err)
+	var publishOneTests = []struct {
+		confirm bool
+	}{
+		{false},
+		{true},
+	}
 
-	suberr := prov.PublishOne(ctx, msg)
-	assert.Nil(t, suberr)
+	for _, pot := range publishOneTests {
+		address := stockAddress()
+		msg := stockMessage(address)
+		msg.Confirm = pot.confirm
+		expectedMsg := stockAmqpMessage(msg)
 
-	time.Sleep(100 * time.Millisecond)
+		cmock := &amqpChannelMock{}
+		cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
+		cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
+		amock := &amqpConnectionMock{}
+		amock.On("Connect").Return(nil)
+		amock.On("IsClosed").Return(false)
 
-	cmock.AssertExpectations(t)
-	amock.AssertExpectations(t)
+		errs := make(chan amqp091Error)
+		amock.On("NotifyClose").Return(errs)
+		amock.On("NewChannel", pot.confirm).Return(cmock, nil)
+		oldNewAmqpConn091 := NewAmqpConn091
+		NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
+			return amock
+		}
+
+		ctx := context.Background()
+		cc := &pb.ConnectionConfiguration{}
+		err := prov.Connect(ctx, cc, false)
+		assert.Nil(t, err)
+
+		suberr := prov.PublishOne(ctx, msg)
+
+		NewAmqpConn091 = oldNewAmqpConn091
+
+		assert.Nil(t, suberr)
+
+		time.Sleep(100 * time.Millisecond)
+
+		cmock.AssertExpectations(t)
+		amock.AssertExpectations(t)
+	}
 }
 
 func Test_PublishOneFailed(t *testing.T) {
@@ -1723,7 +1735,7 @@ func Test_PublishOneFailed(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1767,7 +1779,7 @@ func Test_PublishOneFailedNewChannel(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(nil, nil)
+	amock.On("NewChannel", false).Return(nil, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -1875,7 +1887,7 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 
 	errs := make(chan amqp091Error)
 	amock.On("NotifyClose").Return(errs)
-	amock.On("NewChannel").Return(cmock, nil)
+	amock.On("NewChannel", false).Return(cmock, nil)
 	oldNewAmqpConn091 := NewAmqpConn091
 	NewAmqpConn091 = func(string, string, *tls.Config) amqp091ConnectionShim {
 		return amock
@@ -2088,7 +2100,7 @@ func Test_SetupDeadLetter_channel_error(t *testing.T) {
 	cmock := &amqpChannelMock{}
 
 	amock := &amqpConnectionMock{}
-	amock.On("NewChannel").Return(cmock, errors.New("chanerr"))
+	amock.On("NewChannel", false).Return(cmock, errors.New("chanerr"))
 
 	defer func() {
 		GetClientIdentifier = oldGetClientIdentifier
@@ -2371,7 +2383,7 @@ func Test_Subscribe_Queue_DeclareOnly(t *testing.T) {
 
 				errs := make(chan amqp091Error)
 				amock.On("NotifyClose").Return(errs)
-				amock.On("NewChannel").Return(cmock, dot.channelError)
+				amock.On("NewChannel", false).Return(cmock, dot.channelError)
 				amock.On("IsClosed").Return(false)
 
 				ctx, cancel := context.WithCancel(context.Background())

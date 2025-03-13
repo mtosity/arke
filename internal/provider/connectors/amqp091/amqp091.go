@@ -1339,18 +1339,18 @@ func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Messag
 
 	var amc any
 	if msg.GetConfirm() {
-		amc = bd.pubChannels.Get()
-	} else {
 		amc = bd.pubPCChannels.Get()
+	} else {
+		amc = bd.pubChannels.Get()
 	}
 	if amc == nil {
 		return &pb.Error{Message: "connected to broker, but failed to create a channel"}
 	}
 	amqpChannel := amc.(*amqp091ChannelShim)
 	if msg.GetConfirm() {
-		defer bd.pubChannels.Put(amqpChannel)
-	} else {
 		defer bd.pubPCChannels.Put(amqpChannel)
+	} else {
+		defer bd.pubChannels.Put(amqpChannel)
 	}
 
 	return prov.prepareAndSend(ctx, msg, bd, *amqpChannel)
