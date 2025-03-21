@@ -8,8 +8,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.71.0
 	gopkg.in/yaml.v2 v2.4.0
-	sassoftware.io/viya/arke v1.25.0
-	sassoftware.io/viya/arke/api v1.4.0
+	sassoftware.io/viya/arke v1.27.0
+	sassoftware.io/viya/arke/api v1.5.0
 )
 
 require (
