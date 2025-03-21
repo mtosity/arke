@@ -26,7 +26,7 @@ require (
 	k8s.io/api v0.31.3
 	k8s.io/apimachinery v0.31.3
 	k8s.io/client-go v0.31.3
-	sassoftware.io/viya/arke/api v1.4.0
+	sassoftware.io/viya/arke/api v1.5.0
 )
 
 require (

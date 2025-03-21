@@ -27,7 +27,6 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/yaml.v2"
 	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/internal/util"
 	cfg "sassoftware.io/viya/arke/test/config"
 )
 
@@ -741,7 +740,7 @@ func TestProduceStreamWithDeduplication(t *testing.T) {
 	options["MessageTTL"] = "120"
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.PubOne")
-	streamName := fmt.Sprintf("sas.test.stream.TPSWD.%s", util.GenUUID())
+	streamName := fmt.Sprintf("sas.test.stream.TPSWD.%s", uuid.New().String())
 	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
 	source := &pb.Source{Name: streamName, Address: address, PrefetchCount: 1,
 		Type: pb.Source_STREAM, Options: options}
@@ -789,7 +788,7 @@ func TestProduceStreamWithDeduplicationFailWithOutProducerName(t *testing.T) {
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.PubOne")
-	streamName := fmt.Sprintf("sas.test.stream.TPSWDFWOPN.%s", util.GenUUID())
+	streamName := fmt.Sprintf("sas.test.stream.TPSWDFWOPN.%s", uuid.New().String())
 	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
@@ -808,7 +807,7 @@ func TestProduceQueueWithDeduplicationFail(t *testing.T) {
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.PubOne")
-	streamName := fmt.Sprintf("sas.test.queue.%s", util.GenUUID())
+	streamName := fmt.Sprintf("sas.test.queue.%s", uuid.New().String())
 	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_QUEUE}
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
@@ -892,7 +891,7 @@ func TestProduceStreamConsumePrefetch(t *testing.T) {
 	options["MessageTTL"] = "120"
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.PubOne")
-	streamName := fmt.Sprintf("sas.test.stream.TPSCP.%s", util.GenUUID())
+	streamName := fmt.Sprintf("sas.test.stream.TPSCP.%s", uuid.New().String())
 	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
 	source := &pb.Source{Name: streamName, Address: address, PrefetchCount: 10,
 		Type: pb.Source_STREAM, Options: options}
@@ -2700,7 +2699,7 @@ func TestConsumeDeclareOnly(t *testing.T) {
 	}
 
 	for _, dot := range declareOnlyTests {
-		testUUID := util.GenUUID()
+		testUUID := uuid.New().String()
 		uniqueSourceName := fmt.Sprintf("%s.%s", dot.sourceName, testUUID)
 
 		connConfig := connectConfig("", t.Name())
@@ -2753,7 +2752,7 @@ func TestConsumeSourceStats(t *testing.T) {
 	for _, dot := range declareOnlyTests {
 		// set up the consumer with DeclareOnly=true because we don't want to consume anything
 		timeout := 15 * time.Second
-		testUUID := util.GenUUID()
+		testUUID := uuid.New().String()
 		uniqueName := fmt.Sprintf("%s.%s", dot.name, testUUID)
 
 		connConfig := connectConfig("", t.Name())
@@ -2841,12 +2840,12 @@ func TestProduceFailsIfNoStream(t *testing.T) {
 	assert.Nil(t, err, "should not get an error connecting: %v", err)
 	assert.True(t, connResp.GetSuccess(), "should get a successful connection")
 
-	name := "sas.test.proxy.ProducerFailsIfNoStream." + util.GenUUID()
+	name := "sas.test.proxy.ProducerFailsIfNoStream." + uuid.New().String()
 	options := make(map[string]string)
 	options["MessageTTL"] = "120"
 	subjects := make([]string, 0)
 	subjects = append(subjects, name)
-	address := &pb.Address{Name: "sas.test.stream.TPFINS." + util.GenUUID(), Subjects: subjects, Type: pb.Address_STREAM}
+	address := &pb.Address{Name: "sas.test.stream.TPFINS." + uuid.New().String(), Subjects: subjects, Type: pb.Address_STREAM}
 
 	pctx := context.Background()
 	expectedMessageCount := 100
