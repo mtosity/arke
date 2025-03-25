@@ -903,7 +903,7 @@ func TestProduceStreamConsumePrefetch(t *testing.T) {
 	var counter uint32
 	prefetchHandler := func(msg *pb.Message) (int, error) {
 		atomic.AddUint32(&counter, 1)
-		time.Sleep(3 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
 		return 0, nil
 	}
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, prefetchHandler, t)
