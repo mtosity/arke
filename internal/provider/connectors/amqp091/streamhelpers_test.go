@@ -22,6 +22,10 @@ func Test_toStreamOffset(t *testing.T) {
 	assert.Equal(t, stream.OffsetSpecification{}.Offset(100), off)
 	assert.Nil(t, err)
 
+	off, err = toStreamOffset("continue", 0)
+	assert.Equal(t, stream.OffsetSpecification{}.Offset(0), off)
+	assert.Nil(t, err)
+
 	off, err = toStreamOffset("0", 100)
 	assert.Equal(t, stream.OffsetSpecification{}.Offset(0), off)
 	assert.Nil(t, err)
