@@ -2195,10 +2195,10 @@ func mockManagementRequestServer() *httptest.Server {
 				body = []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
 			case "/api/queues/tenant/sourceQueue.quorum":
 				status = http.StatusOK
-				body = []byte(`{"messages": 10, "consumers": 5}`)
+				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum"}`)
 			case "/api/queues/tenant/sourceStream":
 				status = http.StatusOK
-				body = []byte(`{"messages": 9, "consumers": 4}`)
+				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
 			}
 		} else if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
 			status = http.StatusNoContent
@@ -2416,10 +2416,20 @@ func Test_SourceStats(t *testing.T) {
 	}
 
 	oldNewAmqpConn091 := NewAmqpConn091
+	oldNewStreamConn := NewStreamConn
+	smock := &streamConnectionMock{}
+	smock.On("Connect").Return(nil)
+	smock.On("IsClosed").Return(false)
+	smock.On("GetLastOffset").Return(5)
+
+	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
+		return smock
+	}
 
 	defer func() {
 		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
+		NewStreamConn = oldNewStreamConn
 	}()
 
 	prov := NewAMQP091Provider().(*amqp091provider)
@@ -2445,21 +2455,23 @@ func Test_SourceStats(t *testing.T) {
 		sourceType  pb.Source_TargetType
 		consumerCnt int32
 		messageCnt  int64
+		lastOffset  int64
 		addressName string
 		sourceName  string
 	}{
-		{pb.Address_QUEUE, pb.Source_QUEUE, int32(5), int64(10), "addressQueue", "sourceQueue"},
-		{pb.Address_STREAM, pb.Source_STREAM, int32(4), int64(9), "addressStream", "sourceStream"},
+		{pb.Address_QUEUE, pb.Source_QUEUE, int32(5), int64(10), int64(0), "addressQueue", "sourceQueue"},
+		{pb.Address_STREAM, pb.Source_STREAM, int32(4), int64(9), int64(5), "addressStream", "sourceStream"},
 	}
 
 	for _, test := range tests {
 		addr := &pb.Address{Subjects: []string{"routingkey"}, Name: test.addressName, Type: test.addressType}
-		src := &pb.Source{Address: addr, Name: test.sourceName, Type: test.sourceType}
+		src := &pb.Source{Address: addr, Name: test.sourceName, Type: test.sourceType, Options: map[string]string{"ConsumerGroup": "GroupName"}}
 
 		stats := prov.SourceStats(ctx, src)
 		assert.NotNil(t, stats)
 		assert.Equal(t, test.consumerCnt, stats.ConsumerCount)
 		assert.Equal(t, test.messageCnt, stats.MessageCount)
+		assert.Equal(t, test.lastOffset, stats.LastOffset)
 		fmt.Println(stats)
 	}
 }

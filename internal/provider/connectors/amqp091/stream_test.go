@@ -80,6 +80,11 @@ func (m *streamConnectionMock) GetPublisherName() string {
 	return ""
 }
 
+func (m *streamConnectionMock) GetLastOffset(_ string, _ string) int64 {
+	args := m.Called()
+	return int64(args.Int(0))
+}
+
 type streamPublisherMock struct {
 	mock.Mock
 }

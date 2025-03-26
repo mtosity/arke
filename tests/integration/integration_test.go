@@ -2738,6 +2738,8 @@ func TestConsumeDeclareOnly(t *testing.T) {
 }
 
 func TestConsumeSourceStats(t *testing.T) {
+	testUUID := uuid.New().String()
+
 	var declareOnlyTests = []struct {
 		addressType           pb.Address_TargetType
 		sourceType            pb.Source_TargetType
@@ -2745,25 +2747,22 @@ func TestConsumeSourceStats(t *testing.T) {
 		expectedConsumerCount int32
 		expectedMessageCount  int64
 	}{
-		{pb.Address_TOPIC, pb.Source_QUEUE, "sas.test.proxy.TCSS.queue", 0, 4},
-		{pb.Address_STREAM, pb.Source_STREAM, "sas.test.proxy.TCSS.stream", 0, 5},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4},
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 5},
 	}
 
 	for _, dot := range declareOnlyTests {
 		// set up the consumer with DeclareOnly=true because we don't want to consume anything
 		timeout := 15 * time.Second
-		testUUID := uuid.New().String()
-		uniqueName := fmt.Sprintf("%s.%s", dot.name, testUUID)
-
 		connConfig := connectConfig("", t.Name())
 		consumerConnection := connect()
 		defer consumerConnection.Close()
 
 		// must publish to Address.Name equal to Source.Name of the consumer
 		subjects := make([]string, 0)
-		subjects = append(subjects, uniqueName)
-		address := &pb.Address{Name: uniqueName, Subjects: subjects, Type: dot.addressType}
-		source := &pb.Source{Name: uniqueName, Address: address, PrefetchCount: 5,
+		subjects = append(subjects, dot.name)
+		address := &pb.Address{Name: dot.name, Subjects: subjects, Type: dot.addressType}
+		source := &pb.Source{Name: dot.name, Address: address, PrefetchCount: 5,
 			DeclareOnly: true, Type: dot.sourceType}
 
 		c := pb.NewConsumerClient(consumerConnection)
@@ -2824,6 +2823,57 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.Nil(t, stats.Error)
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
+		assert.Equal(t, int64(0), stats.LastOffset)
+	}
+
+	for _, dot := range declareOnlyTests {
+		if dot.sourceType != pb.Source_STREAM {
+			continue
+		}
+
+		messages := make(chan *pb.Message)
+		done := make(chan bool)
+		clientConnected := make(chan bool)
+
+		consumerConnection := connect()
+		c := pb.NewConsumerClient(consumerConnection)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		defer c.Disconnect(ctx, &pb.Empty{})
+		defer consumerConnection.Close()
+
+		address := &pb.Address{Name: dot.name, Type: dot.addressType}
+		source := &pb.Source{SingleActiveConsumer: true, Name: dot.name, Address: address, PrefetchCount: 5, Type: dot.sourceType, Options: map[string]string{"Offset": "first", "ConsumerGroup": "MyGroupName"}}
+		go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+		<-clientConnected
+
+		msgCount := 0
+
+		breakLoop := false
+		for start := time.Now(); time.Since(start) < 5*time.Second; {
+			select {
+			case <-messages:
+				msgCount++
+			case <-done:
+				breakLoop = true
+			case <-time.After(1 * time.Second):
+				breakLoop = true
+			}
+			if breakLoop {
+				break
+			}
+		}
+
+		stats, ssErr := c.SourceStats(ctx, source)
+		assert.Nil(t, ssErr)
+		assert.NotNil(t, stats)
+		assert.Nil(t, stats.Error)
+		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
+		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
+		assert.Equal(t, dot.expectedMessageCount, int64(msgCount))
+		expectedOffset := dot.expectedMessageCount
+		expectedOffset--
+		assert.Equal(t, expectedOffset, stats.LastOffset)
 	}
 }
 

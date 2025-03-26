@@ -1159,7 +1159,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		}
 	}
 
-	handleMessages := func(_ stream.ConsumerContext, message *amqp.Message) {
+	handleMessages := func(ctx stream.ConsumerContext, message *amqp.Message) {
 		messageUUID := util.GenUUID()
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
 			Headers: fromStreamHeaders(message.ApplicationProperties), Address: source.GetAddress()}
@@ -1168,7 +1168,12 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		latch.Increment()
 		messageChannel <- m
 		stm := streamMessage{Body: message.GetData(), Headers: m.GetHeaders()}
-		stm.Ack = func() { latch.Decrement() }
+		stm.Ack = func() {
+			latch.Decrement()
+			if ctx.Consumer != nil {
+				_ = ctx.Consumer.StoreOffset()
+			}
+		}
 		stm.Nack = func() { latch.Decrement() }
 		bd.activeMessages.Add(messageUUID, stm)
 		bd.consumed++
@@ -1572,6 +1577,13 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 		return stats
 	}
 
+	if qType, ok := results["type"]; ok && qType == "stream" {
+		opts := source.GetOptions()
+		if sca, ok := opts["ConsumerGroup"]; ok {
+			stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), sca)
+		}
+	}
+
 	return stats
 }
 
@@ -1586,6 +1598,10 @@ func (prov *amqp091provider) SourceStats(ctx context.Context, source *pb.Source)
 	if err != nil {
 		sourceStats.Error = &pb.Error{Message: err.Error()}
 		return sourceStats
+	}
+
+	if source.GetType() == pb.Source_STREAM {
+		prov.getStreamConnection(bd, source.GetName())
 	}
 
 	return bd.getStreamOrQueueStats(source)

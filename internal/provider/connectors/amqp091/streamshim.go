@@ -21,6 +21,7 @@ type streamConnectionShim interface {
 	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error)
 	DeclareStream(streamName string, ttl int64) error
 	GetPublisherName() string
+	GetLastOffset(streamName string, consumerName string) int64
 }
 
 type streamConnection struct {
@@ -234,6 +235,12 @@ func (sc *streamConnection) DeclareStream(streamName string, ttl int64) error {
 	sc.envLock.Lock()
 	defer sc.envLock.Unlock()
 	return sc.env.DeclareStream(streamName, opts)
+}
+
+func (sc *streamConnection) GetLastOffset(streamName string, consumerName string) int64 {
+	offset, qErr := sc.env.QueryOffset(consumerName, streamName)
+	util.Logger.Debugf("GetLastOffset (%s)(%s) [%v]", consumerName, streamName, qErr)
+	return offset
 }
 
 func (sc *streamConnection) getMaxProducers() int {
