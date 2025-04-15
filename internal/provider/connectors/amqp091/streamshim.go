@@ -46,15 +46,10 @@ type streamPublisherShim interface {
 	GetPublisherName() string
 }
 
-type publisherWrapper interface {
-	Send(message.StreamMessage) error
-	Close() error
-}
-
 type streamPublisher struct {
 	streamName    string
 	publisherName string
-	publisher     publisherWrapper
+	publisher     *ha.ReliableProducer
 	pcChannel     chan streamMessageResponseShim
 }
 
@@ -63,7 +58,7 @@ type streamConsumerShim interface {
 }
 
 type streamConsumer struct {
-	consumer     *stream.Consumer
+	consumer     *ha.ReliableConsumer
 	streamName   string
 	consumerName string
 }
@@ -175,34 +170,28 @@ func (sc *streamConnection) newPublisher(streamName, publisherName string, confi
 		// shutting down this connection
 		return nil
 	}
-	var producer publisherWrapper
-	var err error
 	var pcChan chan streamMessageResponseShim
 	options := stream.NewProducerOptions().SetClientProvidedName(sc.clientIdentifier)
 	if publisherName != "" {
 		options.SetProducerName(publisherName)
 	}
-	sc.envLock.Lock()
-	defer sc.envLock.Unlock()
+	handler := func(_ []*stream.ConfirmationStatus) {}
 	if confirm {
 		options.SetConfirmationTimeOut(5 * time.Second)
 		pcChan = make(chan streamMessageResponseShim, 1)
-		producer, err = ha.NewReliableProducer(sc.env, streamName, options,
-			func(messageStatus []*stream.ConfirmationStatus) {
-				for _, msgStatus := range messageStatus {
-					pcChan <- msgStatus
-				}
-			})
-		if err != nil {
-			util.Logger.Debugf("Error creating publisher : %v\n", err)
-			return nil
+		handler = func(messageStatus []*stream.ConfirmationStatus) {
+			for _, msgStatus := range messageStatus {
+				pcChan <- msgStatus
+			}
 		}
-	} else {
-		producer, err = sc.env.NewProducer(streamName, options)
-		if err != nil {
-			util.Logger.Debugf("Error creating publisher : %v\n", err)
-			return nil
-		}
+	}
+
+	sc.envLock.Lock()
+	defer sc.envLock.Unlock()
+	producer, err := ha.NewReliableProducer(sc.env, streamName, options, handler)
+	if err != nil {
+		util.Logger.Debugf("Error creating publisher : %v\n", err)
+		return nil
 	}
 
 	return streamPublisher{streamName: streamName, publisherName: publisherName, publisher: producer, pcChannel: pcChan}
@@ -219,13 +208,14 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 	if qErr != nil {
 		return nil, qErr
 	}
-	consumer, err := sc.env.NewConsumer(
+	consumer, err := ha.NewReliableConsumer(
+		sc.env,
 		streamName,
-		handler,
 		stream.NewConsumerOptions().
 			SetClientProvidedName(sc.clientIdentifier).
 			SetConsumerName(consumerName).
-			SetOffset(sOffset))
+			SetOffset(sOffset),
+		handler)
 	if err != nil {
 		return nil, err
 	}

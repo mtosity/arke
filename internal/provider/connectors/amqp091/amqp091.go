@@ -1180,6 +1180,8 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 	}
 
 	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), consumerName, offset, handleMessages)
+	bd.incrementStreamCount()
+	defer bd.decrementStreamCount()
 	<-ctx.Done()
 	consumer.Close()
 	return nil
