@@ -29,10 +29,9 @@ message ConnectionConfiguration {
     bool tls = 8; // Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates.
     string client_name = 9; // The name of the client connecting.
     int32 admin_port = 10; // The administrative port for the provider (eg. RabbitMQ management port) for any actions needing to be performed by the provider (eg. modifying bindings for RabbitMQ)
-    string publisher_name = 11; // The name given to all publishers associated with this connection. The publisher_name is used in conjunction with Message.publish_id to provide message deduplication on Streams.
 
-    reserved 6;
-    reserved "prefetch_count";
+    reserved 6, 11;
+    reserved "prefetch_count", "publisher_name";
 }
 
 /**
@@ -64,7 +63,8 @@ message Message {
     bool persistent = 5; // Indicates whether to persist the message.
     Error error = 6; // Error message if consuming failed.
     bool confirm = 7; // Enables guaranteed delivery to the broker.
-    int64 publish_id = 8; // Combined with the ConnectionConfiguration.publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence.
+    int64 publish_id = 8; // Combined with the publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence.
+    string publisher_name = 11; // The publisher_name is used in conjunction with publish_id to provide message deduplication on Streams ONLY.
 }
 
 /**

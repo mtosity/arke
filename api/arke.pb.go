@@ -230,16 +230,15 @@ func (HealthStatus_Code) EnumDescriptor() ([]byte, []int) {
 // RabbitMQ and Kafka.
 type ConnectionConfiguration struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`                                         // Broker hostname or IP address.
-	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`                                        // Broker port.
-	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`                                 // Provider type, currently only ampq091.
-	Tenant        string                 `protobuf:"bytes,4,opt,name=tenant,proto3" json:"tenant,omitempty"`                                     // Tenant name for this connection. Tenant is not required
-	Credentials   *Credentials           `protobuf:"bytes,5,opt,name=credentials,proto3" json:"credentials,omitempty"`                           // Authentication credentials.
-	CaCertificate []byte                 `protobuf:"bytes,7,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"`  // TLS Certificate authority for broker. Implies tls.
-	Tls           bool                   `protobuf:"varint,8,opt,name=tls,proto3" json:"tls,omitempty"`                                          // Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates.
-	ClientName    string                 `protobuf:"bytes,9,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`           // The name of the client connecting.
-	AdminPort     int32                  `protobuf:"varint,10,opt,name=admin_port,json=adminPort,proto3" json:"admin_port,omitempty"`            // The administrative port for the provider (eg. RabbitMQ management port) for any actions needing to be performed by the provider (eg. modifying bindings for RabbitMQ)
-	PublisherName string                 `protobuf:"bytes,11,opt,name=publisher_name,json=publisherName,proto3" json:"publisher_name,omitempty"` // The name given to all publishers associated with this connection. The publisher_name is used in conjunction with Message.publish_id to provide message deduplication on Streams.
+	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`                                        // Broker hostname or IP address.
+	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`                                       // Broker port.
+	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`                                // Provider type, currently only ampq091.
+	Tenant        string                 `protobuf:"bytes,4,opt,name=tenant,proto3" json:"tenant,omitempty"`                                    // Tenant name for this connection. Tenant is not required
+	Credentials   *Credentials           `protobuf:"bytes,5,opt,name=credentials,proto3" json:"credentials,omitempty"`                          // Authentication credentials.
+	CaCertificate []byte                 `protobuf:"bytes,7,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"` // TLS Certificate authority for broker. Implies tls.
+	Tls           bool                   `protobuf:"varint,8,opt,name=tls,proto3" json:"tls,omitempty"`                                         // Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates.
+	ClientName    string                 `protobuf:"bytes,9,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`          // The name of the client connecting.
+	AdminPort     int32                  `protobuf:"varint,10,opt,name=admin_port,json=adminPort,proto3" json:"admin_port,omitempty"`           // The administrative port for the provider (eg. RabbitMQ management port) for any actions needing to be performed by the provider (eg. modifying bindings for RabbitMQ)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -335,13 +334,6 @@ func (x *ConnectionConfiguration) GetAdminPort() int32 {
 		return x.AdminPort
 	}
 	return 0
-}
-
-func (x *ConnectionConfiguration) GetPublisherName() string {
-	if x != nil {
-		return x.PublisherName
-	}
-	return ""
 }
 
 // *
@@ -465,7 +457,8 @@ type Message struct {
 	Persistent    bool                   `protobuf:"varint,5,opt,name=persistent,proto3" json:"persistent,omitempty"`                                                                    // Indicates whether to persist the message.
 	Error         *Error                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`                                                                               // Error message if consuming failed.
 	Confirm       bool                   `protobuf:"varint,7,opt,name=confirm,proto3" json:"confirm,omitempty"`                                                                          // Enables guaranteed delivery to the broker.
-	PublishId     int64                  `protobuf:"varint,8,opt,name=publish_id,json=publishId,proto3" json:"publish_id,omitempty"`                                                     // Combined with the ConnectionConfiguration.publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence.
+	PublishId     int64                  `protobuf:"varint,8,opt,name=publish_id,json=publishId,proto3" json:"publish_id,omitempty"`                                                     // Combined with the publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence.
+	PublisherName string                 `protobuf:"bytes,11,opt,name=publisher_name,json=publisherName,proto3" json:"publisher_name,omitempty"`                                         // The publisher_name is used in conjunction with publish_id to provide message deduplication on Streams ONLY.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -554,6 +547,13 @@ func (x *Message) GetPublishId() int64 {
 		return x.PublishId
 	}
 	return 0
+}
+
+func (x *Message) GetPublisherName() string {
+	if x != nil {
+		return x.PublisherName
+	}
+	return ""
 }
 
 // *
@@ -1683,7 +1683,7 @@ var File_arke_proto protoreflect.FileDescriptor
 const file_arke_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"arke.proto\x12\x04arke\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x02\n" +
+	"arke.proto\x12\x04arke\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x02\n" +
 	"\x17ConnectionConfiguration\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x1a\n" +
@@ -1696,14 +1696,13 @@ const file_arke_proto_rawDesc = "" +
 	"clientName\x12\x1d\n" +
 	"\n" +
 	"admin_port\x18\n" +
-	" \x01(\x05R\tadminPort\x12%\n" +
-	"\x0epublisher_name\x18\v \x01(\tR\rpublisherNameJ\x04\b\x06\x10\aR\x0eprefetch_count\"E\n" +
+	" \x01(\x05R\tadminPortJ\x04\b\x06\x10\aJ\x04\b\v\x10\fR\x0eprefetch_countR\x0epublisher_name\"E\n" +
 	"\vCredentials\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"N\n" +
 	"\x0fConnectResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
-	"\x05error\x18\x02 \x01(\v2\v.arke.ErrorR\x05error\"\xc8\x02\n" +
+	"\x05error\x18\x02 \x01(\v2\v.arke.ErrorR\x05error\"\xef\x02\n" +
 	"\aMessage\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x124\n" +
 	"\aheaders\x18\x02 \x03(\v2\x1a.arke.Message.HeadersEntryR\aheaders\x12\x12\n" +
@@ -1715,7 +1714,8 @@ const file_arke_proto_rawDesc = "" +
 	"\x05error\x18\x06 \x01(\v2\v.arke.ErrorR\x05error\x12\x18\n" +
 	"\aconfirm\x18\a \x01(\bR\aconfirm\x12\x1d\n" +
 	"\n" +
-	"publish_id\x18\b \x01(\x03R\tpublishId\x1a:\n" +
+	"publish_id\x18\b \x01(\x03R\tpublishId\x12%\n" +
+	"\x0epublisher_name\x18\v \x01(\tR\rpublisherName\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"N\n" +

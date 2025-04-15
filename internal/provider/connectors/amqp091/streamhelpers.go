@@ -1,6 +1,7 @@
 package amqp091
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"strconv"
@@ -9,17 +10,31 @@ import (
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"sassoftware.io/viya/arke/internal/util"
 )
 
-const maxProducers = 10
+const maxProducers = 100
+const maxPoolProducers = 10
 const maxConsumers = 10
 const port = 5552
+const poolKeyName = "PoolName"
 
 // NewStreamConnection Create a new streamConnection object with a connection string and tls config
-func NewStreamConnection(connStr string, clientIdentifier string, streamName string, publisherName string, tlsCfg *tls.Config) streamConnectionShim {
-	return &streamConnection{maxProducers: maxProducers, maxConsumers: maxConsumers,
-		connStr: connStr, tlsCfg: tlsCfg, clientIdentifier: clientIdentifier,
-		streamName: streamName, publisherName: publisherName}
+func NewStreamConnection(connStr string, clientIdentifier string, tlsCfg *tls.Config) streamConnectionShim {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &streamConnection{maxProducers: maxProducers,
+		maxConsumers:     maxConsumers,
+		connStr:          connStr,
+		tlsCfg:           tlsCfg,
+		clientIdentifier: clientIdentifier,
+		publishers:       util.NewConcurrentMap(),
+		ctx:              ctx,
+		cancel:           cancel,
+	}
+}
+
+type CtxKey struct {
+	name string
 }
 
 func getStreamConnectionString(bd *BrokerDetails) string {

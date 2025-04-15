@@ -1112,7 +1112,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		return &pb.Error{Message: errMsg}
 	}
 
-	strConnErr := prov.getStreamConnection(bd, source.GetName())
+	strConnErr := prov.getStreamConnection(bd)
 	if strConnErr != nil {
 		return strConnErr
 	}
@@ -1362,7 +1362,7 @@ func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Messag
 }
 
 func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Message, bd *BrokerDetails) *pb.Error {
-	strConnErr := prov.getStreamConnection(bd, msg.GetAddress().GetName())
+	strConnErr := prov.getStreamConnection(bd)
 	if strConnErr != nil {
 		return strConnErr
 	}
@@ -1371,11 +1371,11 @@ func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Messa
 		return &pb.Error{Message: "connection to broker is closed"}
 	}
 
-	if msg.GetPublishId() > 0 && bd.StreamConnection.GetPublisherName() == "" {
-		return &pb.Error{Message: "PublisherName not set on connection, PublisherName is required when PublishID is set"}
+	if msg.GetPublishId() > 0 && msg.GetPublisherName() == "" {
+		return &pb.Error{Message: "PublisherName not set on message, PublisherName is required when PublishID is set"}
 	}
 
-	publisher := bd.StreamConnection.GetPublisher(msg.GetConfirm())
+	publisher := bd.StreamConnection.GetPublisher(msg.GetAddress().GetName(), msg.GetPublisherName(), msg.GetConfirm())
 	if publisher == nil {
 		return &pb.Error{Message: "connected to broker, but failed to create a stream publisher"}
 	}
@@ -1384,15 +1384,12 @@ func (prov *amqp091provider) publishOneStream(ctx context.Context, msg *pb.Messa
 	return prov.streamPrepareAndSend(ctx, msg, bd, publisher)
 }
 
-func (prov *amqp091provider) getStreamConnection(bd *BrokerDetails, streamName string) *pb.Error {
+func (prov *amqp091provider) getStreamConnection(bd *BrokerDetails) *pb.Error {
 	// Not all of our clients are using streams, so we only connect if streams are used.
 	if bd.StreamConnection == nil {
 		connStr := getStreamConnectionString(bd)
-		cf := bd.connectionConfig
-		pubName := cf.GetPublisherName()
 		bd.Lock()
-		bd.StreamConnection = NewStreamConn(connStr, bd.ClientIdentifier,
-			streamName, pubName, bd.tlsConfig)
+		bd.StreamConnection = NewStreamConn(connStr, bd.ClientIdentifier, bd.tlsConfig)
 		bd.Unlock()
 		connErr := bd.StreamConnection.Connect()
 		if connErr != nil {
@@ -1601,7 +1598,7 @@ func (prov *amqp091provider) SourceStats(ctx context.Context, source *pb.Source)
 	}
 
 	if source.GetType() == pb.Source_STREAM {
-		prov.getStreamConnection(bd, source.GetName())
+		prov.getStreamConnection(bd)
 	}
 
 	return bd.getStreamOrQueueStats(source)

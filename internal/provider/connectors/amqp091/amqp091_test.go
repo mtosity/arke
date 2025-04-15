@@ -2422,7 +2422,7 @@ func Test_SourceStats(t *testing.T) {
 	smock.On("IsClosed").Return(false)
 	smock.On("GetLastOffset").Return(5)
 
-	NewStreamConn = func(string, string, string, string, *tls.Config) streamConnectionShim {
+	NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
 		return smock
 	}
 

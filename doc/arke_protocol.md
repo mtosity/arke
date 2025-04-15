@@ -105,7 +105,6 @@ RabbitMQ and Kafka.
 | tls | [bool](#bool) |  | Should this provider connection use TLS. If used in conjunction with CaCertificate, the certificate will be used for verification. If no CaCertificate is provided then the providers certificate must be trusted by the system certificates. |
 | client_name | [string](#string) |  | The name of the client connecting. |
 | admin_port | [int32](#int32) |  | The administrative port for the provider (eg. RabbitMQ management port) for any actions needing to be performed by the provider (eg. modifying bindings for RabbitMQ) |
-| publisher_name | [string](#string) |  | The name given to all publishers associated with this connection. The publisher_name is used in conjunction with Message.publish_id to provide message deduplication on Streams. |
 
 
 
@@ -304,7 +303,8 @@ the consumer process.
 | persistent | [bool](#bool) |  | Indicates whether to persist the message. |
 | error | [Error](#arke-Error) |  | Error message if consuming failed. |
 | confirm | [bool](#bool) |  | Enables guaranteed delivery to the broker. |
-| publish_id | [int64](#int64) |  | Combined with the ConnectionConfiguration.publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence. |
+| publish_id | [int64](#int64) |  | Combined with the publisher_name to provide publishing deduplication. The publish_id is a strictly increasing sequence. |
+| publisher_name | [string](#string) |  | The publisher_name is used in conjunction with publish_id to provide message deduplication on Streams ONLY. |
 
 
 

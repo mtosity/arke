@@ -206,7 +206,7 @@ func arkeAddress() string {
 	return arkeAddress
 }
 
-func connectConfig(producerName, clientName string) *pb.ConnectionConfiguration {
+func connectConfig(clientName string) *pb.ConnectionConfiguration {
 
 	connConfig := cfg.ConnectionConfigurationFromEnv()
 
@@ -223,7 +223,6 @@ func connectConfig(producerName, clientName string) *pb.ConnectionConfiguration 
 		connConfig.Tls = true
 	}
 
-	connConfig.PublisherName = producerName
 	connConfig.ClientName = clientName
 
 	return &connConfig
@@ -231,7 +230,7 @@ func connectConfig(producerName, clientName string) *pb.ConnectionConfiguration 
 
 func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, clientName string) error { //nolint
 
-	connConfig := connectConfig("", clientName)
+	connConfig := connectConfig(clientName)
 	defer c.Disconnect(ctx, &pb.Empty{})
 
 	authResp, err := c.Connect(ctx, connConfig)
@@ -263,17 +262,21 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 
 func produceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, producerName string, includePubID bool, clientName string) error { //nolint
 
-	connConfig := connectConfig(producerName, clientName)
+	connConfig := connectConfig(clientName)
 	defer c.Disconnect(ctx, &pb.Empty{})
 
 	authResp, err := c.Connect(ctx, connConfig)
-
 	if err != nil {
 		return err
 	}
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
+
+	return produceMessagesUnaryWOConnect(conn, c, ctx, cnt, message, producerName, includePubID, clientName)
+}
+
+func produceMessagesUnaryWOConnect(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, producerName string, includePubID bool, clientName string) error { //nolint
 
 	for i := 0; i < cnt; i++ {
 		if includePubID {
@@ -298,7 +301,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 
 	defer c.Disconnect(ctx, &pb.Empty{})
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 
 	authResp, err := c.Connect(ctx, connConfig)
 
@@ -720,6 +723,98 @@ func TestProduceOneStreamConsumeOne(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestProduceTwoStreamConsumeTwo(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 10
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	options := make(map[string]string)
+	options["MessageTTL"] = "120"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "sas.test.stream.TPTSCT", Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: "sas.test.stream.TPTSCT", Address: address, PrefetchCount: 1,
+		Type: pb.Source_STREAM, Options: options}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	// Second consuer
+	address2 := &pb.Address{Name: "sas.test.stream.TPTSCT2", Subjects: subjects, Type: pb.Address_STREAM}
+	source2 := &pb.Source{Name: "sas.test.stream.TPTSCT2", Address: address, PrefetchCount: 1,
+		Type: pb.Source_STREAM, Options: options}
+	c2 := pb.NewConsumerClient(consumerConnection)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel2()
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	messages2 := make(chan *pb.Message)
+
+	go consumeMessages(consumerConnection, c2, ctx2, messages2, done, clientConnected, source2, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	connConfig := connectConfig(t.Name())
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	pc.Connect(pctx, connConfig)
+
+	err := produceMessagesUnaryWOConnect(producerConnection, pc, pctx, expectedMessageCount, message, "", false, t.Name())
+	assert.Nil(t, err)
+
+	message.Address = address2
+	err = produceMessagesUnaryWOConnect(producerConnection, pc, pctx, expectedMessageCount, message, "", false, t.Name())
+	assert.Nil(t, err)
+
+	msgCount := 0
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages:
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+
+	msgCount2 := 0
+	breakLoop = false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case <-messages2:
+			msgCount2++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount2)
+}
+
 func TestProduceStreamWithDeduplication(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()
@@ -752,7 +847,7 @@ func TestProduceStreamWithDeduplication(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
-	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
+	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true, PublisherName: streamName}
 
 	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message, "MyProducer", true, t.Name())
 	assert.Nil(t, err)
@@ -794,7 +889,7 @@ func TestProduceStreamWithDeduplicationFailWithOutProducerName(t *testing.T) {
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true}
 
 	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message, "", true, t.Name())
-	assert.Contains(t, err.Error(), "PublisherName not set on connection, PublisherName is required when PublishID is set")
+	assert.Contains(t, err.Error(), "PublisherName not set on message, PublisherName is required when PublishID is set")
 }
 
 func TestProduceQueueWithDeduplicationFail(t *testing.T) {
@@ -1119,7 +1214,7 @@ func TestProduceFailsWithConfirm(t *testing.T) {
 	conn := connect()
 	defer conn.Close()
 	c := pb.NewProducerClient(conn)
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 
 	ctx := context.Background()
 	_, _ = c.Connect(ctx, connConfig)
@@ -1889,7 +1984,7 @@ func TestSourceTwice(t *testing.T) {
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 
 	_, _ = c.Connect(ctx, connConfig)
 
@@ -1924,7 +2019,7 @@ func TestNoConnectionShareSameClientName(t *testing.T) {
 	defer cancel()
 	defer cancel2()
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 	connConfig.ClientName = "MyClientName"
 	// Two connections, each connect. Should not interfere with each other
 	_, err1 := c.Connect(ctx, connConfig)
@@ -1961,7 +2056,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 	connConfig.ClientName = "consumer1"
 
 	_, _ = c.Connect(ctx, connConfig)
@@ -2534,7 +2629,7 @@ func TestSubscribeAckNackInvalidID(t *testing.T) {
 	defer cancel()
 	defer c.Disconnect(ctx, &pb.Empty{})
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 	authResp, connErr := c.Connect(ctx, connConfig)
 	if connErr != nil {
 		log.Panicf("could not authenticate: %v", connErr)
@@ -2596,7 +2691,7 @@ func TestSubscribeAckInvalidIDNoConnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 	authResp, connErr := c.Connect(ctx, connConfig)
 	if connErr != nil {
 		log.Panicf("could not authenticate: %v", connErr)
@@ -2664,7 +2759,7 @@ func TestRateLimits(t *testing.T) {
 	ctx := context.Background()
 	defer c.Disconnect(ctx, &pb.Empty{})
 	defer conn.Close()
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 
 	// Use all tokens in the bucket
 	t.Run("Connect", func(t *testing.T) {
@@ -2702,7 +2797,7 @@ func TestConsumeDeclareOnly(t *testing.T) {
 		testUUID := uuid.New().String()
 		uniqueSourceName := fmt.Sprintf("%s.%s", dot.sourceName, testUUID)
 
-		connConfig := connectConfig("", t.Name())
+		connConfig := connectConfig(t.Name())
 		subjects := make([]string, 0)
 		subjects = append(subjects, uniqueSourceName)
 		address := &pb.Address{Name: dot.addressName, Subjects: subjects, Type: dot.addressType}
@@ -2754,7 +2849,7 @@ func TestConsumeSourceStats(t *testing.T) {
 	for _, dot := range declareOnlyTests {
 		// set up the consumer with DeclareOnly=true because we don't want to consume anything
 		timeout := 15 * time.Second
-		connConfig := connectConfig("", t.Name())
+		connConfig := connectConfig(t.Name())
 		consumerConnection := connect()
 		defer consumerConnection.Close()
 
@@ -2882,7 +2977,7 @@ func TestProduceFailsIfNoStream(t *testing.T) {
 	conn := connect()
 	defer conn.Close()
 
-	connConfig := connectConfig("", t.Name())
+	connConfig := connectConfig(t.Name())
 	c := pb.NewProducerClient(conn)
 	defer c.Disconnect(ctx, &pb.Empty{})
 

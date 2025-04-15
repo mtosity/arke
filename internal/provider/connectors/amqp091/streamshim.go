@@ -1,7 +1,9 @@
 package amqp091
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,34 +18,32 @@ type streamConnectionShim interface {
 	Connect() error
 	Close() error
 	IsClosed() bool
-	GetPublisher(confirm bool) streamPublisherShim
+	GetPublisher(streamName, publisherName string, confirm bool) streamPublisherShim
 	PutPublisher(confirm bool, publisher streamPublisherShim)
 	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error)
 	DeclareStream(streamName string, ttl int64) error
-	GetPublisherName() string
 	GetLastOffset(streamName string, consumerName string) int64
 }
 
 type streamConnection struct {
-	env                *stream.Environment
-	envLock            sync.Mutex
-	maxProducers       int
-	maxConsumers       int
-	connStr            string
-	tlsCfg             *tls.Config
-	clientIdentifier   string
-	streamName         string
-	clientDisconnect   atomic.Bool
-	publishers         *sync.Pool
-	pcPublishers       *sync.Pool
-	publisherName      string
-	namedPublisherLock sync.Mutex
-	namedPublisher     streamPublisherShim
+	env              *stream.Environment
+	envLock          sync.Mutex
+	maxProducers     int
+	maxConsumers     int
+	connStr          string
+	tlsCfg           *tls.Config
+	clientIdentifier string
+	clientDisconnect atomic.Bool
+	publishers       *util.ConcurrentMap
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 type streamPublisherShim interface {
 	Publish(streamMessage) error
 	GetPCChannel() chan streamMessageResponseShim
+	GetStreamName() string
+	GetPublisherName() string
 }
 
 type publisherWrapper interface {
@@ -52,8 +52,10 @@ type publisherWrapper interface {
 }
 
 type streamPublisher struct {
-	publisher publisherWrapper
-	pcChannel chan streamMessageResponseShim
+	streamName    string
+	publisherName string
+	publisher     publisherWrapper
+	pcChannel     chan streamMessageResponseShim
 }
 
 type streamConsumerShim interface {
@@ -98,17 +100,6 @@ func (sc *streamConnection) Connect() error {
 	}
 	sc.env = env
 
-	sc.publishers = &sync.Pool{
-		New: func() any {
-			return sc.newPublisher(false)
-		},
-	}
-	sc.pcPublishers = &sync.Pool{
-		New: func() any {
-			return sc.newPublisher(true)
-		},
-	}
-
 	return nil
 }
 
@@ -116,6 +107,7 @@ func (sc *streamConnection) Close() error {
 	sc.clientDisconnect.Store(true)
 	sc.envLock.Lock()
 	defer sc.envLock.Unlock()
+	sc.cancel()
 	if sc.env.IsClosed() {
 		return nil
 	}
@@ -129,41 +121,55 @@ func (sc *streamConnection) IsClosed() bool {
 }
 
 func (sc *streamConnection) PutPublisher(confirm bool, pub streamPublisherShim) {
-	switch {
-	case sc.publisherName != "":
-		sc.namedPublisherLock.Unlock()
-	case confirm:
-		sc.pcPublishers.Put(pub)
-	default:
-		sc.publishers.Put(pub)
+	key := genPublisherKey(pub.GetStreamName(), pub.GetPublisherName(), confirm)
+	pool, ok := sc.publishers.Get(key)
+	if ok {
+		pool.(*util.BlockingPool).Put(pub)
 	}
 }
 
-func (sc *streamConnection) GetPublisher(confirm bool) streamPublisherShim {
-	// We only support a single named publisher, and the named publisher can
-	// only be used by one goroutine at a time
-	if sc.publisherName != "" {
-		sc.namedPublisherLock.Lock()
-		if sc.namedPublisher == nil {
-			sc.namedPublisher = sc.newPublisher(confirm)
+func (sc *streamConnection) GetPublisher(streamName, publisherName string, confirm bool) streamPublisherShim {
+	key := genPublisherKey(streamName, publisherName, confirm)
+	pool, ok := sc.publishers.Get(key)
+	if !ok {
+		limit := maxPoolProducers
+		if publisherName != "" {
+			// The broker only supports one publisher per publisherName
+			limit = 1
 		}
-		return sc.namedPublisher
+		pool = util.NewBlockingPool(context.WithValue(sc.ctx, CtxKey{name: poolKeyName}, key), limit,
+			func() any {
+				return sc.newPublisher(streamName, publisherName, confirm)
+			},
+		)
+		sc.publishers.Add(key, pool)
 	}
-	if confirm {
-		pub := sc.pcPublishers.Get()
+	var pub any
+	i := 0
+	// Sometimes we fail to get a producer, we will
+	// retry to prevent failures
+	for pub == nil && i < 10 {
+		pub = pool.(*util.BlockingPool).Get()
+		i++
 		if pub == nil {
-			return nil
+			time.Sleep(20 * time.Millisecond)
 		}
-		return pub.(streamPublisher)
 	}
-	pub := sc.publishers.Get()
 	if pub == nil {
 		return nil
 	}
 	return pub.(streamPublisher)
 }
 
-func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
+func genPublisherKey(streamName, publisherName string, confirm bool) string {
+	key := fmt.Sprintf("%s-%s", streamName, publisherName)
+	if confirm {
+		key = fmt.Sprintf("%s-%s", key, "confirm")
+	}
+	return key
+}
+
+func (sc *streamConnection) newPublisher(streamName, publisherName string, confirm bool) streamPublisherShim {
 	if sc.clientDisconnect.Load() {
 		// not returning an error here because we are likely
 		// shutting down this connection
@@ -173,15 +179,15 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 	var err error
 	var pcChan chan streamMessageResponseShim
 	options := stream.NewProducerOptions().SetClientProvidedName(sc.clientIdentifier)
-	if sc.publisherName != "" {
-		options.SetProducerName(sc.publisherName)
+	if publisherName != "" {
+		options.SetProducerName(publisherName)
 	}
 	sc.envLock.Lock()
 	defer sc.envLock.Unlock()
 	if confirm {
 		options.SetConfirmationTimeOut(5 * time.Second)
 		pcChan = make(chan streamMessageResponseShim, 1)
-		producer, err = ha.NewReliableProducer(sc.env, sc.streamName, options,
+		producer, err = ha.NewReliableProducer(sc.env, streamName, options,
 			func(messageStatus []*stream.ConfirmationStatus) {
 				for _, msgStatus := range messageStatus {
 					pcChan <- msgStatus
@@ -192,14 +198,14 @@ func (sc *streamConnection) newPublisher(confirm bool) streamPublisherShim {
 			return nil
 		}
 	} else {
-		producer, err = sc.env.NewProducer(sc.streamName, options)
+		producer, err = sc.env.NewProducer(streamName, options)
 		if err != nil {
 			util.Logger.Debugf("Error creating publisher : %v\n", err)
 			return nil
 		}
 	}
 
-	return streamPublisher{publisher: producer, pcChannel: pcChan}
+	return streamPublisher{streamName: streamName, publisherName: publisherName, publisher: producer, pcChannel: pcChan}
 }
 
 func (sc *streamConnection) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
@@ -257,8 +263,12 @@ func (sc *streamConnection) getMaxConsumers() int {
 	return sc.maxConsumers
 }
 
-func (sc *streamConnection) GetPublisherName() string {
-	return sc.publisherName
+func (sp streamPublisher) GetPublisherName() string {
+	return sp.publisherName
+}
+
+func (sp streamPublisher) GetStreamName() string {
+	return sp.streamName
 }
 
 func (sp streamPublisher) Publish(msg streamMessage) error {
