@@ -1512,7 +1512,10 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	assert.Equal(t, expectedMessageCount*2, msgCount)
 	assert.Equal(t, expectedMessageCount*2, len(messageUUIDs))
 	assert.NotEmpty(t, messageUUIDs)
-	assert.NotEqual(t, messageUUIDs[0], messageUUIDs[1])
+
+	if len(messageUUIDs) > 0 {
+		assert.NotEqual(t, messageUUIDs[0], messageUUIDs[1])
+	}
 }
 
 func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
@@ -1637,12 +1640,15 @@ func TestHeaders_Consume(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 	assert.NotNil(t, received)
 	assert.Greater(t, len(received), 0)
-	assert.Contains(t, received[0].Headers, "traceparent")
-	// remove the traceparent header from matching
-	delete(headers, "traceparent")
-	delete(received[0].Headers, "traceparent")
-	assert.Equal(t, headers, received[0].Headers)
-	assert.NotNil(t, received[0].GetAddress())
+
+	if len(received) > 0 {
+		assert.Contains(t, received[0].Headers, "traceparent")
+		// remove the traceparent header from matching
+		delete(headers, "traceparent")
+		delete(received[0].Headers, "traceparent")
+		assert.Equal(t, headers, received[0].Headers)
+		assert.NotNil(t, received[0].GetAddress())
+	}
 }
 
 func TestProduceManyConsumeManyExclusive(t *testing.T) {
@@ -2843,7 +2849,9 @@ func TestConsumeSourceStats(t *testing.T) {
 		expectedMessageCount  int64
 	}{
 		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0},
 		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 5},
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream.zero", testUUID), 0, 0},
 	}
 
 	for _, dot := range declareOnlyTests {
@@ -2884,28 +2892,29 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.Nil(t, dor.Error)
 		assert.True(t, dor.GetSuccess())
 
-		// set up the producer so we can send messages
-		producerConnection := connect()
-		defer producerConnection.Close()
-		pc := pb.NewProducerClient(producerConnection)
-		pctx := context.Background()
-		defer pc.Disconnect(pctx, &pb.Empty{})
+		if dot.expectedMessageCount > 0 {
+			// set up the producer so we can send messages
+			producerConnection := connect()
+			defer producerConnection.Close()
+			pc := pb.NewProducerClient(producerConnection)
+			pctx := context.Background()
+			defer pc.Disconnect(pctx, &pb.Empty{})
 
-		message := &pb.Message{Body: []byte("mybody1"), Address: address}
+			message := &pb.Message{Body: []byte("mybody1"), Address: address}
 
-		if dot.addressType == pb.Address_TOPIC {
-			err = produceMessages(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, t.Name())
-		} else {
-			err = produceMessagesUnary(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, "", false, t.Name())
+			if dot.addressType == pb.Address_TOPIC {
+				err = produceMessages(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, t.Name())
+			} else {
+				err = produceMessagesUnary(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, "", false, t.Name())
+			}
+			assert.Nil(t, err)
 		}
-		assert.Nil(t, err)
 
 		// request SourceStats a few times over 20 seconds to see if the rabbit API is available now
 		start := time.Now()
 		var stats *pb.SourceStats
 		var ssErr error
 		for time.Since(start) <= timeout {
-
 			stats, ssErr = c.SourceStats(ctx, source)
 			if err == nil && stats.MessageCount == dot.expectedMessageCount {
 				break
@@ -2967,7 +2976,9 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
 		assert.Equal(t, dot.expectedMessageCount, int64(msgCount))
 		expectedOffset := dot.expectedMessageCount
-		expectedOffset--
+		if dot.expectedMessageCount > 0 {
+			expectedOffset--
+		}
 		assert.Equal(t, expectedOffset, stats.LastOffset)
 	}
 }

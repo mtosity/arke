@@ -76,8 +76,12 @@ func (m *streamConnectionMock) DeclareStream(_ string, _ int64) error {
 	return args.Error(0)
 }
 
-func (m *streamConnectionMock) GetLastOffset(_ string, _ string) int64 {
-	args := m.Called()
+func (m *streamConnectionMock) GetPublisherName() string {
+	return ""
+}
+
+func (m *streamConnectionMock) GetLastOffset(streamName string, clientName string) int64 {
+	args := m.Called(streamName, clientName)
 	return int64(args.Int(0))
 }
 

@@ -2199,6 +2199,9 @@ func mockManagementRequestServer() *httptest.Server {
 			case "/api/queues/tenant/sourceStream":
 				status = http.StatusOK
 				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
+			case "/api/queues/tenant/sourceStream2":
+				status = http.StatusOK
+				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream"}`)
 			}
 		} else if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
 			status = http.StatusNoContent
@@ -2417,20 +2420,6 @@ func Test_SourceStats(t *testing.T) {
 
 	oldNewAmqpConn091 := NewAmqpConn091
 	oldNewStreamConn := NewStreamConn
-	smock := &streamConnectionMock{}
-	smock.On("Connect").Return(nil)
-	smock.On("IsClosed").Return(false)
-	smock.On("GetLastOffset").Return(5)
-
-	NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
-		return smock
-	}
-
-	defer func() {
-		GetClientIdentifier = oldGetClientIdentifier
-		NewAmqpConn091 = oldNewAmqpConn091
-		NewStreamConn = oldNewStreamConn
-	}()
 
 	prov := NewAMQP091Provider().(*amqp091provider)
 
@@ -2439,7 +2428,6 @@ func Test_SourceStats(t *testing.T) {
 	prov.connections.Add("1234", bd)
 
 	msrv := mockManagementRequestServer()
-	// msrv.Start()
 	defer msrv.Close()
 	u, err := url.Parse(msrv.URL)
 	assert.Nil(t, err)
@@ -2450,29 +2438,103 @@ func Test_SourceStats(t *testing.T) {
 	i, _ := strconv.Atoi(u.Port())
 	bd.connectionConfig.AdminPort = int32(i)
 
+	defer func() {
+		GetClientIdentifier = oldGetClientIdentifier
+		NewAmqpConn091 = oldNewAmqpConn091
+		NewStreamConn = oldNewStreamConn
+	}()
+
 	var tests = []struct {
-		addressType pb.Address_TargetType
-		sourceType  pb.Source_TargetType
-		consumerCnt int32
-		messageCnt  int64
-		lastOffset  int64
-		addressName string
-		sourceName  string
+		addressType        pb.Address_TargetType
+		sourceType         pb.Source_TargetType
+		consumerCnt        int32
+		messageCnt         int64 // should be fakeConsLastOffset+1
+		lastOffset         int64
+		addressName        string
+		sourceName         string
+		singleActive       bool
+		fakeConsLastOffset int64
 	}{
-		{pb.Address_QUEUE, pb.Source_QUEUE, int32(5), int64(10), int64(0), "addressQueue", "sourceQueue"},
-		{pb.Address_STREAM, pb.Source_STREAM, int32(4), int64(9), int64(5), "addressStream", "sourceStream"},
+		{
+			addressType:        pb.Address_QUEUE,
+			sourceType:         pb.Source_QUEUE,
+			consumerCnt:        int32(5),
+			messageCnt:         int64(10),
+			lastOffset:         int64(0),
+			addressName:        "addressQueue",
+			sourceName:         "sourceQueue",
+			singleActive:       false,
+			fakeConsLastOffset: int64(0),
+		},
+		{
+			addressType:        pb.Address_STREAM,
+			sourceType:         pb.Source_STREAM,
+			consumerCnt:        int32(4),
+			messageCnt:         int64(12),
+			lastOffset:         int64(5),
+			addressName:        "addressStream",
+			sourceName:         "sourceStream",
+			singleActive:       false,
+			fakeConsLastOffset: int64(11),
+		},
+		{
+			addressType:        pb.Address_STREAM,
+			sourceType:         pb.Source_STREAM,
+			consumerCnt:        int32(6),
+			messageCnt:         int64(11),
+			lastOffset:         int64(5),
+			addressName:        "addressStream2",
+			sourceName:         "sourceStream2",
+			singleActive:       true,
+			fakeConsLastOffset: int64(10),
+		},
 	}
 
 	for _, test := range tests {
-		addr := &pb.Address{Subjects: []string{"routingkey"}, Name: test.addressName, Type: test.addressType}
-		src := &pb.Source{Address: addr, Name: test.sourceName, Type: test.sourceType, Options: map[string]string{"ConsumerGroup": "GroupName"}}
+		bd.StreamConnection = nil // make sure we call NewStreamConn again
+
+		addr := &pb.Address{
+			Subjects: []string{"routingkey"},
+			Name:     test.addressName,
+			Type:     test.addressType,
+		}
+		src := &pb.Source{
+			Address:              addr,
+			Name:                 test.sourceName,
+			Type:                 test.sourceType,
+			Options:              map[string]string{"ConsumerGroup": "GroupName"},
+			SingleActiveConsumer: test.singleActive,
+		}
+
+		smock := &streamConnectionMock{}
+		pmock := &streamConsumerMock{}
+
+		if test.sourceType == pb.Source_STREAM {
+			smock.ExpectedCalls = nil
+			pmock.On("Close").Return(nil).Once()
+			smock.On("Connect").Return(nil).Once()
+
+			consumerName := src.GetName()
+			if test.singleActive {
+				consumerName = src.Options["ConsumerGroup"]
+			}
+
+			smock.On("GetLastOffset", src.GetName(), consumerName).Return(int(test.lastOffset)).Once()
+			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything).Return(pmock, nil).Once()
+			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset)).Once()
+
+			NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
+				return smock
+			}
+		}
 
 		stats := prov.SourceStats(ctx, src)
 		assert.NotNil(t, stats)
 		assert.Equal(t, test.consumerCnt, stats.ConsumerCount)
 		assert.Equal(t, test.messageCnt, stats.MessageCount)
 		assert.Equal(t, test.lastOffset, stats.LastOffset)
-		fmt.Println(stats)
+		pmock.AssertExpectations(t)
+		smock.AssertExpectations(t)
 	}
 }
 

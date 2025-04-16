@@ -1538,6 +1538,38 @@ func (prov *amqp091provider) WaitForConnect(ctx context.Context) bool {
 	return false
 }
 
+func (bd *BrokerDetails) updateStatsForStream(source *pb.Source, stats *pb.SourceStats) {
+	consumerName := source.GetName()
+	if source.GetSingleActiveConsumer() {
+		if cg, ok := source.GetOptions()["ConsumerGroup"]; ok && cg != "" {
+			consumerName = cg
+		}
+	}
+
+	// get the last offset of the actual consumer group
+	stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), consumerName)
+	handleMessages := func(cc stream.ConsumerContext, _ *amqp.Message) {
+		if cc.Consumer != nil {
+			_ = cc.Consumer.StoreOffset() // store the offset so requests to QueryOffset will be correct
+		}
+	}
+
+	// create a new consumer with a fake consumer group name so we can find the offset at 'last'
+	fakeConsumerName := "arkeSourceStatsConsumer"
+	cons, err := bd.StreamConnection.NewConsumer(source.GetName(), fakeConsumerName, "last", handleMessages)
+
+	if err == nil {
+		defer cons.Close()
+		messageCount := bd.StreamConnection.GetLastOffset(source.GetName(), fakeConsumerName)
+		if messageCount > 0 {
+			messageCount++
+		}
+		stats.MessageCount = messageCount
+	} else {
+		util.Logger.Debugf("failed to create new arkeSourceStatsConsumer for stats: %s", err.Error())
+	}
+}
+
 func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStats {
 	stats := &pb.SourceStats{}
 	var results map[string]interface{}
@@ -1557,30 +1589,24 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 		return stats
 	}
 
-	var messageCount int64
-	var consumerCount int32
-
+	// consumer count comes from the API and is accurate
 	if consumersCountRaw, ok := results["consumers"]; ok {
-		consumerCount = int32(consumersCountRaw.(float64))
-	}
-	if messageCountRaw, ok := results["messages"]; ok {
-		messageCount = int64(messageCountRaw.(float64))
+		stats.ConsumerCount = int32(consumersCountRaw.(float64))
 	}
 
-	stats.ConsumerCount = consumerCount
-	stats.MessageCount = messageCount
+	// message count is only accurate for queues so we have to do something else for streams
+	if source.Type == pb.Source_QUEUE {
+		if messageCountRaw, ok := results["messages"]; ok {
+			stats.MessageCount = int64(messageCountRaw.(float64))
+		}
+	} else if source.Type == pb.Source_STREAM {
+		bd.updateStatsForStream(source, stats)
+	}
 
 	if err != nil {
 		util.Logger.Debugf("Error retrieving queue/stream from management API %s: %s", queue, err.Error())
 		stats.Error = &pb.Error{Message: err.Error()}
 		return stats
-	}
-
-	if qType, ok := results["type"]; ok && qType == "stream" {
-		opts := source.GetOptions()
-		if sca, ok := opts["ConsumerGroup"]; ok {
-			stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), sca)
-		}
 	}
 
 	return stats

@@ -93,6 +93,8 @@ func toStreamOffset(offset string, lastOffset int64) (stream.OffsetSpecification
 		// start where we left off, if no offset stored
 		// then start from next()
 		return stream.OffsetSpecification{}.Offset(lastOffset), nil
+	case "last":
+		return stream.OffsetSpecification{}.Last(), nil
 	case "next", "":
 		return stream.OffsetSpecification{}.Next(), nil
 	}

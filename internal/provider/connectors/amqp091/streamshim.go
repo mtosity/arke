@@ -205,6 +205,7 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 	// is 0 on error
 	lastOffset, _ := sc.env.QueryOffset(consumerName, streamName)
 	sOffset, qErr := toStreamOffset(offset, lastOffset)
+	fmt.Println("setting stream offset to", sOffset, lastOffset)
 	if qErr != nil {
 		return nil, qErr
 	}
@@ -235,7 +236,7 @@ func (sc *streamConnection) DeclareStream(streamName string, ttl int64) error {
 
 func (sc *streamConnection) GetLastOffset(streamName string, consumerName string) int64 {
 	offset, qErr := sc.env.QueryOffset(consumerName, streamName)
-	util.Logger.Debugf("GetLastOffset (%s)(%s) [%v]", consumerName, streamName, qErr)
+	util.Logger.Debugf("GetLastOffset (%s)(%s)(%d) [%v]", consumerName, streamName, offset, qErr)
 	return offset
 }
 
