@@ -20,7 +20,7 @@ type streamConnectionShim interface {
 	IsClosed() bool
 	GetPublisher(streamName, publisherName string, confirm bool) streamPublisherShim
 	PutPublisher(confirm bool, publisher streamPublisherShim)
-	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error)
+	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler, singleActive bool) (streamConsumerShim, error)
 	DeclareStream(streamName string, ttl int64) error
 	GetLastOffset(streamName string, consumerName string) int64
 }
@@ -197,7 +197,7 @@ func (sc *streamConnection) newPublisher(streamName, publisherName string, confi
 	return streamPublisher{streamName: streamName, publisherName: publisherName, publisher: producer, pcChannel: pcChan}
 }
 
-func (sc *streamConnection) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
+func (sc *streamConnection) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler, singleActive bool) (streamConsumerShim, error) {
 	sc.envLock.Lock()
 	defer sc.envLock.Unlock()
 	// QueryOffset returns an error if the consumer has yet to store an
@@ -205,9 +205,26 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 	// is 0 on error
 	lastOffset, _ := sc.env.QueryOffset(consumerName, streamName)
 	sOffset, qErr := toStreamOffset(offset, lastOffset)
-	fmt.Println("setting stream offset to", sOffset, lastOffset)
 	if qErr != nil {
 		return nil, qErr
+	}
+
+	sac := &stream.SingleActiveConsumer{}
+	if singleActive {
+		sac.SetEnabled(true)
+		cuf := func(streamName string, _ bool) stream.OffsetSpecification {
+			util.Logger.Debugf("client %s with consumer %s on stream %s promoted to active consumer", sc.clientIdentifier, consumerName, streamName)
+
+			offset, err := sc.env.QueryOffset(consumerName, streamName)
+			if err != nil {
+				return stream.OffsetSpecification{}.First()
+			}
+
+			// if the offset is found, start at the next offset so we
+			// don't get a repeat message
+			return stream.OffsetSpecification{}.Offset(offset + 1)
+		}
+		sac.ConsumerUpdate = cuf
 	}
 	consumer, err := ha.NewReliableConsumer(
 		sc.env,
@@ -215,7 +232,8 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 		stream.NewConsumerOptions().
 			SetClientProvidedName(sc.clientIdentifier).
 			SetConsumerName(consumerName).
-			SetOffset(sOffset),
+			SetOffset(sOffset).
+			SetSingleActiveConsumer(sac),
 		handler)
 	if err != nil {
 		return nil, err

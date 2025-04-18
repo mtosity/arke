@@ -2520,7 +2520,7 @@ func Test_SourceStats(t *testing.T) {
 			}
 
 			smock.On("GetLastOffset", src.GetName(), consumerName).Return(int(test.lastOffset)).Once()
-			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything).Return(pmock, nil).Once()
+			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil).Once()
 			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset)).Once()
 
 			NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {

@@ -1179,7 +1179,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		bd.consumed++
 	}
 
-	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), consumerName, offset, handleMessages)
+	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), consumerName, offset, handleMessages, source.GetSingleActiveConsumer())
 	bd.incrementStreamCount()
 	defer bd.decrementStreamCount()
 	<-ctx.Done()
@@ -1556,7 +1556,7 @@ func (bd *BrokerDetails) updateStatsForStream(source *pb.Source, stats *pb.Sourc
 
 	// create a new consumer with a fake consumer group name so we can find the offset at 'last'
 	fakeConsumerName := "arkeSourceStatsConsumer"
-	cons, err := bd.StreamConnection.NewConsumer(source.GetName(), fakeConsumerName, "last", handleMessages)
+	cons, err := bd.StreamConnection.NewConsumer(source.GetName(), fakeConsumerName, "last", handleMessages, false)
 
 	if err == nil {
 		defer cons.Close()

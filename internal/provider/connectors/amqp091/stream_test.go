@@ -55,8 +55,9 @@ func (m *streamConnectionMock) PutPublisher(confirm bool, _ streamPublisherShim)
 	m.Called(confirm)
 }
 
-func (m *streamConnectionMock) NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler) (streamConsumerShim, error) {
-	args := m.Called(streamName, consumerName, offset, handler)
+func (m *streamConnectionMock) NewConsumer(streamName string, consumerName string, offset string,
+	handler stream.MessagesHandler, singleActive bool) (streamConsumerShim, error) {
+	args := m.Called(streamName, consumerName, offset, handler, singleActive)
 	addr := stockAddress()
 	addr.Name = streamName
 	cCtx := stream.ConsumerContext{}
@@ -489,7 +490,7 @@ func Test_SubscribeStream(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)
-	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
+	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
 	NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
 		return smock
@@ -681,7 +682,7 @@ func Test_streamSubscribe(t *testing.T) {
 		smock.On("Connect").Return(nil)
 		smock.On("IsClosed").Return(false)
 		smock.On("DeclareStream").Return(nil)
-		smock.On("NewConsumer", src.GetName(), subt.consumerGroupCalled, "0", mock.Anything).Return(pmock, nil)
+		smock.On("NewConsumer", src.GetName(), subt.consumerGroupCalled, "0", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil)
 
 		NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
 			return smock
@@ -1053,7 +1054,7 @@ func Test_StreamRetry(t *testing.T) {
 
 	pmock := &streamConsumerMock{}
 	pmock.On("Close").Return(nil)
-	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything).Return(pmock, nil)
+	smock.On("NewConsumer", src.GetName(), src.GetName(), src.GetOptions()["Offset"], mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil)
 	oldNewStreamConn := NewStreamConn
 	NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
 		return smock
