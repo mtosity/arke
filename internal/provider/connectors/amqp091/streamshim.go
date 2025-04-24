@@ -230,6 +230,7 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 		sc.env,
 		streamName,
 		stream.NewConsumerOptions().
+			SetManualCommit(). // disable auto commit
 			SetClientProvidedName(sc.clientIdentifier).
 			SetConsumerName(consumerName).
 			SetOffset(sOffset).

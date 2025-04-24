@@ -1171,7 +1171,10 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		stm.Ack = func() {
 			latch.Decrement()
 			if ctx.Consumer != nil {
-				_ = ctx.Consumer.StoreOffset()
+				offsetErr := ctx.Consumer.StoreOffset()
+				if offsetErr != nil {
+					util.Logger.Debugf("Ack of message(%s) on stream %s failed : %s", messageUUID, ctx.Consumer.GetStreamName(), offsetErr.Error())
+				}
 			}
 		}
 		stm.Nack = func() { latch.Decrement() }

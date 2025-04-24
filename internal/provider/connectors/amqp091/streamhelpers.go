@@ -91,7 +91,12 @@ func toStreamOffset(offset string, lastOffset int64) (stream.OffsetSpecification
 		return stream.OffsetSpecification{}.First(), nil
 	case "continue":
 		// start where we left off, if no offset stored
-		// then start from next()
+		// then start from 0.
+		if lastOffset > 0 {
+			// Increment lastOffset if we have already
+			// received the message.
+			lastOffset++
+		}
 		return stream.OffsetSpecification{}.Offset(lastOffset), nil
 	case "last":
 		return stream.OffsetSpecification{}.Last(), nil
