@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package integration
 
 import (
@@ -846,12 +843,6 @@ func TestConsumeContinueOffset(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
-	// I want to check the source stats but they are reporting incorrectly
-	// add this code back once they are fixed.
-	// initStats, iErr := c.SourceStats(ctx, source)
-	// assert.Nil(t, iErr)
-	// initMessageCount := initStats.GetMessageCount()
-
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	connConfig := connectConfig(t.Name())
@@ -909,12 +900,6 @@ func TestConsumeContinueOffset(t *testing.T) {
 	}
 	// Ensure we only received the second batch published
 	assert.Equal(t, expectedMessageCount, msgCount2)
-
-	// I want to check the source stats, but they are reporting
-	// incorrectly, add this code back once they are fixed
-	// stats, sErr := c2.SourceStats(ctx2, source)
-	// assert.Nil(t, sErr)
-	// assert.Equal(t, int64(20), (stats.GetMessageCount() - initMessageCount))
 }
 
 func TestProduceStreamWithDeduplication(t *testing.T) {
@@ -2949,11 +2934,12 @@ func TestConsumeSourceStats(t *testing.T) {
 		name                  string
 		expectedConsumerCount int32
 		expectedMessageCount  int64
+		publishMessageCount   int
 	}{
-		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4},
-		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0},
-		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 5},
-		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream.zero", testUUID), 0, 0},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4, 4},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0, 0},
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 0, 5},
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream.zero", testUUID), 0, 0, 0},
 	}
 
 	for _, dot := range declareOnlyTests {
@@ -2987,14 +2973,14 @@ func TestConsumeSourceStats(t *testing.T) {
 		err = consumerStream.Send(cnsm)
 		assert.Nil(t, err)
 
-		cr, err := consumerStream.Recv()
+		cr, _ := consumerStream.Recv()
 		assert.NotNil(t, cr.GetDeclareOnlyResponse())
 		assert.Nil(t, cr.GetError())
 		dor := cr.GetDeclareOnlyResponse()
 		assert.Nil(t, dor.Error)
 		assert.True(t, dor.GetSuccess())
 
-		if dot.expectedMessageCount > 0 {
+		if dot.publishMessageCount > 0 {
 			// set up the producer so we can send messages
 			producerConnection := connect()
 			defer producerConnection.Close()
@@ -3005,9 +2991,9 @@ func TestConsumeSourceStats(t *testing.T) {
 			message := &pb.Message{Body: []byte("mybody1"), Address: address}
 
 			if dot.addressType == pb.Address_TOPIC {
-				err = produceMessages(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, t.Name())
+				err = produceMessages(producerConnection, pc, pctx, dot.publishMessageCount, message, t.Name())
 			} else {
-				err = produceMessagesUnary(producerConnection, pc, pctx, int(dot.expectedMessageCount), message, "", false, t.Name())
+				err = produceMessagesUnary(producerConnection, pc, pctx, dot.publishMessageCount, message, "", false, t.Name())
 			}
 			assert.Nil(t, err)
 		}
@@ -3018,7 +3004,11 @@ func TestConsumeSourceStats(t *testing.T) {
 		var ssErr error
 		for time.Since(start) <= timeout {
 			stats, ssErr = c.SourceStats(ctx, source)
-			if err == nil && stats.MessageCount == dot.expectedMessageCount {
+			expectedOffset := dot.publishMessageCount
+			if expectedOffset > 0 {
+				expectedOffset--
+			}
+			if ssErr == nil && ((stats.MessageCount == int64(dot.publishMessageCount)) || (stats.GetLastOffset() >= int64(expectedOffset))) {
 				break
 			}
 			time.Sleep(1 * time.Second)
@@ -3029,7 +3019,9 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.Nil(t, stats.Error)
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
-		assert.Equal(t, int64(0), stats.LastOffset)
+		if dot.publishMessageCount > 0 && dot.sourceType == pb.Source_STREAM {
+			assert.Greater(t, stats.LastOffset, int64(0), dot.name)
+		}
 	}
 
 	for _, dot := range declareOnlyTests {
@@ -3076,12 +3068,12 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.Nil(t, stats.Error)
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
-		assert.Equal(t, dot.expectedMessageCount, int64(msgCount))
-		expectedOffset := dot.expectedMessageCount
-		if dot.expectedMessageCount > 0 {
+		assert.Equal(t, dot.publishMessageCount, msgCount)
+		expectedOffset := dot.publishMessageCount
+		if dot.publishMessageCount > 0 {
 			expectedOffset--
 		}
-		assert.Equal(t, expectedOffset, stats.LastOffset)
+		assert.Equal(t, int64(expectedOffset), stats.LastOffset, dot.name)
 	}
 }
 

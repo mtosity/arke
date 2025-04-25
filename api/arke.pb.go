@@ -1422,8 +1422,8 @@ type SourceStats struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Error         *Error                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`                                       // Any error encountered while retrieving the SourceStats.
 	MessageCount  int64                  `protobuf:"varint,2,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"`    // Total number of messages in the queue.
-	ConsumerCount int32                  `protobuf:"varint,3,opt,name=consumer_count,json=consumerCount,proto3" json:"consumer_count,omitempty"` // Number of consumers on the queue.
-	LastOffset    int64                  `protobuf:"varint,4,opt,name=last_offset,json=lastOffset,proto3" json:"last_offset,omitempty"`          // Last recorded offset for the specified ConsumerGroup.
+	ConsumerCount int32                  `protobuf:"varint,3,opt,name=consumer_count,json=consumerCount,proto3" json:"consumer_count,omitempty"` // Number of consumers on the queue or stream.
+	LastOffset    int64                  `protobuf:"varint,4,opt,name=last_offset,json=lastOffset,proto3" json:"last_offset,omitempty"`          // Last offset in the stream.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -31,6 +31,7 @@ import (
 
 const providerName string = "amqp091"
 const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
+const streamOffsetHeaderName = "x-current-offset"
 
 var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset", "ConsumerGroup"}
 
@@ -1161,8 +1162,10 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 
 	handleMessages := func(ctx stream.ConsumerContext, message *amqp.Message) {
 		messageUUID := util.GenUUID()
+		hdrs := fromStreamHeaders(message.ApplicationProperties)
+		hdrs[streamOffsetHeaderName] = strconv.FormatInt(ctx.Consumer.GetOffset(), 10)
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
-			Headers: fromStreamHeaders(message.ApplicationProperties), Address: source.GetAddress()}
+			Headers: hdrs, Address: source.GetAddress()}
 		// Increment the latch before we put the message on the channel
 		// Increment will wait for Decrement to be called if we have hit the ceiling
 		latch.Increment()
@@ -1171,7 +1174,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		stm.Ack = func() {
 			latch.Decrement()
 			if ctx.Consumer != nil {
-				offsetErr := ctx.Consumer.StoreOffset()
+				offsetErr := bd.StreamConnection.StoreOffset(source.GetName(), consumerName, ctx.Consumer.GetOffset())
 				if offsetErr != nil {
 					util.Logger.Debugf("Ack of message(%s) on stream %s failed : %s", messageUUID, ctx.Consumer.GetStreamName(), offsetErr.Error())
 				}
@@ -1542,32 +1545,20 @@ func (prov *amqp091provider) WaitForConnect(ctx context.Context) bool {
 }
 
 func (bd *BrokerDetails) updateStatsForStream(source *pb.Source, stats *pb.SourceStats) {
-	consumerName := source.GetName()
-	if source.GetSingleActiveConsumer() {
-		if cg, ok := source.GetOptions()["ConsumerGroup"]; ok && cg != "" {
-			consumerName = cg
-		}
-	}
-
-	// get the last offset of the actual consumer group
-	stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), consumerName)
-	handleMessages := func(cc stream.ConsumerContext, _ *amqp.Message) {
-		if cc.Consumer != nil {
-			_ = cc.Consumer.StoreOffset() // store the offset so requests to QueryOffset will be correct
-		}
-	}
-
 	// create a new consumer with a fake consumer group name so we can find the offset at 'last'
 	fakeConsumerName := "arkeSourceStatsConsumer"
+	handleMessages := func(cc stream.ConsumerContext, _ *amqp.Message) {
+		if cc.Consumer != nil {
+			// store the offset so requests to QueryOffset will be correct
+			_ = bd.StreamConnection.StoreOffset(source.GetName(), fakeConsumerName, cc.Consumer.GetOffset())
+		}
+	}
+
 	cons, err := bd.StreamConnection.NewConsumer(source.GetName(), fakeConsumerName, "last", handleMessages, false)
 
 	if err == nil {
 		defer cons.Close()
-		messageCount := bd.StreamConnection.GetLastOffset(source.GetName(), fakeConsumerName)
-		if messageCount > 0 {
-			messageCount++
-		}
-		stats.MessageCount = messageCount
+		stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), fakeConsumerName)
 	} else {
 		util.Logger.Debugf("failed to create new arkeSourceStatsConsumer for stats: %s", err.Error())
 	}
@@ -1597,7 +1588,7 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 		stats.ConsumerCount = int32(consumersCountRaw.(float64))
 	}
 
-	// message count is only accurate for queues so we have to do something else for streams
+	// message count is only accurate for queues, return 0 for streams
 	if source.Type == pb.Source_QUEUE {
 		if messageCountRaw, ok := results["messages"]; ok {
 			stats.MessageCount = int64(messageCountRaw.(float64))

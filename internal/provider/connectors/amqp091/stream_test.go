@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -60,7 +61,7 @@ func (m *streamConnectionMock) NewConsumer(streamName string, consumerName strin
 	args := m.Called(streamName, consumerName, offset, handler, singleActive)
 	addr := stockAddress()
 	addr.Name = streamName
-	cCtx := stream.ConsumerContext{}
+	cCtx := stockStreamConsumerContext()
 	sMsg := stockAmqp10Message(stockMessage(addr))
 	handler(cCtx, &sMsg)
 	// Wait for handler() to send the message back
@@ -84,6 +85,11 @@ func (m *streamConnectionMock) GetPublisherName() string {
 func (m *streamConnectionMock) GetLastOffset(streamName string, clientName string) int64 {
 	args := m.Called(streamName, clientName)
 	return int64(args.Int(0))
+}
+
+func (m *streamConnectionMock) StoreOffset(streamName string, consumerName string, offset int64) error {
+	args := m.Called(streamName, consumerName, offset)
+	return args.Error(0)
 }
 
 type streamPublisherMock struct {
@@ -171,6 +177,34 @@ func stockMessageConfirm(orig streamMessage) message.StreamMessage {
 	fieldValue.Set(reflect.ValueOf(amqpMessage))
 
 	return newMsg
+}
+
+func stockStreamConsumerContext() stream.ConsumerContext {
+	con := &stream.Consumer{}
+	setFieldValue(con, "currentOffset", int64(5))
+	newMux := new(sync.Mutex)
+	setFieldValue(con, "mutex", newMux)
+	return stream.ConsumerContext{Consumer: con}
+}
+
+func setFieldValue(target any, fieldName string, value any) {
+	rv := reflect.ValueOf(target)
+	for rv.Kind() == reflect.Ptr && !rv.IsNil() {
+		rv = rv.Elem()
+	}
+	if !rv.CanAddr() {
+		panic("target must be addressable")
+	}
+	if rv.Kind() != reflect.Struct {
+		panic(fmt.Sprintf(
+			"unable to set the '%s' field value of the type %T, target must be a struct",
+			fieldName,
+			target,
+		))
+	}
+	rf := rv.FieldByName(fieldName)
+
+	reflect.NewAt(rf.Type(), unsafe.Pointer(rf.UnsafeAddr())).Elem().Set(reflect.ValueOf(value))
 }
 
 func Test_PublishStream(t *testing.T) {

@@ -210,8 +210,8 @@ message ConsumeResponse {
  message SourceStats {
     arke.Error error = 1; // Any error encountered while retrieving the SourceStats.
     int64 message_count = 2; // Total number of messages in the queue.
-    int32 consumer_count = 3; // Number of consumers on the queue.
-    int64 last_offset = 4; // Last recorded offset for the specified ConsumerGroup.
+    int32 consumer_count = 3; // Number of consumers on the queue or stream.
+    int64 last_offset = 4; // Offset of the last message in the stream.
 }
 
 /*
