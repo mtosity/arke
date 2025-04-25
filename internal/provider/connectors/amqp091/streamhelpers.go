@@ -90,13 +90,12 @@ func toStreamOffset(offset string, lastOffset int64) (stream.OffsetSpecification
 		// start consuming from 0
 		return stream.OffsetSpecification{}.First(), nil
 	case "continue":
-		// start where we left off, if no offset stored
-		// then start from 0.
-		if lastOffset > 0 {
-			// Increment lastOffset if we have already
-			// received the message.
-			lastOffset++
-		}
+		// Valid values for lastOffset:
+		// -1 : Start from the beginning of the stream
+		// 0 : We have processed only 1 message from the stream, start from 1
+		// > 0 : We have processed more than 1 message, start from the next
+		// message because the offset is 0 based.
+		lastOffset++
 		return stream.OffsetSpecification{}.Offset(lastOffset), nil
 	case "last":
 		return stream.OffsetSpecification{}.Last(), nil

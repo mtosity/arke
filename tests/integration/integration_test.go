@@ -815,7 +815,7 @@ func TestProduceTwoStreamConsumeTwo(t *testing.T) {
 func TestConsumeContinueOffset(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()
-	expectedMessageCount := 10
+	expectedMessageCount := 1
 	pc := pb.NewProducerClient(producerConnection)
 	pctx := context.Background()
 	defer pc.Disconnect(pctx, &pb.Empty{})
@@ -832,9 +832,10 @@ func TestConsumeContinueOffset(t *testing.T) {
 	options["MessageTTL"] = "120"
 	options["Offset"] = "continue"
 	subjects := make([]string, 0)
+	streamName := fmt.Sprintf("sas.test.stream.TCCO-%s", uuid.New().String())
 	subjects = append(subjects, "sas.test.proxy.PubOne")
-	address := &pb.Address{Name: "sas.test.stream.TCCO", Subjects: subjects, Type: pb.Address_STREAM}
-	source := &pb.Source{Name: "sas.test.stream.TCCO", Address: address, PrefetchCount: 1,
+	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: streamName, Address: address, PrefetchCount: 1,
 		Type: pb.Source_STREAM, Options: options}
 	c := pb.NewConsumerClient(consumerConnection)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -871,6 +872,7 @@ func TestConsumeContinueOffset(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 	c.Disconnect(ctx, &pb.Empty{})
 
+	expectedMessageCount = 10
 	c2 := pb.NewConsumerClient(consumerConnection)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()

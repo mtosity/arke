@@ -204,7 +204,10 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 	// QueryOffset returns an error if the consumer has yet to store an
 	// offset, so we ignore any errors and use the offset returned which
 	// is 0 on error
-	lastOffset, _ := sc.env.QueryOffset(consumerName, streamName)
+	lastOffset, oErr := sc.env.QueryOffset(consumerName, streamName)
+	if oErr != nil {
+		lastOffset = -1
+	}
 	sOffset, qErr := toStreamOffset(offset, lastOffset)
 	if qErr != nil {
 		return nil, qErr
