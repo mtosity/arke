@@ -10,7 +10,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/rabbitmq/rabbitmq-stream-go-client v1.5.3
+	github.com/rabbitmq/rabbitmq-stream-go-client v1.5.5-0.20250507143347-dd2042106065
 	github.com/soheilhy/cmux v0.1.5
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel v1.34.0
@@ -18,7 +18,7 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.19.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
-	golang.org/x/text v0.24.0
+	golang.org/x/text v0.25.0
 	golang.org/x/time v0.11.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.5
