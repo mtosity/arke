@@ -99,7 +99,10 @@ func (ac *amqp091Connection) NewChannel(confirm bool) (amqp091ChannelShim, error
 	}
 	if confirm {
 		err := ch.Confirm(false)
-		util.Logger.Debugf("Error setting confirm on channel : %v", err)
+		if err != nil {
+			util.Logger.Debugf("Error setting confirm on channel : %v", err)
+			return nil, err
+		}
 	}
 	ach := &amqp091Channel{channel: ch, connection: ac, confirm: confirm}
 	return ach, nil
