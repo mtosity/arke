@@ -720,19 +720,24 @@ func (bd *BrokerDetails) doManagementRequestWithoutMarshal(method, urn string) (
 	req.Header.Add("Accept", "application/json")
 	resp, respErr := client.Do(req)
 
+	var body []byte
+	var bodyErr error
+	if resp != nil {
+		defer resp.Body.Close() //nolint
+		body, bodyErr = io.ReadAll(resp.Body)
+	}
+
 	if respErr != nil { //nolint gocritic
 		err := fmt.Errorf("Error retrieving bindings: %s", respErr.Error())
 		return nil, err
 	} else if resp == nil {
-		err := fmt.Errorf("Error %s binding %s: no response", method, rurl)
+		err := fmt.Errorf("Error %s on management request %s: no response", method, rurl)
 		return nil, err
 	} else if resp.StatusCode >= 300 || resp.StatusCode < 200 {
-		err := fmt.Errorf("Error %s binding %s: request returned a %d", method, rurl, resp.StatusCode)
-		return nil, err
+		err := fmt.Errorf("Error %s on management request %s: request returned a %d", method, rurl, resp.StatusCode)
+		return body, err
 	}
 
-	defer resp.Body.Close()
-	body, bodyErr := io.ReadAll(resp.Body)
 	if bodyErr != nil {
 		return body, bodyErr
 	}
@@ -1558,7 +1563,13 @@ func (bd *BrokerDetails) updateStatsForStream(source *pb.Source, stats *pb.Sourc
 
 	if err == nil {
 		defer cons.Close()
-		stats.LastOffset = bd.StreamConnection.GetLastOffset(source.GetName(), fakeConsumerName)
+		offset, oErr := bd.StreamConnection.GetLastOffset(source.GetName(), fakeConsumerName)
+		stats.LastOffset = offset
+		if oErr != nil {
+			stats.Error = &pb.Error{
+				Message: oErr.Error(),
+			}
+		}
 	} else {
 		util.Logger.Debugf("failed to create new arkeSourceStatsConsumer for stats: %s", err.Error())
 	}

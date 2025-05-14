@@ -3000,7 +3000,7 @@ func TestConsumeSourceStats(t *testing.T) {
 			assert.Nil(t, err)
 		}
 
-		// request SourceStats a few times over 20 seconds to see if the rabbit API is available now
+		// request SourceStats a few times over 45 seconds to see if the rabbit API is available now
 		start := time.Now()
 		var stats *pb.SourceStats
 		var ssErr error
@@ -3018,7 +3018,12 @@ func TestConsumeSourceStats(t *testing.T) {
 
 		assert.Nil(t, ssErr)
 		assert.NotNil(t, stats)
-		assert.Nil(t, stats.Error)
+		if dot.publishMessageCount == 0 && dot.addressType == pb.Address_STREAM {
+			assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
+
+		} else {
+			assert.Nil(t, stats.Error)
+		}
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
 		if dot.publishMessageCount > 0 && dot.sourceType == pb.Source_STREAM {
@@ -3067,13 +3072,15 @@ func TestConsumeSourceStats(t *testing.T) {
 		stats, ssErr := c.SourceStats(ctx, source)
 		assert.Nil(t, ssErr)
 		assert.NotNil(t, stats)
-		assert.Nil(t, stats.Error)
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
 		assert.Equal(t, dot.publishMessageCount, msgCount)
 		expectedOffset := dot.publishMessageCount
 		if dot.publishMessageCount > 0 {
 			expectedOffset--
+			assert.Nil(t, stats.Error)
+		} else {
+			assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
 		}
 		assert.Equal(t, int64(expectedOffset), stats.LastOffset, dot.name)
 	}
@@ -3105,4 +3112,62 @@ func TestProduceFailsIfNoStream(t *testing.T) {
 
 	err = produceMessagesUnary(conn, c, pctx, expectedMessageCount, message, "", false, t.Name())
 	assert.NotNil(t, err, "should get error when no stream: %v", err)
+}
+
+func Test_SourceStatsNoStream(t *testing.T) {
+
+	tid := uuid.New().String()
+
+	timeout := 15 * time.Second
+	connConfig := connectConfig(t.Name())
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "noname-"+tid)
+	address := &pb.Address{Name: "noname-" + tid, Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: "noname-" + tid, Address: address, PrefetchCount: 5,
+		DeclareOnly: true, Type: pb.Source_STREAM}
+
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	connResp, err := c.Connect(ctx, connConfig)
+	assert.Nil(t, err)
+	assert.NotNil(t, connResp)
+	assert.True(t, connResp.GetSuccess())
+
+	var stats *pb.SourceStats
+	var ssErr error
+	stats, ssErr = c.SourceStats(ctx, source)
+
+	assert.Nil(t, ssErr)
+	assert.NotNil(t, stats)
+	assert.NotNil(t, stats.Error)
+	assert.Contains(t, stats.Error.GetMessage(), "request returned a 404")
+
+	// verified 404 when no created yet, now create it and get stats.
+	// we should get an "Offset not found" error in the stats.Error
+	strm, cErr := c.Consume(ctx)
+	cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+	err = strm.Send(cnsm)
+	assert.Nil(t, err)
+	assert.Nil(t, cErr)
+	strm.CloseSend()
+
+	start := time.Now()
+	for time.Since(start) <= timeout {
+		stats, ssErr = c.SourceStats(ctx, source)
+		assert.Nil(t, ssErr)
+		assert.NotNil(t, stats)
+		// emsg := stats.Error.GetMessage()
+		if strings.Contains(stats.GetError().GetMessage(), "request returned a 404") {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
+		break
+	}
 }

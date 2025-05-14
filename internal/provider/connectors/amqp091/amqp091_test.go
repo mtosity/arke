@@ -396,14 +396,24 @@ func Test_Ack_AckErr(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "#")
-	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 
@@ -572,15 +582,24 @@ func Test_Ack(t *testing.T) {
 		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "#")
-	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 
@@ -649,15 +668,24 @@ func Test_Nack(t *testing.T) {
 		GetClientIdentifier = oldGetClientIdentifier
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "#")
-	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -725,14 +753,24 @@ func Test_Nack_NackErr(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "#")
-	src := &pb.Source{Address: &pb.Address{Name: "addressname", Subjects: subjects}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address", Subjects: subjects}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -802,12 +840,22 @@ func Test_Retry(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -875,12 +923,22 @@ func Test_RetryFailure(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
-	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -965,14 +1023,24 @@ func Test_RetryFailure_DeclareErrorsStillSuccess(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	opts := make(map[string]string)
 	opts["junkheader"] = "junkvalue"
-	src := &pb.Source{Address: &pb.Address{Name: "addressname"}}
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address"}}
 	mc := make(chan *pb.Message)
 	defer close(mc)
 	go func() {
@@ -1023,12 +1091,12 @@ func Test_DLQ(t *testing.T) {
 	cancels := make(chan amqp091Error)
 	cmock.On("NotifyClose").Return(cancels)
 	cmock.On("Close").Return(nil)
-	cmock.On("ExchangeDeclare", "addressname", "topic", false).Return(nil).Once()
+	cmock.On("ExchangeDeclare", "address", "topic", false).Return(nil).Once()
 	cmock.On("ExchangeDeclare", "dla", "topic", false).Return(nil).Once()
-	cmock.On("QueueDeclare", "queuename.quorum", false, false, args).Return(nil).Once()
-	cmock.On("QueueDeclare", "queuename.dlq", false, false, argsDlq).Return(nil).Once()
-	cmock.On("QueueBind", "queuename.quorum", "routingkey", "addressname", mock.Anything).Return(nil).Once()
-	cmock.On("QueueBind", "queuename.dlq", "queuename.quorum", "dla", mock.Anything).Return(nil).Once()
+	cmock.On("QueueDeclare", "queue.quorum", false, false, args).Return(nil).Once()
+	cmock.On("QueueDeclare", "queue.dlq", false, false, argsDlq).Return(nil).Once()
+	cmock.On("QueueBind", "queue.quorum", "routingkey", "address", mock.Anything).Return(nil).Once()
+	cmock.On("QueueBind", "queue.dlq", "queue.quorum", "dla", mock.Anything).Return(nil).Once()
 	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
 
 	amock := &amqpConnectionMock{}
@@ -1048,15 +1116,25 @@ func Test_DLQ(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 
 	subjects := make([]string, 0)
 	subjects = append(subjects, "routingkey")
 	options := map[string]string{"DeadLetterAddress": "dla"}
-	src := &pb.Source{Name: "queuename", Address: &pb.Address{Name: "addressname", Subjects: subjects},
+	src := &pb.Source{Name: "queue", Address: &pb.Address{Name: "address", Subjects: subjects},
 		Options: options}
 	mc := make(chan *pb.Message)
 	defer close(mc)
@@ -1273,8 +1351,18 @@ func Test_Subscribe_Options(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 	var msg *pb.Message
@@ -1369,8 +1457,18 @@ func Test_Subscribe_NoSubjectsNoFilters(t *testing.T) {
 		NewAmqpConn091 = oldNewAmqpConn091
 	}()
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, serr := url.Parse(msrv.URL)
+	assert.Nil(t, serr)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cc := &pb.ConnectionConfiguration{}
+	cc.Tenant = "tenant"
+	cc.Host = u.Hostname()
+	i, _ := strconv.Atoi(u.Port())
+	cc.AdminPort = int32(i)
+
 	err := prov.Connect(ctx, cc, false)
 	assert.Nil(t, err)
 	var msg *pb.Message
@@ -2188,11 +2286,12 @@ func mockManagementRequestServer() *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body []byte
 		var status int
+		bindingBody := []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
 		if r.Method == "GET" {
+			body = bindingBody
+			status = http.StatusOK
+			// handle special cases here
 			switch r.URL.Path {
-			case "/api/bindings/tenant/e/address/q/queue/":
-				status = http.StatusOK
-				body = []byte(`[{"source":"arke.test","vhost":"tenant","destination":"queue","destination_type":"queue","routing_key":"routingkey","arguments":{},"properties_key":"routingkey"}]`)
 			case "/api/queues/tenant/sourceQueue.quorum":
 				status = http.StatusOK
 				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum"}`)
@@ -2203,7 +2302,7 @@ func mockManagementRequestServer() *httptest.Server {
 				status = http.StatusOK
 				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream"}`)
 			}
-		} else if r.Method == "DELETE" && r.URL.Path == "/api/bindings/tenant/e/address/q/queue/routingkey/" {
+		} else if r.Method == "DELETE" {
 			status = http.StatusNoContent
 		}
 		if body != nil {
@@ -2389,9 +2488,20 @@ func Test_Subscribe_Queue_DeclareOnly(t *testing.T) {
 				amock.On("NewChannel", false).Return(cmock, dot.channelError)
 				amock.On("IsClosed").Return(false)
 
+				msrv := mockManagementRequestServer()
+				defer msrv.Close()
+				u, serr := url.Parse(msrv.URL)
+				assert.Nil(t, serr)
+
 				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
 				cc := &pb.ConnectionConfiguration{}
+				cc.Tenant = "tenant"
+				cc.Host = u.Hostname()
+				i, _ := strconv.Atoi(u.Port())
+				cc.AdminPort = int32(i)
+
+				defer cancel()
+
 				err := prov.Connect(ctx, cc, false)
 				assert.Nil(t, err)
 
@@ -2515,7 +2625,7 @@ func Test_SourceStats(t *testing.T) {
 			smock.On("Connect").Return(nil).Once()
 
 			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil).Once()
-			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset)).Once()
+			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset), nil).Once()
 			smock.On("StoreOffset", src.GetName(), "arkeSourceStatsConsumer", int64(5)).Return(nil)
 
 			NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {

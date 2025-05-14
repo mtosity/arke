@@ -431,7 +431,7 @@ SourceStats includes information about the source from the broker
 | error | [Error](#arke-Error) |  | Any error encountered while retrieving the SourceStats. |
 | message_count | [int64](#int64) |  | Total number of messages in the queue. |
 | consumer_count | [int32](#int32) |  | Number of consumers on the queue or stream. |
-| last_offset | [int64](#int64) |  | Last offset in the stream. |
+| last_offset | [int64](#int64) |  | Offset of the last message in the stream. |
 
 
 

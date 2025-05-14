@@ -22,7 +22,7 @@ type streamConnectionShim interface {
 	PutPublisher(confirm bool, publisher streamPublisherShim)
 	NewConsumer(streamName string, consumerName string, offset string, handler stream.MessagesHandler, singleActive bool) (streamConsumerShim, error)
 	DeclareStream(streamName string, ttl int64) error
-	GetLastOffset(streamName string, consumerName string) int64
+	GetLastOffset(streamName string, consumerName string) (int64, error)
 	StoreOffset(streamName string, consumerName string, offset int64) error
 }
 
@@ -257,10 +257,10 @@ func (sc *streamConnection) DeclareStream(streamName string, ttl int64) error {
 	return sc.env.DeclareStream(streamName, opts)
 }
 
-func (sc *streamConnection) GetLastOffset(streamName string, consumerName string) int64 {
+func (sc *streamConnection) GetLastOffset(streamName string, consumerName string) (int64, error) {
 	offset, qErr := sc.env.QueryOffset(consumerName, streamName)
 	util.Logger.Debugf("GetLastOffset (%s)(%s)(%d) [%v]", consumerName, streamName, offset, qErr)
-	return offset
+	return offset, qErr
 }
 
 func (sc *streamConnection) StoreOffset(streamName string, consumerName string, offset int64) error {
