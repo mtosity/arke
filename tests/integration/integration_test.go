@@ -3026,6 +3026,7 @@ func TestConsumeSourceStats(t *testing.T) {
 		}
 		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
 		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
+		assert.Equal(t, int64(0), stats.GetCurrentOffset())
 		if dot.publishMessageCount > 0 && dot.sourceType == pb.Source_STREAM {
 			assert.Greater(t, stats.LastOffset, int64(0), dot.name)
 		}
@@ -3083,6 +3084,46 @@ func TestConsumeSourceStats(t *testing.T) {
 			assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
 		}
 		assert.Equal(t, int64(expectedOffset), stats.LastOffset, dot.name)
+		assert.Equal(t, int64(expectedOffset), stats.GetCurrentOffset(), dot.name)
+		assert.Equal(t, stats.GetLastOffset(), stats.GetCurrentOffset(), dot.name)
+	}
+
+	for _, dot := range declareOnlyTests {
+		if dot.sourceType != pb.Source_STREAM {
+			continue
+		}
+		if dot.publishMessageCount > 0 {
+			// must publish to Address.Name equal to Source.Name of the consumer
+			subjects := make([]string, 0)
+			subjects = append(subjects, dot.name)
+			address := &pb.Address{Name: dot.name, Subjects: subjects, Type: dot.addressType}
+			source := &pb.Source{SingleActiveConsumer: true, Name: dot.name, Address: address, PrefetchCount: 5, Type: dot.sourceType, Options: map[string]string{"Offset": "first", "ConsumerGroup": "MyGroupName"}}
+
+			// set up the producer so we can send messages
+			producerConnection := connect()
+			defer producerConnection.Close()
+			pc := pb.NewProducerClient(producerConnection)
+			pctx := context.Background()
+			defer pc.Disconnect(pctx, &pb.Empty{})
+
+			message := &pb.Message{Body: []byte("mybody1"), Address: address}
+
+			err := produceMessagesUnary(producerConnection, pc, pctx, dot.publishMessageCount, message, "", false, t.Name())
+			assert.Nil(t, err)
+
+			consumerConnection := connect()
+			connConfig := connectConfig(t.Name())
+			c := pb.NewConsumerClient(consumerConnection)
+			connResp, err := c.Connect(pctx, connConfig)
+			assert.Nil(t, err)
+			assert.NotNil(t, connResp)
+			assert.True(t, connResp.GetSuccess())
+			stats, ssErr := c.SourceStats(pctx, source)
+			assert.Nil(t, ssErr)
+			assert.NotNil(t, stats)
+			assert.Greater(t, stats.GetCurrentOffset(), stats.GetLastOffset(), dot.name)
+		}
+
 	}
 }
 

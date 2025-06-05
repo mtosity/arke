@@ -1153,16 +1153,9 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 
 	latch := util.NewBlockingLatch(uint(source.GetPrefetchCount()))
 
-	consumerName := source.GetName()
-	if source.GetSingleActiveConsumer() {
-		if cg, ok := source.GetOptions()["ConsumerGroup"]; ok && cg != "" {
-			consumerName = cg
-		} else {
-			util.Logger.Debugf("%s requested single active consumer on stream %s but source.Options['ConsumerGroup'] was not set",
-				bd.ClientIdentifier, source.GetName())
-			emsg := "single active consumer requested but no ConsumerGroup option set"
-			return &pb.Error{Message: emsg}
-		}
+	consumerName, cErr := bd.getConsumerName(source)
+	if cErr != nil {
+		return cErr
 	}
 
 	handleMessages := func(ctx stream.ConsumerContext, message *amqp.Message) {
@@ -1569,10 +1562,36 @@ func (bd *BrokerDetails) updateStatsForStream(source *pb.Source, stats *pb.Sourc
 			stats.Error = &pb.Error{
 				Message: oErr.Error(),
 			}
+			return
 		}
+
+		consumerName, cErr := bd.getConsumerName(source)
+		if cErr != nil {
+			stats.Error = cErr
+			return
+		}
+		// Ignore the error here, we will get an error if we have never stored
+		// an offset(aka. never consumed)
+		offset, _ = bd.StreamConnection.GetLastOffset(source.GetName(), consumerName)
+		stats.CurrentOffset = offset
 	} else {
 		util.Logger.Debugf("failed to create new arkeSourceStatsConsumer for stats: %s", err.Error())
 	}
+}
+
+func (bd *BrokerDetails) getConsumerName(source *pb.Source) (string, *pb.Error) {
+	consumerName := source.GetName()
+	if source.GetSingleActiveConsumer() {
+		if cg, ok := source.GetOptions()["ConsumerGroup"]; ok && cg != "" {
+			consumerName = cg
+		} else {
+			util.Logger.Debugf("%s requested single active consumer on stream %s but source.Options['ConsumerGroup'] was not set",
+				bd.ClientIdentifier, source.GetName())
+			emsg := "single active consumer requested but no ConsumerGroup option set"
+			return "", &pb.Error{Message: emsg}
+		}
+	}
+	return consumerName, nil
 }
 
 func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStats {

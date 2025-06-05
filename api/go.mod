@@ -1,6 +1,6 @@
 module sassoftware.io/viya/arke/api
 
-go 1.24.2
+go 1.24.0
 
 require (
 	google.golang.org/grpc v1.72.0

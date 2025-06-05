@@ -1,6 +1,6 @@
 module sassoftware.io/viya/arke
 
-go 1.24.2
+go 1.24.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.6.1

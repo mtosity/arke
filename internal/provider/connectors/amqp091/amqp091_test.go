@@ -2564,6 +2564,7 @@ func Test_SourceStats(t *testing.T) {
 		sourceName         string
 		singleActive       bool
 		fakeConsLastOffset int64
+		consLastOffset     int64
 	}{
 		{
 			addressType:        pb.Address_QUEUE,
@@ -2575,6 +2576,7 @@ func Test_SourceStats(t *testing.T) {
 			sourceName:         "sourceQueue",
 			singleActive:       false,
 			fakeConsLastOffset: int64(0),
+			consLastOffset:     int64(0),
 		},
 		{
 			addressType:        pb.Address_STREAM,
@@ -2586,6 +2588,7 @@ func Test_SourceStats(t *testing.T) {
 			sourceName:         "sourceStream",
 			singleActive:       false,
 			fakeConsLastOffset: int64(5),
+			consLastOffset:     int64(5),
 		},
 		{
 			addressType:        pb.Address_STREAM,
@@ -2597,6 +2600,7 @@ func Test_SourceStats(t *testing.T) {
 			sourceName:         "sourceStream2",
 			singleActive:       true,
 			fakeConsLastOffset: int64(5),
+			consLastOffset:     int64(5),
 		},
 	}
 
@@ -2626,6 +2630,11 @@ func Test_SourceStats(t *testing.T) {
 
 			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil).Once()
 			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset), nil).Once()
+			if test.singleActive {
+				smock.On("GetLastOffset", src.GetName(), "GroupName").Return(int(test.consLastOffset), nil).Once()
+			} else {
+				smock.On("GetLastOffset", src.GetName(), test.sourceName).Return(int(test.consLastOffset), nil).Once()
+			}
 			smock.On("StoreOffset", src.GetName(), "arkeSourceStatsConsumer", int64(5)).Return(nil)
 
 			NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
