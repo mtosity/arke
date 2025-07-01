@@ -1732,9 +1732,12 @@ func TestHeaders_Consume(t *testing.T) {
 
 	if len(received) > 0 {
 		assert.Contains(t, received[0].Headers, "traceparent")
+		assert.Contains(t, received[0].Headers, "timestamp_in_ms")
 		// remove the traceparent header from matching
 		delete(headers, "traceparent")
+		delete(headers, "timestamp_in_ms")
 		delete(received[0].Headers, "traceparent")
+		delete(received[0].Headers, "timestamp_in_ms")
 		assert.Equal(t, headers, received[0].Headers)
 		assert.NotNil(t, received[0].GetAddress())
 	}
