@@ -583,6 +583,12 @@ func (s *ConsumerServer) SourceStats(ctx context.Context, source *pb.Source) (*p
 		return stats, ftlError
 	}
 	stats := prov.SourceStats(ctx, source)
+	consumerGroup := ""
+	// if the consumer group option is set, format it for logging
+	if consumerGroupOption, ok := source.GetOptions()["ConsumerGroup"]; ok && consumerGroupOption != "" {
+		consumerGroup = fmt.Sprintf(" (%s)", consumerGroupOption)
+	}
+	util.Logger.Debugf("SourceStats for %s%s: %+v", source.GetAddress().GetName(), consumerGroup, stats)
 	return stats, nil
 }
 

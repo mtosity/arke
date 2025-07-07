@@ -1164,6 +1164,13 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		hdrs[streamOffsetHeaderName] = strconv.FormatInt(ctx.Consumer.GetOffset(), 10)
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
 			Headers: hdrs, Address: source.GetAddress()}
+
+		consumerGroup := ""
+		// if the consumer group option is set, format it for logging
+		if consumerGroupOption, ok := source.GetOptions()["ConsumerGroup"]; ok && consumerGroupOption != "" {
+			consumerGroup = fmt.Sprintf(" (%s)", consumerGroupOption)
+		}
+
 		// Increment the latch before we put the message on the channel
 		// Increment will wait for Decrement to be called if we have hit the ceiling
 		latch.Increment()
@@ -1172,13 +1179,19 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		stm.Ack = func() {
 			latch.Decrement()
 			if ctx.Consumer != nil {
-				offsetErr := bd.StreamConnection.StoreOffset(source.GetName(), consumerName, ctx.Consumer.GetOffset())
+				consumerOffset := ctx.Consumer.GetOffset()
+				util.Logger.Tracef("Ack of message(%s) on stream %s%s with offset %d", messageUUID, ctx.Consumer.GetStreamName(), consumerGroup, consumerOffset)
+
+				offsetErr := bd.StreamConnection.StoreOffset(source.GetName(), consumerName, consumerOffset)
 				if offsetErr != nil {
-					util.Logger.Debugf("Ack of message(%s) on stream %s failed : %s", messageUUID, ctx.Consumer.GetStreamName(), offsetErr.Error())
+					util.Logger.Debugf("Ack of message(%s) on stream %s%s failed : %s", messageUUID, ctx.Consumer.GetStreamName(), consumerGroup, offsetErr.Error())
 				}
 			}
 		}
-		stm.Nack = func() { latch.Decrement() }
+		stm.Nack = func() {
+			util.Logger.Tracef("Nack of message(%s) on stream %s%s with offset %d", messageUUID, ctx.Consumer.GetStreamName(), consumerGroup, ctx.Consumer.GetOffset())
+			latch.Decrement()
+		}
 		bd.activeMessages.Add(messageUUID, stm)
 		bd.consumed++
 	}

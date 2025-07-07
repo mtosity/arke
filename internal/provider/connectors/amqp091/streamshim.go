@@ -230,6 +230,9 @@ func (sc *streamConnection) NewConsumer(streamName string, consumerName string, 
 		}
 		sac.ConsumerUpdate = cuf
 	}
+
+	util.Logger.Debugf("Creating consumer %s for stream %s with offset %d", consumerName, streamName, sOffset)
+
 	consumer, err := ha.NewReliableConsumer(
 		sc.env,
 		streamName,
@@ -264,6 +267,7 @@ func (sc *streamConnection) GetLastOffset(streamName string, consumerName string
 }
 
 func (sc *streamConnection) StoreOffset(streamName string, consumerName string, offset int64) error {
+	util.Logger.Debugf("StoreOffset (%s)(%s)(%d)", consumerName, streamName, offset)
 	return sc.env.StoreOffset(consumerName, streamName, offset)
 }
 

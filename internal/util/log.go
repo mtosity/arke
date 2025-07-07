@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	rlogs "github.com/rabbitmq/rabbitmq-stream-go-client/pkg/logs"
+	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+
 	"sassoftware.io/viya/zlog"
 	"sassoftware.io/viya/arke/i18n"
 )
@@ -42,6 +45,11 @@ func init() {
 	tracePerf = false
 	if tracePerfEnv := os.Getenv("TRACE_PERF"); tracePerfEnv == "1" {
 		tracePerf = true
+	}
+
+	// set rabbit streams log level to debug if our log level is debug
+	if logLevel == zlog.Debug {
+		stream.SetLevelInfo(rlogs.DEBUG)
 	}
 }
 
