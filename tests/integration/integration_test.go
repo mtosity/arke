@@ -2941,10 +2941,10 @@ func TestConsumeSourceStats(t *testing.T) {
 		expectedMessageCount  int64
 		publishMessageCount   int
 	}{
-		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4, 4},
-		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0, 0},
 		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 0, 5},
 		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream.zero", testUUID), 0, 0, 0},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4, 4},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0, 0},
 	}
 
 	for _, dot := range declareOnlyTests {
@@ -3014,6 +3014,7 @@ func TestConsumeSourceStats(t *testing.T) {
 				expectedOffset--
 			}
 			if ssErr == nil && ((stats.MessageCount == int64(dot.publishMessageCount)) || (stats.GetLastOffset() >= int64(expectedOffset))) {
+				t.Logf("%s: got stats for messageCount=%d", dot.name, stats.MessageCount)
 				break
 			}
 			time.Sleep(1 * time.Second)
@@ -3023,13 +3024,12 @@ func TestConsumeSourceStats(t *testing.T) {
 		assert.NotNil(t, stats)
 		if dot.publishMessageCount == 0 && dot.addressType == pb.Address_STREAM {
 			assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
-
 		} else {
 			assert.Nil(t, stats.Error)
 		}
-		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
-		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
-		assert.Equal(t, int64(0), stats.GetCurrentOffset())
+		assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount, dot.name)
+		assert.Equal(t, dot.expectedMessageCount, stats.MessageCount, dot.name)
+		assert.Equal(t, int64(0), stats.GetCurrentOffset(), dot.name)
 		if dot.publishMessageCount > 0 && dot.sourceType == pb.Source_STREAM {
 			assert.Greater(t, stats.LastOffset, int64(0), dot.name)
 		}
@@ -3126,8 +3126,8 @@ func TestConsumeSourceStats(t *testing.T) {
 			assert.NotNil(t, stats)
 			assert.Greater(t, stats.GetCurrentOffset(), stats.GetLastOffset(), dot.name)
 		}
-
 	}
+
 }
 
 func TestProduceFailsIfNoStream(t *testing.T) {

@@ -1620,11 +1620,11 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 
 	urn := fmt.Sprintf("/api/queues/%s/%s", vhost, queue)
 	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
-
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
 		stats.Error = &pb.Error{Message: marshErr.Error()}
 		return stats
 	}
+	util.Logger.Debugf("Stats results from management API for %s: %s", queue, string(body))
 
 	// consumer count comes from the API and is accurate
 	if consumersCountRaw, ok := results["consumers"]; ok {
@@ -1632,9 +1632,16 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	}
 
 	// message count is only accurate for queues, return 0 for streams
+	util.Logger.Debugf("Source: %+v", source)
+	util.Logger.Debugf("Source.Type: %d", source.Type)
+	util.Logger.Debugf("results: %+v", results)
+
 	if source.Type == pb.Source_QUEUE {
 		if messageCountRaw, ok := results["messages"]; ok {
 			stats.MessageCount = int64(messageCountRaw.(float64))
+			util.Logger.Debugf("Message count for queue %s: %d", queue, stats.MessageCount)
+		} else {
+			util.Logger.Debugf("No message count found for queue %s", queue)
 		}
 	} else if source.Type == pb.Source_STREAM {
 		bd.updateStatsForStream(source, stats)
