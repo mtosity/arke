@@ -1654,6 +1654,9 @@ func Test_Publish(t *testing.T) {
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
+	chanerrs := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(chanerrs)
+
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 	amock.On("IsClosed").Return(false)
@@ -1709,6 +1712,9 @@ func Test_Publish_Error(t *testing.T) {
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], mock.Anything).Return(errors.New("puberr"))
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(nil).Once()
+	chanerrs := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(chanerrs)
+
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 	amock.On("IsClosed").Return(false)
@@ -1979,6 +1985,9 @@ func Test_Publish_ErrorDeclareExchange(t *testing.T) {
 	cmock := &amqpChannelMock{}
 	cmock.On("Publish", address.GetName(), address.GetSubjects()[0], expectedMsg).Return(nil)
 	cmock.On("ExchangeDeclare", address.GetName(), "headers", address.GetAutoDelete()).Return(errors.New("declareerr")).Once()
+	chanerrs := make(chan amqp091Error)
+	cmock.On("NotifyClose").Return(chanerrs)
+
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 	amock.On("IsClosed").Return(false)

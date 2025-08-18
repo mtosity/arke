@@ -1270,7 +1270,7 @@ func (prov *amqp091provider) Publish(ctx context.Context, messageChannel <-chan 
 	connErrChan := make(chan amqp091Error)
 	connErrChan = bd.Connection.NotifyClose(connErrChan)
 	cancelChan := make(chan amqp091Error)
-	cancelChan = bd.Connection.NotifyClose(cancelChan)
+	cancelChan = amqpChannel.NotifyClose(cancelChan)
 
 	defer func() {
 		// try to send on the channel and if we can't it's
