@@ -13,7 +13,7 @@ import (
 )
 
 // Provider interface is for broker providers. For instance, to access
-// a message broker using ampq091 (such as RabbitMQ), an ampq091 provider
+// a message broker using amqp091 (such as RabbitMQ), an amqp091 provider
 // would implement this interface.
 type Provider interface {
 	Publish(context.Context, <-chan *pb.Message, chan<- *pb.Error) *pb.Error

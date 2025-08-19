@@ -232,7 +232,7 @@ type ConnectionConfiguration struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`                                        // Broker hostname or IP address.
 	Port          int32                  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`                                       // Broker port.
-	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`                                // Provider type, currently only ampq091.
+	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`                                // Provider type, currently only amqp091.
 	Tenant        string                 `protobuf:"bytes,4,opt,name=tenant,proto3" json:"tenant,omitempty"`                                    // Tenant name for this connection. Tenant is not required
 	Credentials   *Credentials           `protobuf:"bytes,5,opt,name=credentials,proto3" json:"credentials,omitempty"`                          // Authentication credentials.
 	CaCertificate []byte                 `protobuf:"bytes,7,opt,name=ca_certificate,json=caCertificate,proto3" json:"ca_certificate,omitempty"` // TLS Certificate authority for broker. Implies tls.

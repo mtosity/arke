@@ -26,16 +26,16 @@
     - [Source](#arke-Source)
     - [Source.OptionsEntry](#arke-Source-OptionsEntry)
     - [SourceStats](#arke-SourceStats)
-  
+
     - [Address.TargetType](#arke-Address-TargetType)
     - [Filter.MatchType](#arke-Filter-MatchType)
     - [HealthStatus.Code](#arke-HealthStatus-Code)
     - [Source.TargetType](#arke-Source-TargetType)
-  
+
     - [Consumer](#arke-Consumer)
     - [Healthz](#arke-Healthz)
     - [Producer](#arke-Producer)
-  
+
 - [Scalar Value Types](#scalar-value-types)
 
 
@@ -98,7 +98,7 @@ RabbitMQ and Kafka.
 | ----- | ---- | ----- | ----------- |
 | host | [string](#string) |  | Broker hostname or IP address. |
 | port | [int32](#int32) |  | Broker port. |
-| provider | [string](#string) |  | Provider type, currently only ampq091. |
+| provider | [string](#string) |  | Provider type, currently only amqp091. |
 | tenant | [string](#string) |  | Tenant name for this connection. Tenant is not required |
 | credentials | [Credentials](#arke-Credentials) |  | Authentication credentials. |
 | ca_certificate | [bytes](#bytes) |  | TLS Certificate authority for broker. Implies tls. |
@@ -438,7 +438,7 @@ SourceStats includes information about the source from the broker
 
 
 
- 
+
 
 
 <a name="arke-Address-TargetType"></a>
@@ -492,9 +492,9 @@ SourceStats includes information about the source from the broker
 | STREAM | 2 | The Source is a stream |
 
 
- 
 
- 
+
+
 
 
 <a name="arke-Consumer"></a>
@@ -532,7 +532,7 @@ Service for producing messages
 | PublishOne | [Message](#arke-Message) | [MessageResponse](#arke-MessageResponse) | Send one message to the message broker. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
- 
+
 
 
 
