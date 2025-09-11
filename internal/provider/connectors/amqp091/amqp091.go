@@ -32,6 +32,7 @@ import (
 const providerName string = "amqp091"
 const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 const streamOffsetHeaderName = "x-current-offset"
+const retryCountHeaderName = "x-retry-count"
 
 var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset", "ConsumerGroup"}
 
@@ -337,6 +338,10 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 
 			retrySpan.AddEvent("retry binding created")
 
+			updateRetryCountHeader(&rm)
+
+			retrySpan.AddEvent("retry count header updated")
+
 			retryErr := amqpChannel.Publish(retrySource.Address.GetName(), origSource.GetName(), rm)
 
 			if retryErr != nil {
@@ -355,6 +360,29 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 	}
 
 	return nil
+}
+
+// Updates the x-retry-count header which tracks our retry attempts
+func updateRetryCountHeader(rm *amqp091Message) {
+	if rm.Headers == nil {
+		rm.Headers = make(amqp091Table)
+	}
+	// initialize retry count to 0
+	var retryCount int32
+	// if the header already exists, set retryCount to that value
+	if retryCountHeader, ok := rm.Headers[retryCountHeaderName]; ok {
+		var typeOk bool
+		// RabbitMQ stores int values as int32
+		retryCount, typeOk = retryCountHeader.(int32)
+		if !typeOk {
+			util.Logger.Warn("Retry count header is not an int32, resetting to 1")
+		}
+	}
+	// increment retry count by 1
+	retryCount++
+	// set the header to the new value
+	util.Logger.Debugf("Updating %s to %d", retryCountHeaderName, retryCount)
+	rm.Headers[retryCountHeaderName] = retryCount
 }
 
 // DeadLetter routes the message to a dead letter Address because all retries have failed

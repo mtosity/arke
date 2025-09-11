@@ -805,14 +805,17 @@ func Test_Retry(t *testing.T) {
 	msgs := make(chan amqp091Message)
 	defer close(msgs)
 	delMock := mock.Mock{}
-	go func(dMock *mock.Mock) {
-		mm := amqp091Message{}
-		mm.DeliveryTag = 1
-		dMock.On("Ack").Return(nil)
-		mm.SetDelivery(dMock) //nolint
-
+	mm := amqp091Message{}
+	mm.DeliveryTag = 1
+	delMock.On("Ack").Return(nil)
+	mm.SetDelivery(&delMock) //nolint
+	go func() {
 		msgs <- mm
-	}(&delMock)
+	}()
+
+	mm.Headers = amqp091Table{
+		retryCountHeaderName: 1,
+	}
 
 	cancels := make(chan amqp091Error)
 	cmock.On("NotifyClose").Return(cancels)
@@ -821,7 +824,7 @@ func Test_Retry(t *testing.T) {
 	cmock.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("QueueBind", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	cmock.On("Consume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(msgs, nil)
-	cmock.On("Publish", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("Publish", mock.Anything, mock.Anything, mm).Return(nil)
 
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
@@ -1060,6 +1063,87 @@ func Test_RetryFailure_DeclareErrorsStillSuccess(t *testing.T) {
 	cmock.AssertExpectations(t)
 	amock.AssertExpectations(t)
 	cmock.AssertNumberOfCalls(t, "ExchangeDeclare", 2)
+}
+
+func Test_updateRetryCountHeader(t *testing.T) {
+	tests := map[string]struct {
+		msg      amqp091Message
+		expected int32
+	}{
+		"empty message": {
+			msg:      amqp091Message{},
+			expected: 1,
+		},
+		"no header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{},
+			},
+			expected: 1,
+		},
+		"non-integer header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: "not-an-int",
+				},
+			},
+			expected: 1,
+		},
+		"convert int32 header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: int32(3),
+				},
+			},
+			expected: 4,
+		},
+		"fail to convert plain int header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: 3,
+				},
+			},
+			expected: 1,
+		},
+		"fail to convert string numeric header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: "3",
+				},
+			},
+			expected: 1,
+		},
+		"fail to convert uint32 header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: uint32(3),
+				},
+			},
+			expected: 1,
+		},
+		"fail to convert convert float64 header": {
+			msg: amqp091Message{
+				Headers: amqp091Table{
+					retryCountHeaderName: 3.0,
+				},
+			},
+			expected: 1,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			updateRetryCountHeader(&tc.msg)
+			if val, ok := tc.msg.Headers[retryCountHeaderName]; !ok {
+				t.Errorf("Expected header %s to be set", retryCountHeaderName)
+			} else {
+				if intVal, ok := val.(int32); !ok {
+					t.Errorf("Expected header %s to be of type int", retryCountHeaderName)
+				} else if intVal != tc.expected {
+					t.Errorf("Expected header %s to be %d, got %d", retryCountHeaderName, tc.expected, intVal)
+				}
+			}
+		})
+	}
 }
 
 func Test_DLQ(t *testing.T) {

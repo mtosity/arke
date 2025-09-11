@@ -1125,10 +1125,8 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 		delay := 0
 		var err error
 
-		if xDeath, ok := headers["x-death"]; ok {
-			pieces := strings.Split(xDeath, " ")
-			aCount := strings.Split(pieces[0], ":")[1]
-			count, _ = strconv.Atoi(aCount)
+		if retryCountHeaderValue, ok := headers["x-retry-count"]; ok {
+			count, _ = strconv.Atoi(retryCountHeaderValue)
 		}
 
 		if count < 5 {
@@ -1158,7 +1156,6 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 	assert.Nil(t, err)
 
 	msgCount := 0
-
 	breakLoop := false
 	for start := time.Now(); time.Since(start) < 15*time.Second; {
 		select {
