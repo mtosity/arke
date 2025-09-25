@@ -3212,3 +3212,61 @@ func Test_SourceStatsNoStream(t *testing.T) {
 		break
 	}
 }
+func TestStreamHeaderReceivedTimeEqualsTimestampInMs(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 1
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := []string{"sas.test.proxy.HeaderCheck"}
+	streamName := "sas.test.stream.HeaderCheck"
+	address := &pb.Address{Name: streamName, Subjects: subjects, Type: pb.Address_STREAM}
+	header := make(map[string]string)
+	header["x-opt-rabbitmq-received-time"] = "test-header"
+	source := &pb.Source{Name: streamName, Address: address, PrefetchCount: 1, Type: pb.Source_STREAM}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("header-check-message"), Address: address, Headers: header}
+
+	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message, "", false, t.Name())
+	assert.Nil(t, err)
+
+	var received *pb.Message
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
+		select {
+		case m := <-messages:
+			received = m
+			breakLoop = true
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.NotNil(t, received, "Did not receive a message from stream")
+	headers := received.GetHeaders()
+	receivedTime, ok1 := headers["x-opt-rabbitmq-received-time"]
+	timestampInMs, ok2 := headers["timestamp_in_ms"]
+	t.Logf("headers: %+v", headers)
+	assert.True(t, ok1, "header 'x-opt-rabbitmq-received-time' not found")
+	assert.True(t, ok2, "header 'timestamp_in_ms' not found")
+	assert.Equal(t, receivedTime, timestampInMs, "header values do not match")
+}

@@ -2792,3 +2792,12 @@ func stockAmqpMessage(msg *pb.Message) amqp091Message {
 
 	return expectedMsg
 }
+func TestCopyHeaderToTimestamp(t *testing.T) {
+	address := stockAddress()
+	msg := stockMessage(address)
+	msg.Headers = make(map[string]string)
+	msg.Headers[rabbitReceivedTimeHeaderName] = "test-timestamp-value"
+	addTimeStampHeader(msg.Headers)
+	// Assert that the new header is set
+	assert.Equal(t, msg.Headers[rabbitReceivedTimeHeaderName], msg.Headers[timeStampInMSHeaderName])
+}

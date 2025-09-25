@@ -33,6 +33,8 @@ const providerName string = "amqp091"
 const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 const streamOffsetHeaderName = "x-current-offset"
 const retryCountHeaderName = "x-retry-count"
+const rabbitReceivedTimeHeaderName = "x-opt-rabbitmq-received-time"
+const timeStampInMSHeaderName = "timestamp_in_ms"
 
 var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset", "ConsumerGroup"}
 
@@ -1190,6 +1192,9 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		messageUUID := util.GenUUID()
 		hdrs := fromStreamHeaders(message.ApplicationProperties)
 		hdrs[streamOffsetHeaderName] = strconv.FormatInt(ctx.Consumer.GetOffset(), 10)
+
+		addTimeStampHeader(hdrs)
+
 		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
 			Headers: hdrs, Address: source.GetAddress()}
 
@@ -1230,6 +1235,12 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 	<-ctx.Done()
 	consumer.Close()
 	return nil
+}
+
+func addTimeStampHeader(hdrs map[string]string) {
+	if val, ok := hdrs[rabbitReceivedTimeHeaderName]; ok {
+		hdrs[timeStampInMSHeaderName] = val
+	}
 }
 
 // Disconnect disconnect from the broker
