@@ -36,6 +36,9 @@ const retryCountHeaderName = "x-retry-count"
 const rabbitReceivedTimeHeaderName = "x-opt-rabbitmq-received-time"
 const timeStampInMSHeaderName = "timestamp_in_ms"
 
+const maxPubChannels = 10
+const maxPubPCChannels = 10
+
 var supportedSourceOptionsList = []string{"MessageTTL", "DeadLetterAddress", "DeadLetterSubject", "Expires", "Offset", "ConsumerGroup"}
 
 var supportedSourceOptions map[string]bool
@@ -58,11 +61,18 @@ type amqp091provider struct {
 // BrokerDetails struct houses connection specific information for the broker
 type BrokerDetails struct {
 	sync.Mutex
-	Connection       amqp091ConnectionShim
-	ErrorChannel     chan amqp091Error
-	RetryChannel     *amqp091ChannelShim
-	pubChannels      *sync.Pool
-	pubPCChannels    *sync.Pool
+	Connection   amqp091ConnectionShim
+	ErrorChannel chan amqp091Error
+	RetryChannel *amqp091ChannelShim
+
+	// Ctx used by both pubChannels and pubPCChannels
+	pubChannelCtx context.Context
+
+	// Ctx cancellation function used by both pubChannels and pubPCChannels
+	pubChannelCancel context.CancelFunc
+
+	pubChannels      *util.BlockingPool
+	pubPCChannels    *util.BlockingPool
 	StreamConnection streamConnectionShim
 	ClientIdentifier string
 	knownExchanges   *util.ConcurrentMap
@@ -415,7 +425,8 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 	}
 
 	activeMessages := util.NewConcurrentMap()
-
+	pubChCtx := context.WithValue(context.Background(), CtxKey{name: "clientIdentifier"}, clientIdentifier)
+	pubChCtx, pubChCancel := context.WithCancel(pubChCtx)
 	bd := BrokerDetails{
 		connectionConfig: cf,
 		ClientIdentifier: clientIdentifier,
@@ -429,26 +440,38 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 		clientDisconnect: false,
 		lastPubSubEvent:  time.Now(),
 		shutdownChan:     make(chan bool, 1),
+		pubChannelCtx:    pubChCtx,
+		pubChannelCancel: pubChCancel,
 	}
 
-	bd.pubChannels = &sync.Pool{
-		New: func() any {
-			newChan, _ := bd.Connection.NewChannel(false)
-			if newChan == nil {
-				return nil
-			}
-			return &newChan
-		},
+	newPubChannel := func() any {
+		newChan, _ := bd.Connection.NewChannel(false)
+		if newChan == nil {
+			return nil
+		}
+		util.Logger.Debug("Created new publish channel")
+		return &newChan
 	}
-	bd.pubPCChannels = &sync.Pool{
-		New: func() any {
-			newChan, _ := bd.Connection.NewChannel(true)
-			if newChan == nil {
-				return nil
-			}
-			return &newChan
-		},
+
+	bd.pubChannels = util.NewBlockingPool(
+		pubChCtx,
+		maxPubChannels,
+		newPubChannel,
+	)
+
+	newPubPCChannel := func() any {
+		newChan, _ := bd.Connection.NewChannel(true)
+		if newChan == nil {
+			return nil
+		}
+		util.Logger.Debug("Created new publish confirm channel")
+		return &newChan
 	}
+	bd.pubPCChannels = util.NewBlockingPool(
+		pubChCtx,
+		maxPubPCChannels,
+		newPubPCChannel,
+	)
 
 	_, bdErr := bd.connect()
 	if bdErr != nil {
@@ -1268,6 +1291,7 @@ func (prov *amqp091provider) disconnectClientByIdentifier(clientIdentifier strin
 		}
 	}()
 
+	bd.pubChannelCancel()
 	bd.clientDisconnect = true
 	util.Logger.InfoI(i18n.ClientDisconnect, bd.ClientIdentifier)
 	bd.shutdownChan <- true // shut down the connectionWatcher

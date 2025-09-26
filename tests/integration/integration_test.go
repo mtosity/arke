@@ -237,8 +237,13 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-
-	stream, _ := c.Publish(ctx)
+	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
+	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
+	stream, err := c.Publish(ctx)
+	if err != nil {
+		fmt.Printf("error calling pb.ProducerClient.Publish: %v\n", err)
+		return err
+	}
 	for i := 0; i < cnt; i++ {
 		err = stream.Send(message)
 		if err != nil {
@@ -263,12 +268,14 @@ func produceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx contex
 
 	authResp, err := c.Connect(ctx, connConfig)
 	if err != nil {
+		fmt.Printf("error calling pb.ProducerClient.Connect: %v\n", err)
 		return err
 	}
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-
+	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
+	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
 	return produceMessagesUnaryWOConnect(conn, c, ctx, cnt, message, producerName, includePubID, clientName)
 }
 
@@ -283,7 +290,7 @@ func produceMessagesUnaryWOConnect(conn *grpc.ClientConn, c pb.ProducerClient, c
 		message.Body = fmt.Appendf(message.Body, "%d of %d", i, cnt)
 		resp, err := c.PublishOne(ctx, message)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("error calling pb.ProducerClient.PublishOne: %v\n", err)
 			return err
 		}
 		if resp != nil && !resp.GetSuccess() {
@@ -399,7 +406,10 @@ func connect() *grpc.ClientConn {
 	defer cancel()
 
 	// Attempt a non-TLS connection to arke first
-	conn, _ = grpc.NewClient(arkeAddress(), grpc.WithInsecure())
+	conn, err = grpc.NewClient(arkeAddress(), grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("could not connect: %v", err)
+	}
 
 	c := healthpb.NewHealthClient(conn)
 	resp, err := c.Check(ctx, &healthpb.HealthCheckRequest{Service: "arke"})
@@ -518,7 +528,7 @@ func TestProduceOneConsumeOne(t *testing.T) {
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
 	err := produceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message, "", false, t.Name())
-	assert.Nil(t, err)
+	assert.Nil(t, err, "error producing messages: %v", err)
 
 	msgCount := 0
 
