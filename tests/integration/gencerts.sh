@@ -8,6 +8,7 @@ sans=""
 
 for hn in $additional_hostnames
 do
+  # shellcheck disable=2268
   if [[ "x$hn" != "x" ]]; then
     sans="${sans},DNS:$hn"
   fi
