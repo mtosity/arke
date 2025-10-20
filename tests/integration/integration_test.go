@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	azadmin "github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus/admin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -145,36 +144,6 @@ func GetRateLimitValues(t *testing.T, composeFile string) (*RateLimitSettings, e
 		RefillSeconds:     time.Duration(refill) * time.Second,
 		MaxAgeStaleClents: time.Duration(maxAge) * time.Second,
 	}, nil
-}
-
-func cleanupAzure() {
-	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
-		if providerType == "azure" {
-			connConfig := cfg.ConnectionConfigurationFromEnv()
-			connStr := fmt.Sprintf("Endpoint=sb://%s/;SharedAccessKeyName=%s;SharedAccessKey=%s",
-				connConfig.Host, connConfig.GetCredentials().GetUsername(),
-				connConfig.GetCredentials().GetPassword())
-			adminClient, err := azadmin.NewClientFromConnectionString(connStr, nil)
-			if err != nil {
-				panic("could not to connect to azure for cleanup")
-			}
-			ctx := context.Background()
-			pager := adminClient.NewListTopicsPager(nil)
-			for pager.More() {
-				page, err := pager.NextPage(ctx)
-				if err != nil {
-					fmt.Println("Error listing topics:", err)
-					return
-				}
-				for _, topic := range page.Topics {
-					_, err := adminClient.DeleteTopic(ctx, topic.TopicName, nil)
-					if err != nil {
-						fmt.Printf("Error deleting topic %s: %s", topic.TopicName, err)
-					}
-				}
-			}
-		}
-	}
 }
 
 type MsgHandler func(msg *pb.Message) (int, error)
@@ -327,15 +296,8 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	stream.SendMsg(m)
 	defer stream.CloseSend()
 
-	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
-		var sleep time.Duration
-		switch providerType {
-		case "azure":
-			sleep = 4000
-		default:
-			sleep = 500
-		}
-		time.Sleep(sleep * time.Millisecond)
+	if _, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	clientConnected <- true
@@ -436,13 +398,6 @@ func connect() *grpc.ClientConn {
 		log.Fatalf("client did not connect: %v", err)
 	}
 	return conn
-}
-
-func Test_CleanupAzureNamespace_NotActuallyATest(t *testing.T) {
-	if _, ok := os.LookupEnv("SKIP_CLEANUP"); !ok {
-		cleanupAzure()
-		assert.True(t, true)
-	}
 }
 
 func TestProduceSingleConsumeSingle(t *testing.T) {
@@ -1693,13 +1648,6 @@ func TestHeaders_Consume(t *testing.T) {
 	subjects := make([]string, 0)
 	subjects = append(subjects, "sas.test.proxy.TH")
 
-	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
-		if providerType == "azure" {
-			delete(headers, "content-type")
-			headers["RoutingKey"] = subjects[0]
-		}
-	}
-
 	address := &pb.Address{Name: "sastest.direct", Subjects: subjects, Type: pb.Address_QUEUE}
 	source := &pb.Source{Name: "sas.test.proxy.TH.Consumer", Address: address, PrefetchCount: 5}
 	c := pb.NewConsumerClient(consumerConnection)
@@ -1960,15 +1908,6 @@ func TestParentExchange_Consume(t *testing.T) {
 	}()
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
-
-	// adding some extra sleep in because of all the resources that need to be created in azure
-	if providerType, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
-		switch providerType {
-		case "azure":
-			time.Sleep(6000 * time.Millisecond)
-		default:
-		}
-	}
 
 	// Publish to the parent address
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}

@@ -146,13 +146,10 @@ run_test_c:
 integration_coverage_report:
 	go tool cover -html=integration-coverage.out -o integration-coverage.html
 
-integration_coverage: pre_stop_test_c compose build_test_c run_test_c integration_rabbitmq integration_azure stop_test_c integration_coverage_report ## Builds arke test binary and runs targets for gathering code coverage from integration tests
+integration_coverage: pre_stop_test_c compose build_test_c run_test_c integration_rabbitmq stop_test_c integration_coverage_report ## Builds arke test binary and runs targets for gathering code coverage from integration tests
 
 integration_rabbitmq: ## Runs integration tests for RabbitMQ
 	source env-rabbitmq && go test -count=1 -v -tags=integration ./tests/integration/
-
-integration_azure: ## Runs integration tests for Azure Service bus
-	source env-azure && go test -count=1 -v -tags=integration ./tests/integration/
 
 lint: ## Run golangci-lint tool
 	golangci-lint run --timeout=30m --disable-all --max-issues-per-linter 0 --max-same-issues 0 --enable=errcheck --enable=gosimple --enable=govet --enable=ineffassign --enable=staticcheck --enable=typecheck --enable=unused --enable=revive --enable=gocritic  --allow-parallel-runners ./...

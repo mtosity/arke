@@ -3,7 +3,6 @@ module sassoftware.io/viya/arke
 go 1.25.0
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.6.1
 	github.com/KimMachineGun/automemlimit v0.7.1
 	github.com/armon/go-metrics v0.3.10
 	github.com/google/uuid v1.6.0
@@ -30,9 +29,6 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect
-	github.com/Azure/go-amqp v1.0.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

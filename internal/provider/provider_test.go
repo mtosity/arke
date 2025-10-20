@@ -3,11 +3,12 @@ package provider_test
 import (
 	"bytes"
 	"regexp"
-	p "sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 	"time"
+
+	p "sassoftware.io/viya/arke/internal/provider"
+	"sassoftware.io/viya/arke/internal/util"
 
 	"github.com/stretchr/testify/assert"
 	"sassoftware.io/viya/zlog"
@@ -80,13 +81,13 @@ func TestConcurrentNewProvider(t *testing.T) {
 		go p.GetProvider(letter) //nolint errorcheck
 	}
 
-	providerNames := []string{"amqp091", "azure", "test"}
+	providerNames := []string{"amqp091", "test"}
 	for _, name := range providerNames {
 		go p.GetProvider(name) //nolint errcheck
 	}
 	time.Sleep(100 * time.Millisecond)
 	providers := p.RegisteredProviders()
-	assert.Equal(t, 55, providers.Length())
+	assert.Equal(t, 54, providers.Length())
 }
 
 func captureOutput(f func()) string {
