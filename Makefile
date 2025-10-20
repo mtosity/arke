@@ -81,11 +81,13 @@ generate-doc: ## Generates protobuf docs
 	$(PROTOCDOC) -I$(proto_libs) --proto_path=api/protobuf-spec --doc_out=./doc --doc_opt=markdown,arke_protocol.md api/protobuf-spec/*.proto
 
 test-clients: ## Builds test clients
-	$(MAKE) -C test/test_producer $(UNAME_S)
-	$(MAKE) -C test/test_consumer  $(UNAME_S)
-	$(MAKE) -C test/simple_consumer  $(UNAME_S)
-	$(MAKE) -C test/simple_producer  $(UNAME_S)
-	$(MAKE) -C test/healthz  $(UNAME_S)
+	$(MAKE) -C test/test_producer $(UNAME_S) & \
+	$(MAKE) -C test/test_consumer  $(UNAME_S) & \
+	$(MAKE) -C test/simple_consumer  $(UNAME_S) & \
+	$(MAKE) -C test/simple_producer  $(UNAME_S) & \
+	$(MAKE) -C test/healthz  $(UNAME_S) & \
+	wait
+	@echo "Test clients built"
 
 test-clients-linux: ## Builds test clients
 	$(MAKE) -C test/test_producer linux
