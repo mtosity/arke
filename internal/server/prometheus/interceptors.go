@@ -2,20 +2,57 @@ package prometheus
 
 import (
 	"context"
+	"strings"
+	"time"
+
+	"sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/internal/metrics"
 	"sassoftware.io/viya/arke/internal/metrics/prometheus"
 	"sassoftware.io/viya/arke/internal/util"
-	"strings"
-	"time"
 
 	"google.golang.org/grpc"
 )
 
+// methodMap maps gRPC full method names to a more friendly format
+// that can be used as a Prometheus label value.
+// This avoids allocations that would occur with string manipulation
+// on every gRPC request.
+// The keys are the gRPC full method names and the values are the
+// corresponding friendly names.
+// This map should be updated whenever new gRPC methods are added
+// to the arke service.
+var methodMap = map[string]string{
+	api.Producer_Publish_FullMethodName:    "arke.Producer.Publish",
+	api.Producer_Connect_FullMethodName:    "arke.Producer.Connect",
+	api.Producer_Disconnect_FullMethodName: "arke.Producer.Disconnect",
+	api.Producer_PublishOne_FullMethodName: "arke.Producer.PublishOne",
+
+	api.Consumer_Consume_FullMethodName:     "arke.Consumer.Consume",
+	api.Consumer_Connect_FullMethodName:     "arke.Consumer.Connect",
+	api.Consumer_Disconnect_FullMethodName:  "arke.Consumer.Disconnect",
+	api.Consumer_SourceStats_FullMethodName: "arke.Consumer.SourceStats",
+
+	api.Healthz_Check_FullMethodName: "arke.Healthz.Check",
+
+	"/grpc.health.v1.Health/Check": "grpc.health.v1.Health.Check",
+}
+
 // UnaryInterceptor unary grpc interceptor
 func UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
-	fullMethod := strings.TrimPrefix(info.FullMethod, "/")
-	fullMethod = strings.ReplaceAll(fullMethod, "/", ".")
+	// allocations_test.go shows this is the fastest way to do this and without
+	// allocations, though the tests themselves do not actually call this method.
+	fullMethod, ok := methodMap[info.FullMethod]
+	if !ok {
+		// fallback to string manipulation if not found in map
+		// this should be rare since most calls should be in the map
+		// but this will handle any future methods that are added
+		// without needing to update the map
+		// This fallback is more expensive, so we prefer the map lookup
+		util.Logger.Debugf("Method %s not found in methodMap, using string manipulation", info.FullMethod)
+		fullMethod = strings.TrimPrefix(info.FullMethod, "/")
+		fullMethod = strings.ReplaceAll(fullMethod, "/", ".")
+	}
 
 	labelset := metrics.NewLabelSet()
 	labelset.AddLabel("method", fullMethod)
