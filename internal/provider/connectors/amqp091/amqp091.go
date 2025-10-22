@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
@@ -82,9 +83,9 @@ type BrokerDetails struct {
 	state            uint16
 	connectionConfig *pb.ConnectionConfiguration
 	tlsSkipVerify    bool
-	ActiveStreams    int
-	consumed         int
-	produced         int
+	ActiveStreams    int64
+	consumed         int64
+	produced         int64
 	clientDisconnect bool
 	lastPubSubEvent  time.Time
 	tlsConfig        *tls.Config
@@ -592,12 +593,12 @@ func (bd *BrokerDetails) updateLastPubSubEvent() {
 }
 
 func (bd *BrokerDetails) incrementStreamCount() {
-	bd.ActiveStreams++
+	atomic.AddInt64(&bd.ActiveStreams, 1)
 	bd.updateLastPubSubEvent()
 }
 
 func (bd *BrokerDetails) decrementStreamCount() {
-	bd.ActiveStreams--
+	atomic.AddInt64(&bd.ActiveStreams, -1)
 	bd.updateLastPubSubEvent()
 }
 
@@ -1142,7 +1143,7 @@ func (prov *amqp091provider) queueSubscribe(ctx context.Context, bd *BrokerDetai
 
 			bd.activeMessages.Add(messageUUID, msg)
 			messageChannel <- message
-			bd.consumed++
+			atomic.AddInt64(&bd.consumed, 1)
 			span.End()
 		}
 	}
@@ -1249,7 +1250,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 			latch.Decrement()
 		}
 		bd.activeMessages.Add(messageUUID, stm)
-		bd.consumed++
+		atomic.AddInt64(&bd.consumed, 1)
 	}
 
 	consumer, _ := bd.StreamConnection.NewConsumer(source.GetName(), consumerName, offset, handleMessages, source.GetSingleActiveConsumer())
@@ -1532,7 +1533,7 @@ func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message
 	}
 
 	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
-	bd.produced++
+	atomic.AddInt64(&bd.produced, 1)
 	span.End()
 
 	return nil
@@ -1580,7 +1581,7 @@ PCLoop:
 		}
 	}
 	util.Logger.TraceI(i18n.ClientPublished, bd.ClientIdentifier)
-	bd.produced++
+	atomic.AddInt64(&bd.produced, 1)
 	return nil
 }
 
@@ -1888,9 +1889,9 @@ func (prov *amqp091provider) Stats() *provider.Stats {
 		conn := connRaw.(*BrokerDetails)
 		clientStat.ID = conn.ClientIdentifier
 		clientStat.ActiveMessages = conn.activeMessages.Length()
-		clientStat.Streams = conn.ActiveStreams
-		clientStat.Produced = conn.produced
-		clientStat.Consumed = conn.consumed
+		clientStat.Streams = int(conn.ActiveStreams)
+		clientStat.Produced = int(conn.produced)
+		clientStat.Consumed = int(conn.consumed)
 		stats.Clients = append(stats.Clients, clientStat)
 
 	}
