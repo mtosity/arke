@@ -333,7 +333,7 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 				return nil
 			}(bd)
 
-			_ = prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel, false)
+			_ = prov.declareExchange(retrySource.GetAddress(), bd, amqpChannel)
 
 			retrySpan.AddEvent("retry address created")
 
@@ -523,7 +523,7 @@ func (prov *amqp091provider) setupDeadLetter(ctx context.Context, origSource *pb
 		},
 	}
 
-	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
+	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel)
 
 	_ = prov.declareQueue(source, bd, amqpChannel, true)
 
@@ -602,7 +602,7 @@ func (bd *BrokerDetails) decrementStreamCount() {
 	bd.updateLastPubSubEvent()
 }
 
-func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel amqp091ChannelShim, force bool) error {
+func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDetails, amqpChannel amqp091ChannelShim) error {
 
 	// don't try to declare an exchange with amq. in the name
 	if strings.Contains(address.GetName(), "amq.") {
@@ -611,7 +611,7 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 
 	known := bd.exchangeKnown(address.GetName())
 
-	if !known || force {
+	if !known {
 
 		exchangeType, err := addressTypeToAmqpType(address.GetType())
 
@@ -632,21 +632,21 @@ func (prov *amqp091provider) declareExchange(address *pb.Address, bd *BrokerDeta
 	if parent := address.GetParentAddress(); parent != nil {
 
 		known = bd.exchangeKnown(parent.GetName())
-		if !known || force {
-			err := prov.declareExchange(parent, bd, amqpChannel, force)
+		if !known {
+			err := prov.declareExchange(parent, bd, amqpChannel)
 			if err != nil {
 				util.Logger.WarnI(i18n.ExchangeDeclareError, err.Error())
 			}
-
-			// Bind each subject from the Address exchange to the ParentAddress exchange
-			for _, subject := range address.GetSubjects() {
-				util.Logger.InfoI(i18n.ExchangeBind, address.GetName(), parent.GetName(), subject)
-				err = amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName())
-				if err != nil {
-					return err
-				}
-			}
 			bd.knownExchanges.Add(parent.GetName(), true)
+		}
+
+		// Bind each subject from the Address exchange to the ParentAddress exchange
+		for _, subject := range address.GetSubjects() {
+			util.Logger.InfoI(i18n.ExchangeBind, address.GetName(), parent.GetName(), subject)
+			err := amqpChannel.ExchangeBind(address.GetName(), subject, parent.GetName())
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -982,7 +982,7 @@ func (prov *amqp091provider) queueSubscribe(ctx context.Context, bd *BrokerDetai
 	}
 	defer amqpChannel.Close()
 
-	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel, true)
+	_ = prov.declareExchange(source.GetAddress(), bd, amqpChannel)
 
 	subSpan.AddEvent("address created")
 
@@ -1494,7 +1494,7 @@ func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message
 		deliveryMode = 2
 	}
 
-	_ = prov.declareExchange(msg.GetAddress(), bd, amqpChannel, false)
+	_ = prov.declareExchange(msg.GetAddress(), bd, amqpChannel)
 	span.AddEvent("address created")
 
 	amqpMessage := amqp091Message{}
@@ -1872,8 +1872,41 @@ func (bd *BrokerDetails) connect() (bool, error) {
 
 	util.Logger.InfoI(i18n.ClientConnected, bd.ClientIdentifier)
 
+	// pre-load the list of exchanges to help prevent declaration
+	// errors (PSGO-2001)
+	bd.loadExchanges()
+
 	return true, nil
 
+}
+
+func (bd *BrokerDetails) loadExchanges() {
+	var results []map[string]interface{}
+
+	vhost := bd.connectionConfig.GetTenant()
+	if vhost == "" {
+		vhost = "/"
+	}
+	vhost = url.QueryEscape(vhost)
+
+	urn := fmt.Sprintf("/api/exchanges/%s", vhost)
+	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
+	if err != nil {
+		util.Logger.Debugf("Error retrieving exchanges from management API: %s", err.Error())
+		return
+	}
+	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
+		util.Logger.Debugf("Error unmarshaling exchanges from management API: %s", err.Error())
+		return
+	}
+	util.Logger.Debugf("Loaded exchanges from management API: %s", string(body))
+
+	for _, exchange := range results {
+		if name, ok := exchange["name"].(string); ok {
+			util.Logger.Debugf("Adding Exchange to known list: %s", name)
+			bd.knownExchanges.Add(name, true)
+		}
+	}
 }
 
 func (prov *amqp091provider) Stats() *provider.Stats {

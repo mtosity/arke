@@ -2351,6 +2351,17 @@ func Test_connect_connecting_disconnected(t *testing.T) {
 	bd.state = provider.CONNECTING
 	bd.clientDisconnect = false
 
+	msrv := mockManagementRequestServer()
+	defer msrv.Close()
+	u, err := url.Parse(msrv.URL)
+	assert.Nil(t, err)
+	i, _ := strconv.Atoi(u.Port())
+	bd.connectionConfig = &pb.ConnectionConfiguration{
+		Host:      u.Hostname(),
+		Tenant:    "tenant",
+		AdminPort: int32(i),
+	}
+
 	amock := &amqpConnectionMock{}
 	amock.On("Connect").Return(nil)
 	errs := make(chan amqp091Error)
@@ -2394,6 +2405,9 @@ func mockManagementRequestServer() *httptest.Server {
 			case "/api/queues/tenant/sourceStream2":
 				status = http.StatusOK
 				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream"}`)
+			case "/api/exchanges/%2f":
+				status = http.StatusOK
+				body = []byte(`[]`)
 			}
 		} else if r.Method == "DELETE" {
 			status = http.StatusNoContent
