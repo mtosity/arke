@@ -243,6 +243,7 @@ consumeLoop:
 
 				// this goroutine receives messages from the provider and sends them to the client for processing
 				go func(mc <-chan *pb.Message, cont context.Context, stopFor *chan bool, returnErr *error) {
+					defer util.RecoverPanic()
 					for {
 						select {
 						case <-cont.Done():
@@ -277,13 +278,7 @@ consumeLoop:
 
 				// call provider.Subscribe and use messageChannel to pass messages from the provider to the receiver func above
 				go func(mc chan<- *pb.Message, prov provider.Provider, cont context.Context, stopFor *chan bool, returnErr *error) {
-					defer func() {
-						if err := recover(); err != nil {
-							util.Logger.Warn(fmt.Sprintf("%v", err))
-							// returnError = err
-							return
-						}
-					}()
+					defer util.RecoverPanic()
 					connected := prov.WaitForConnect(cont)
 					if connected {
 						err := prov.Subscribe(cont, source, mc)

@@ -206,8 +206,6 @@ func produceMessages(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Con
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
-	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
 	stream, err := c.Publish(ctx)
 	if err != nil {
 		fmt.Printf("error calling pb.ProducerClient.Publish: %v\n", err)
@@ -243,8 +241,6 @@ func produceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx contex
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
-	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
 	return produceMessagesUnaryWOConnect(conn, c, ctx, cnt, message, producerName, includePubID, clientName)
 }
 

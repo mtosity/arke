@@ -79,6 +79,14 @@ func GetClientAddr(ctx context.Context) (string, error) {
 	return "", errors.New("Could not retrieve peer info")
 }
 
+func RecoverPanic() {
+	if err := recover(); err != nil {
+		Logger.Warn(fmt.Sprintf("%v", err))
+		return
+	}
+
+}
+
 // GenUUID Generate a UUID and return the string representation
 func GenUUID() string {
 	uuidRaw := uuid.New()
