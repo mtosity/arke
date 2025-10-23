@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/yaml.v2"
 	pb "sassoftware.io/viya/arke/api"
@@ -364,7 +365,7 @@ func connect() *grpc.ClientConn {
 	defer cancel()
 
 	// Attempt a non-TLS connection to arke first
-	conn, err = grpc.NewClient(arkeAddress(), grpc.WithInsecure())
+	conn, err = grpc.NewClient(arkeAddress(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("could not connect: %v", err)
 	}

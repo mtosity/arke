@@ -1,2 +1,2 @@
-FROM rabbitmq:3.13-management
+FROM rabbitmq:4.0-management
 RUN rabbitmq-plugins enable --offline rabbitmq_stream rabbitmq_stream_management rabbitmq_management
