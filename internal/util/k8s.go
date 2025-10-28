@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,14 +18,15 @@ import (
 	"sassoftware.io/viya/arke/i18n"
 )
 
-var LastGoAwayTime time.Time
+var namespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+var inClusterConfig = rest.InClusterConfig
 
 // MonitorHPA monitors the HPA for changes and sends a GOAWAY signal to the health check
 // channel when the replica count is increased
 func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	currentReplicaCount := int32(-1)
 	var namespace string
-	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	data, err := os.ReadFile(namespaceFile)
 	if err != nil {
 		namespace = os.Getenv("NAMESPACE")
 	} else {
@@ -32,22 +34,22 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	}
 
 	if namespace == "" {
-		Logger.Debug("No kubernetes namespace detected, not monitoring HPA for changes")
+		logger.Debug("No kubernetes namespace detected, not monitoring HPA for changes")
 		return
 	}
 
-	config, err := rest.InClusterConfig()
+	config, err := inClusterConfig()
 	if err == rest.ErrNotInCluster {
 		home := homedir.HomeDir()
 		kubeconfig := filepath.Join(home, ".kube", "config")
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
-			Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
+			logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
 			return
 		}
 
 	} else if err != nil {
-		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
+		logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
 		return
 	}
 
@@ -56,14 +58,14 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
+		logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
 		return
 	}
 
 	defer func() {
 		// protect from send on closed channel
 		if err := recover(); err != nil {
-			Logger.Debugf("Error monitoring HPA: %s", err)
+			logger.Debug(fmt.Sprintf("Error monitoring HPA: %s", err))
 			return
 		}
 	}()
@@ -72,10 +74,9 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 		// hpa := clientset.AutoscalingV1().HorizontalPodAutoscalers()
 		watcher, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, metav1.ListOptions{})
 		if err != nil {
-			Logger.Debugf("Could not get HPA watcher: %s", err)
+			logger.Debug(fmt.Sprintf("Could not get HPA watcher: %s", err))
 		}
 		if watcher == nil {
-			Logger.Debug("No HPA found")
 			return
 		}
 		for event := range watcher.ResultChan() {
