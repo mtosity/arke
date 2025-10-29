@@ -1,0 +1,212 @@
+package messagefunctions
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+
+	"sassoftware.io/viya/arke/internal/util/tracing"
+
+	"sync"
+	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	pb "sassoftware.io/viya/arke/api"
+	cfg "sassoftware.io/viya/arke/test/config"
+)
+
+func connectConfig(clientName string) *pb.ConnectionConfiguration {
+
+	connConfig := cfg.ConnectionConfigurationFromEnv()
+
+	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
+
+	if providerTLS == "sendca" {
+		cacert, err := os.ReadFile("certs/testca/ca_certificate.pem")
+		if err != nil {
+			log.Fatalf("Error reading provider CA cert: %v", err)
+		}
+		connConfig.Tls = true
+		connConfig.CaCertificate = cacert
+	} else if providerTLS == "true" {
+		connConfig.Tls = true
+	}
+
+	connConfig.ClientName = clientName
+
+	return &connConfig
+}
+
+func ProduceSendMessages(c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, clientName string) error { //nolint
+
+	connConfig := pb.ConnectionConfiguration{}
+	switch clientName {
+	case "simple_producer":
+		connConfig = cfg.ConnectionConfigurationFromEnv()
+		connConfig.ClientName = "simple_producer"
+	default:
+		connConfig = *connectConfig(clientName)
+	}
+
+	defer func() {
+		if _, err := c.Disconnect(ctx, &pb.Empty{}); err != nil {
+			fmt.Printf("Disconnect error: %v\n", err)
+		}
+	}()
+
+	authResp, err := c.Connect(ctx, &connConfig)
+
+	if err != nil {
+		return err
+	}
+	if !authResp.GetSuccess() {
+		return errors.New(authResp.GetError().GetMessage())
+	}
+	fmt.Printf("Publisher connected - connConfig: %+v\n", &connConfig)
+	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
+
+	stream, err := c.Publish(ctx)
+	if err != nil {
+		fmt.Printf("got an err on publish(): %v", err)
+		return err
+	}
+	for i := 0; i < cnt; i++ {
+		err = stream.Send(message)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		r, err := stream.Recv()
+		if err != nil && err == io.EOF {
+			return nil
+		}
+		if r != nil && !r.GetSuccess() {
+			return errors.New(r.GetError().GetMessage())
+		}
+	}
+	return nil
+}
+
+func ProduceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, producerName string, includePubID bool, clientName string) error { //nolint
+
+	connConfig := connectConfig(clientName)
+
+	defer func() {
+		if _, err := c.Disconnect(ctx, &pb.Empty{}); err != nil {
+			fmt.Printf("Disconnect error: %v\n", err)
+		}
+	}()
+
+	authResp, err := c.Connect(ctx, connConfig)
+	if err != nil {
+		fmt.Printf("error calling pb.ProducerClient.Connect: %v\n", err)
+		return err
+	}
+	if !authResp.GetSuccess() {
+		return errors.New(authResp.GetError().GetMessage())
+	}
+	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
+	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
+	return ProduceMessagesUnaryWOConnect(conn, c, ctx, cnt, message, producerName, includePubID, clientName)
+}
+
+func ProduceMessagesUnaryWOConnect(conn *grpc.ClientConn, c pb.ProducerClient, ctx context.Context, cnt int, message *pb.Message, producerName string, includePubID bool, clientName string) error { //nolint
+
+	for i := 0; i < cnt; i++ {
+		if includePubID {
+			// PublishID must start at 1
+			pubID := i + 1
+			message.PublishId = int64(pubID)
+		}
+		message.Body = []byte(fmt.Sprintf("%d of %d", i, cnt))
+		resp, err := c.PublishOne(ctx, message)
+		if err != nil {
+			fmt.Printf("error calling pb.ProducerClient.PublishOne: %v\n", err)
+			return err
+		}
+		if resp != nil && !resp.GetSuccess() {
+			return errors.New(resp.GetError().GetMessage())
+		}
+	}
+	return nil
+}
+
+func ParallelProduceMessages(worker int, producer int, c pb.ProducerClient, ctx *context.Context, cnt int, cwg *sync.WaitGroup) {
+
+	message := "test " + time.Now().String()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	stream, _ := c.Publish(*ctx)
+	msg := &pb.Message{Body: []byte(message), Address: address, Persistent: true, Headers: make(map[string]string)}
+
+	for i := 0; i < cnt; i++ {
+		ctx := context.Background()
+		tracer := otel.Tracer("test_producer")
+		var span trace.Span
+		_, span = tracer.Start(ctx, "publish message", trace.WithSpanKind(trace.SpanKindProducer))
+		// TODO figure out how to inject this stuff into the heders
+		msg.Headers[tracing.TraceHeaderName] = span.SpanContext().TraceID().String()
+		msg.Headers[tracing.SpanHeaderName] = span.SpanContext().SpanID().String()
+		msg.Headers[tracing.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s", span.SpanContext().TraceID().String(), span.SpanContext().SpanID().String(), span.SpanContext().TraceFlags())
+		msg.Headers[tracing.HeaderTraceState] = span.SpanContext().TraceState().String()
+		err := stream.Send(msg)
+		span.AddEvent("message sent by client")
+		if err != nil {
+			log.Fatalf("worker %d/%d: failed to send message: %v", worker, producer, err)
+		}
+		resp, err := stream.Recv()
+		span.AddEvent("response received from server")
+		if !resp.GetSuccess() {
+			log.Printf("worker %d/%d: publish failed: %v", worker, producer, err)
+		}
+		log.Printf("worker %d/%d: Successfully produced message", worker, producer)
+		span.End()
+	}
+	stream.CloseSend() //nolint errcheck
+	cwg.Done()
+}
+
+// produceMessagesUnary produces messages using unary gRPC calls
+// cnt: number of messages to produce
+func ParallelProduceMessagesUnary(c pb.ProducerClient, cnt int, cwg *sync.WaitGroup) {
+
+	message := "test " + time.Now().String()
+
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy")
+	address := &pb.Address{Name: "sastest.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+	msg := &pb.Message{Body: []byte(message), Address: address, Persistent: true, Headers: make(map[string]string)}
+
+	for i := 0; i < cnt; i++ {
+		ctx := context.Background()
+		tracer := otel.Tracer("test_producer")
+		var span trace.Span
+		_, span = tracer.Start(ctx, "publish message", trace.WithSpanKind(trace.SpanKindProducer))
+		// TODO figure out how to inject this stuff into the heders
+		msg.Headers[tracing.TraceHeaderName] = span.SpanContext().TraceID().String()
+		msg.Headers[tracing.SpanHeaderName] = span.SpanContext().SpanID().String()
+		msg.Headers[tracing.HeaderTraceParent] = fmt.Sprintf("00-%s-%s-%s", span.SpanContext().TraceID().String(), span.SpanContext().SpanID().String(), span.SpanContext().TraceFlags())
+		msg.Headers[tracing.HeaderTraceState] = span.SpanContext().TraceState().String()
+		resp, err := c.PublishOne(ctx, msg)
+		span.AddEvent("message sent by client")
+		if err != nil {
+			log.Fatalf("failed to send message: %v", err)
+		}
+
+		span.AddEvent("response received from server")
+		if !resp.GetSuccess() {
+			log.Printf("publish failed: %v", err)
+		}
+		log.Printf("Successfully produced message %d/%d", i+1, cnt)
+		span.End()
+	}
+	cwg.Done()
+}
