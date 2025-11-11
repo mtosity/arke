@@ -264,6 +264,8 @@ service Consumer {
         GOAWAY = 2; // Please go away and come back.
     }
     Code code = 3;
+    float cpu_availability = 4; // CPU availability as a ratio (0.0 to 1.0)
+    float memory_availability = 5; // Memory availability as a ratio (0.0 to 1.0)
 }
 
 /**

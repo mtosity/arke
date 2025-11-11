@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -94,11 +95,13 @@ func GenUUID() string {
 }
 
 type ProcessStats struct {
-	MaxMemory       int
-	MemoryAverage   float64
-	CurrentMemory   int
-	CurrentCPUUsage float64
-	CPUUsageAverage float64
+	MaxMemory          int
+	MemoryAverage      float64
+	CurrentMemory      int
+	CurrentCPUUsage    float64
+	CPUUsageAverage    float64
+	CPUAvailability    float32 // CPU availability as a ratio (0.0 to 1.0)
+	MemoryAvailability float32 // Memory availability as a ratio (0.0 to 1.0)
 }
 
 func GetProcessStats() *ProcessStats {
@@ -118,6 +121,30 @@ func GetProcessStats() *ProcessStats {
 	ps.MemoryAverage = float64(memTotal) / float64(len(memHistory))
 	ps.CurrentMemory = memHistory[len(memHistory)-1]
 	ps.CurrentCPUUsage = cpuHistory[len(cpuHistory)-1]
+	ps.MaxMemory = int(maxMemory)
+
+	numCores := runtime.GOMAXPROCS(0)
+	maxCPUPercent := float64(numCores) * 100 // 4 cores = 400% max
+	actualUsagePercent := (cpuUsageAvg / maxCPUPercent)
+	// Calculate CPU availability (1.0 means fully available, 0.0 means fully utilized)
+	// Assume 100% per CPU core as maximum, so availability = (100 - usage_percentage) / 100
+	ps.CPUAvailability = float32((100.0 - actualUsagePercent) / 100.0)
+
+	if ps.CPUAvailability < 0 {
+		ps.CPUAvailability = float32(0)
+	}
+
+	// Calculate Memory availability (1.0 means fully available, 0.0 means fully utilized)
+	if ps.MaxMemory > 0 {
+		memoryUsagePercent := (ps.MemoryAverage / float64(ps.MaxMemory) * 100)
+		ps.MemoryAvailability = float32((100.0 - memoryUsagePercent) / 100.0)
+		if ps.MemoryAvailability < 0 {
+			ps.MemoryAvailability = float32(0)
+		}
+	} else {
+		// If we don't know max memory, assume 100% available
+		ps.MemoryAvailability = float32(1.0)
+	}
 
 	return ps
 }

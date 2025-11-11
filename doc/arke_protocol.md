@@ -26,16 +26,16 @@
     - [Source](#arke-Source)
     - [Source.OptionsEntry](#arke-Source-OptionsEntry)
     - [SourceStats](#arke-SourceStats)
-
+  
     - [Address.TargetType](#arke-Address-TargetType)
     - [Filter.MatchType](#arke-Filter-MatchType)
     - [HealthStatus.Code](#arke-HealthStatus-Code)
     - [Source.TargetType](#arke-Source-TargetType)
-
+  
     - [Consumer](#arke-Consumer)
     - [Healthz](#arke-Healthz)
     - [Producer](#arke-Producer)
-
+  
 - [Scalar Value Types](#scalar-value-types)
 
 
@@ -263,6 +263,8 @@ Message containing the response to a health check request
 | uuid | [string](#string) |  | UUID of the HealthCheck message being responded to |
 | time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  |  |
 | code | [HealthStatus.Code](#arke-HealthStatus-Code) |  |  |
+| cpu_availability | [float](#float) |  | CPU availability as a ratio (0.0 to 1.0) |
+| memory_availability | [float](#float) |  | Memory availability as a ratio (0.0 to 1.0) |
 
 
 
@@ -438,7 +440,7 @@ SourceStats includes information about the source from the broker
 
 
 
-
+ 
 
 
 <a name="arke-Address-TargetType"></a>
@@ -492,9 +494,9 @@ SourceStats includes information about the source from the broker
 | STREAM | 2 | The Source is a stream |
 
 
+ 
 
-
-
+ 
 
 
 <a name="arke-Consumer"></a>
@@ -532,7 +534,7 @@ Service for producing messages
 | PublishOne | [Message](#arke-Message) | [MessageResponse](#arke-MessageResponse) | Send one message to the message broker. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 
-
+ 
 
 
 

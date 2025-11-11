@@ -763,6 +763,28 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 		close(notifyHealthChan)
 	}()
 
+	// Send initial health status with availability when client connects
+	processStats := GetProcessStats()
+	initialHealth := &pb.Health{}
+	initialStatus := &pb.Health_Status{}
+	initialStatus.Status = &pb.HealthStatus{
+		Uuid:               util.GenUUID(),
+		Time:               NewTimestampPB(),
+		Code:               pb.HealthStatus_OK,
+		CpuAvailability:    processStats.CPUAvailability,
+		MemoryAvailability: processStats.MemoryAvailability,
+	}
+
+	// Determine health status based on resource usage
+	cpuAndMemoryHealthSet(processStats, initialStatus)
+
+	initialHealth.Resp = initialStatus
+	// Send initial health message
+	if err := stream.Send(initialHealth); err != nil {
+		util.Logger.Debugf("Failed to send initial health status to %s: %v", clientAddr, err)
+		return err
+	}
+
 	go func() {
 		for {
 			msg, err := stream.Recv()
@@ -778,14 +800,13 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 				hs.Status = &pb.HealthStatus{}
 				hs.Status.Uuid = check.GetUuid()
 				hs.Status.Code = pb.HealthStatus_OK
-
+				hs.Status.CpuAvailability = processStats.CPUAvailability
+				hs.Status.MemoryAvailability = processStats.MemoryAvailability
+				hs.Status.Code = pb.HealthStatus_OK
 				processStats := GetProcessStats()
+
 				// if mem usage > 90% or cpu usage has been high for an extended period then report unhealthy
-				if processStats.MaxMemory > 0 && (processStats.MemoryAverage)/float64(processStats.MaxMemory) > 0.9 {
-					hs.Status.Code = pb.HealthStatus_UNHEALTHY
-				} else if processStats.CPUUsageAverage/float64(runtime.NumCPU()) > 90 { // cpu usage > 90% per cpu
-					hs.Status.Code = pb.HealthStatus_UNHEALTHY
-				}
+				cpuAndMemoryHealthSet(processStats, hs)
 
 				// set the time right before sending the response
 				hs.Status.Time = NewTimestampPB()
@@ -807,13 +828,20 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 		select {
 		case code := <-notifyHealthChan:
 			util.Logger.Debugf("Internal health notification received. Sending %s to %s", code.String(), clientAddr)
+
+			// Get current process stats for availability
+			processStats := GetProcessStats()
+
 			hlth := &pb.Health{}
 			hs := &pb.Health_Status{}
-			hs.Status = &pb.HealthStatus{}
-			hs.Status.Code = code
-			hs.Status.Time = NewTimestampPB()
+			hs.Status = &pb.HealthStatus{
+				Code:               code,
+				Time:               NewTimestampPB(),
+				CpuAvailability:    processStats.CPUAvailability,
+				MemoryAvailability: processStats.MemoryAvailability,
+			}
 			hlth.Resp = hs
-			// We don't care of this send fails
+			// We don't care if this send fails
 			stream.Send(hlth) //nolint errcheck
 		case <-ctx.Done():
 			done = true
@@ -824,4 +852,12 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 		}
 	}
 	return nil
+}
+
+func cpuAndMemoryHealthSet(processStats *util.ProcessStats, initialStatus *pb.Health_Status) {
+	if processStats.MaxMemory > 0 && (processStats.MemoryAverage)/float64(processStats.MaxMemory) > 0.9 {
+		initialStatus.Status.Code = pb.HealthStatus_UNHEALTHY
+	} else if processStats.CPUUsageAverage/float64(runtime.NumCPU()) > 90 {
+		initialStatus.Status.Code = pb.HealthStatus_UNHEALTHY
+	}
 }

@@ -1057,7 +1057,7 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 
 	oldGetProcessStats := s.GetProcessStats
 	defer func() {
-		oldGetProcessStats = s.GetProcessStats
+		s.GetProcessStats = oldGetProcessStats
 	}()
 
 	s.GetProcessStats = func() *util.ProcessStats {
@@ -1083,16 +1083,14 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 	stream.On("Recv").Return(hlth, nil).Once()
 	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
 
-	sendHealth := &pb.Health{
-		Resp: &pb.Health_Status{
-			Status: &pb.HealthStatus{
-				Uuid: uuid,
-				Code: pb.HealthStatus_UNHEALTHY,
-				Time: s.NewTimestampPB(),
-			},
-		},
-	}
-	stream.On("Send", sendHealth).Return(nil)
+	// Use mock.MatchedBy to match health status properties - accept any valid health message
+	stream.On("Send", mock.MatchedBy(func(h *pb.Health) bool {
+		// Just check that we have a health status message with UNHEALTHY code
+		if status, ok := h.GetResp().(*pb.Health_Status); ok && status != nil && status.Status != nil {
+			return status.Status.Code == pb.HealthStatus_UNHEALTHY
+		}
+		return false
+	})).Return(nil)
 
 	err := hlthSrv.Check(stream)
 	assert.Nil(t, err)
@@ -1104,7 +1102,7 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 
 	oldGetProcessStats := s.GetProcessStats
 	defer func() {
-		oldGetProcessStats = s.GetProcessStats
+		s.GetProcessStats = oldGetProcessStats
 	}()
 
 	s.GetProcessStats = func() *util.ProcessStats {
@@ -1129,16 +1127,14 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 	stream.On("Recv").Return(hlth, nil).Once()
 	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
 
-	sendHealth := &pb.Health{
-		Resp: &pb.Health_Status{
-			Status: &pb.HealthStatus{
-				Uuid: uuid,
-				Code: pb.HealthStatus_UNHEALTHY,
-				Time: s.NewTimestampPB(),
-			},
-		},
-	}
-	stream.On("Send", sendHealth).Return(nil)
+	// Use mock.MatchedBy to match health status properties - accept any valid health message
+	stream.On("Send", mock.MatchedBy(func(h *pb.Health) bool {
+		// Just check that we have a health status message with UNHEALTHY code
+		if status, ok := h.GetResp().(*pb.Health_Status); ok && status != nil && status.Status != nil {
+			return status.Status.Code == pb.HealthStatus_UNHEALTHY
+		}
+		return false
+	})).Return(nil)
 
 	err := hlthSrv.Check(stream)
 	assert.Nil(t, err)

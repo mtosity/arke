@@ -13,3 +13,5 @@ env-*
 .idea/
 *.diff
 .dccache
+arke
+test/healthz/healthz-client
