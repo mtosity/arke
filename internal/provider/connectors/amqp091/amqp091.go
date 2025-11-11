@@ -1848,7 +1848,7 @@ func (bd *BrokerDetails) connect() (bool, error) {
 	// skip verification if true
 	if bd.tlsEnabled && bd.tlsSkipVerify { //nolint gocritic
 		util.Logger.Debugf("%s connecting with TLS enabled but verification off: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
-		bd.tlsConfig.InsecureSkipVerify = true
+		bd.tlsConfig.InsecureSkipVerify = true // deepcode ignore TooPermissiveTrustManager: PSGO-2002
 	} else if !bd.tlsEnabled { // no tls
 		util.Logger.Debugf("%s connecting without TLS: %s:%d", bd.ClientIdentifier, cf.GetHost(), cf.GetPort())
 	}
