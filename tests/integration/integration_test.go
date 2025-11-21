@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -229,11 +230,25 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	clientConnected <- true
 
 	stop := false
+	var wg sync.WaitGroup
 
 	for start := time.Now(); time.Since(start) < 30*time.Second; {
-		resp, _ := stream.Recv()
+		resp, recvErr := stream.Recv()
+		if recvErr != nil {
+			if recvErr == io.EOF {
+				log.Println("EOF")
+				break
+			}
+			log.Printf("Error receiving from stream: %v", recvErr)
+			break
+		}
+		if resp == nil {
+			continue
+		}
 		if resp.GetMsg() != nil {
+			wg.Add(1)
 			go func(stop *bool) {
+				defer wg.Done()
 				if *stop {
 					return
 				}
@@ -277,6 +292,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 			assert.NotEmpty(t, resp.GetConsumedResponse().GetUuid())
 		}
 	}
+	wg.Wait()
 	done <- true
 	return err
 }
@@ -356,7 +372,7 @@ func TestProduceSingleConsumeSingle(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -642,7 +658,9 @@ func TestProduceTwoStreamConsumeTwo(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
-	// Second consuer
+	// Second consumer
+	done2 := make(chan bool)
+	clientConnected2 := make(chan bool)
 	address2 := &pb.Address{Name: "sas.test.stream.TPTSCT2", Subjects: subjects, Type: pb.Address_STREAM}
 	source2 := &pb.Source{Name: "sas.test.stream.TPTSCT2", Address: address, PrefetchCount: 1,
 		Type: pb.Source_STREAM, Options: options}
@@ -652,8 +670,8 @@ func TestProduceTwoStreamConsumeTwo(t *testing.T) {
 	defer c2.Disconnect(ctx2, &pb.Empty{})
 	messages2 := make(chan *pb.Message)
 
-	go consumeMessages(consumerConnection, c2, ctx2, messages2, done, clientConnected, source2, defaultHandler, t)
-	<-clientConnected
+	go consumeMessages(consumerConnection, c2, ctx2, messages2, done2, clientConnected2, source2, defaultHandler, t)
+	<-clientConnected2
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
@@ -691,7 +709,7 @@ func TestProduceTwoStreamConsumeTwo(t *testing.T) {
 		select {
 		case <-messages2:
 			msgCount2++
-		case <-done:
+		case <-done2:
 			breakLoop = true
 		case <-time.After(2 * time.Second):
 			breakLoop = true
@@ -827,6 +845,9 @@ func TestProduceStreamWithDeduplication(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
+	// Give the stream time to be fully created
+	time.Sleep(1 * time.Second)
+
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Confirm: true, PublisherName: streamName}
 
 	err := mf.ProduceMessagesUnary(producerConnection, pc, pctx, expectedMessageCount, message, "MyProducer", true, t.Name())
@@ -837,13 +858,13 @@ func TestProduceStreamWithDeduplication(t *testing.T) {
 	msgCount := 0
 
 	breakLoop := false
-	for start := time.Now(); time.Since(start) < 2*time.Second; {
+	for start := time.Now(); time.Since(start) < 5*time.Second; {
 		select {
 		case <-messages:
 			msgCount++
 		case <-done:
 			breakLoop = true
-		case <-time.After(2 * time.Second):
+		case <-time.After(5 * time.Second):
 			breakLoop = true
 		}
 		if breakLoop {
@@ -1043,7 +1064,7 @@ func TestProduceSingleConsumeRetry(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, produceMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1102,7 +1123,7 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, produceMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1165,7 +1186,7 @@ func TestProduceManyConsumeMany(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err = mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1305,19 +1326,19 @@ func TestProduceConsumeFiltersMatchAll(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
 
-	err := mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name()) // this message is the one that gets consumed
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name()) // this message is the one that gets consumed
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1387,19 +1408,19 @@ func TestProduceConsumeFiltersMatchAny(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mybody1"), Address: address, Headers: headers1}
 
-	err := mf.ProduceMessages(pc, pctx, 1, message, t.Name()) // this message gets consumed
+	err := mf.ProduceSendMessages(pc, pctx, 1, message, t.Name()) // this message gets consumed
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody2"), Address: address, Headers: headers2}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody3"), Address: address, Headers: headers3}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody4"), Address: address, Headers: headers4}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name()) // this message get consumed
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name()) // this message get consumed
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1464,7 +1485,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1490,7 +1511,7 @@ func TestProduceSingleConsumeSingleCustomTopicName(t *testing.T) {
 	assert.Equal(t, expectedMessageCount*2, len(messageUUIDs))
 	assert.NotEmpty(t, messageUUIDs)
 
-	if len(messageUUIDs) > 0 {
+	if len(messageUUIDs) > 1 {
 		assert.NotEqual(t, messageUUIDs[0], messageUUIDs[1])
 	}
 }
@@ -1525,7 +1546,7 @@ func TestProduceSingleConsumeSingleCustomQueueName(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1586,7 +1607,7 @@ func TestHeaders_Consume(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address, Headers: headers}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1669,7 +1690,7 @@ func TestProduceManyConsumeManyExclusive(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("myreallycustommessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1740,7 +1761,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	address.Subjects = subjects
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, produceCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceCount, message, t.Name())
 	assert.Nil(t, err)
 
 	// Produce to binding 2
@@ -1749,7 +1770,7 @@ func TestConsumeMultiSubject(t *testing.T) {
 	address.Subjects = subjects
 	message = &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err = mf.ProduceMessages(pc, pctx, produceCount, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, produceCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1786,7 +1807,7 @@ func TestProduceMultiSubject_FAIL(t *testing.T) {
 	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, produceCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceCount, message, t.Name())
 	assert.NotNil(t, err)
 
 	assert.Contains(t, err.Error(), "exactly one subject allowed in an Address")
@@ -1837,7 +1858,7 @@ func TestParentExchange_Consume(t *testing.T) {
 
 	// Publish to the parent address
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
-	err := mf.ProduceMessages(pc, pctx, produceCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -1880,7 +1901,7 @@ func TestAddressType_FAIL(t *testing.T) {
 	parent := &pb.Address{Name: "test.parent", Type: 5, Subjects: subjects}
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: parent}
-	err := mf.ProduceMessages(pc, pctx, produceCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, produceCount, message, t.Name())
 	assert.NotNil(t, err)
 	if err != nil {
 		assert.Contains(t, err.Error(), "5 is not a valid address type")
@@ -1917,7 +1938,7 @@ func TestHeadersNoConsumeSubject(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -2052,7 +2073,7 @@ func TestConsumeNoAckReconnectConsume(t *testing.T) {
 	message := &pb.Message{Body: []byte(expectedMsgBodyUUID), Address: address}
 
 	go func() {
-		err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+		err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 		assert.Nil(t, err)
 		if err != nil {
 			fmt.Println("err producing messages:", err)
@@ -2138,9 +2159,12 @@ func TestConsumeDeleteBinding(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 	cancel()
+	<-done // wait for first consumer to fully exit
 	_, _ = c.Disconnect(ctx, &pb.Empty{})
 
-	// set up consumer 1 and subscribe with 2 subjects, then disconnect
+	// set up consumer 2 with only one subject
+	done = make(chan bool)
+	clientConnected = make(chan bool)
 	consumerConnection = connect()
 	subjects = []string{"sas.test.proxy.TCDB.2"}
 	address.Subjects = subjects
@@ -2159,7 +2183,7 @@ func TestConsumeDeleteBinding(t *testing.T) {
 	source.Address = address
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	subjects = []string{"sas.test.proxy.TCDB.1"}
@@ -2167,7 +2191,7 @@ func TestConsumeDeleteBinding(t *testing.T) {
 	source.Address = address
 	message = &pb.Message{Body: []byte("mymessage"), Address: address}
 
-	err = mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -2187,6 +2211,112 @@ func TestConsumeDeleteBinding(t *testing.T) {
 		}
 	}
 	assert.Equal(t, expectedMessageCount, msgCount)
+}
+
+func TestDLQPolicy(t *testing.T) {
+	// policyDLQ := "sas.dlq"
+	consumerDLQ := "sastest.dlq-notdefault"
+	defaultDLQ := "sas.dlq"
+	cases := []struct {
+		name string
+		dlq  string
+	}{
+		{
+			name: "Non-Default DLQ specified in source, use source DLQ",
+			dlq:  consumerDLQ,
+		},
+		{
+			name: "Default DLQ specified in source, use source DLQ",
+			dlq:  defaultDLQ,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			producerConnection := connect()
+			defer producerConnection.Close()
+			expectedMessageCount := 1
+			pc := pb.NewProducerClient(producerConnection)
+			pctx := context.Background()
+
+			messages1 := make(chan *pb.Message)
+
+			done1 := make(chan bool)
+			clientConnected := make(chan bool)
+			// consume before we produce
+
+			consumerConnection1 := connect()
+
+			subjects := make([]string, 0)
+			subject := "sas.test.proxy.TDLQPolicy." + tc.dlq
+			queueName := subject + ".Consumer"
+			subjects = append(subjects, subject)
+			address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_TOPIC}
+			source := &pb.Source{Name: queueName, Address: address, PrefetchCount: 1}
+			source.Options = make(map[string]string)
+			if tc.dlq != "" {
+				source.Options["DeadLetterAddress"] = tc.dlq
+				source.Options["DeadLetterSubject"] = "deadlettersubject"
+			}
+			source.Options["MessageTTL"] = "5000" // connect a consumer and then disconnect then disconnect
+			c1 := pb.NewConsumerClient(consumerConnection1)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			go consumeMessages(consumerConnection1, c1, ctx, messages1, done1, clientConnected, source, defaultHandler, t)
+			<-clientConnected
+			time.Sleep(5 * time.Second)
+			cancel()
+			<-done1 // wait for first consumer to fully exit
+			c1.Disconnect(ctx, &pb.Empty{})
+			consumerConnection1.Close()
+
+			message := &pb.Message{Body: []byte("mymessage"), Address: address}
+			// produce message, wait for it to DLQ, then consume it from the DLQ
+			err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
+			assert.Nil(t, err)
+			pc.Disconnect(pctx, &pb.Empty{})
+			producerConnection.Close()
+
+			// sleep for a few seconds to ensure that we dead letter due to message expiration
+			time.Sleep(10 * time.Second)
+
+			done2 := make(chan bool)
+			messages2 := make(chan *pb.Message)
+			clientConnected2 := make(chan bool)
+			consumerConnection2 := connect()
+			// connect a consumer to the DLQ and consume
+			c2 := pb.NewConsumerClient(consumerConnection2)
+			ctx = context.Background()
+			defer func() {
+				c2.Disconnect(ctx, &pb.Empty{})
+				consumerConnection2.Close()
+			}()
+
+			if tc.dlq != "" {
+				source.Address.Name = tc.dlq
+			}
+			source.Options = make(map[string]string)
+			source.Name = queueName + ".dlq"
+			source.Type = pb.Source_TEMPORARY
+			subjects = []string{"deadlettersubject"}
+			source.Address.Subjects = subjects
+			go consumeMessages(consumerConnection2, c2, ctx, messages2, done2, clientConnected2, source, defaultHandler, t)
+			<-clientConnected2
+
+			msgCount := 0
+
+			for start := time.Now(); time.Since(start) < 30*time.Second; {
+				select {
+				case <-messages2:
+					msgCount++
+				case <-time.After(10 * time.Second):
+				}
+				if msgCount == expectedMessageCount {
+					break
+				}
+			}
+			assert.Equal(t, expectedMessageCount, msgCount)
+		})
+	}
 }
 
 func TestDeadLettering(t *testing.T) {
@@ -2225,7 +2355,7 @@ func TestDeadLettering(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 	// produce message, wait for it to DLQ, then consume it from the DLQ
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 	pc.Disconnect(pctx, &pb.Empty{})
 	producerConnection.Close()
@@ -2315,7 +2445,7 @@ func TestDeadLetteringReject(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 	// produce message, wait for it to DLQ, then consume it from the DLQ
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 	pc.Disconnect(pctx, &pb.Empty{})
 	producerConnection.Close()
@@ -2405,7 +2535,7 @@ func TestDeadLetteringRejectAutoDelete(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 	// produce message, wait for it to DLQ, then consume it from the DLQ
-	err := mf.ProduceMessages(pc, pctx, expectedMessageCount, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, expectedMessageCount, message, t.Name())
 	assert.Nil(t, err)
 	pc.Disconnect(pctx, &pb.Empty{})
 	producerConnection.Close()
@@ -2479,7 +2609,7 @@ func TestNoSubjectNoBinding(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mymessage"), Address: produceAddress}
 
-	err := mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -2550,19 +2680,19 @@ func TestNoSubjectWithFilters(t *testing.T) {
 
 	message := &pb.Message{Body: []byte("mybody1"), Address: producerAddress, Headers: headers1}
 
-	err := mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err := mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody2"), Address: producerAddress, Headers: headers2}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody3"), Address: producerAddress, Headers: headers3}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name())
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name())
 	assert.Nil(t, err)
 
 	message = &pb.Message{Body: []byte("mybody4"), Address: producerAddress, Headers: headers4}
-	err = mf.ProduceMessages(pc, pctx, 1, message, t.Name()) // this message is the one that gets consumed
+	err = mf.ProduceSendMessages(pc, pctx, 1, message, t.Name()) // this message is the one that gets consumed
 	assert.Nil(t, err)
 
 	msgCount := 0
@@ -2868,7 +2998,7 @@ func TestConsumeSourceStats(t *testing.T) {
 			message := &pb.Message{Body: []byte("mybody1"), Address: address}
 
 			if dot.addressType == pb.Address_TOPIC {
-				err = mf.ProduceMessages(producerConnection, pc, pctx, dot.publishMessageCount, message, t.Name())
+				err = mf.ProduceSendMessages(pc, pctx, dot.publishMessageCount, message, t.Name())
 			} else {
 				err = mf.ProduceMessagesUnary(producerConnection, pc, pctx, dot.publishMessageCount, message, "", false, t.Name())
 			}

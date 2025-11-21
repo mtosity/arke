@@ -1,2 +1,6 @@
-FROM rabbitmq:4.0-management
+FROM rabbitmq:4.2-management
+COPY ./docker-entrypoint-rabbit.sh /
+RUN chmod +x /docker-entrypoint-rabbit.sh
 RUN rabbitmq-plugins enable --offline rabbitmq_stream rabbitmq_stream_management rabbitmq_management
+
+ENTRYPOINT ["/docker-entrypoint-rabbit.sh"]
