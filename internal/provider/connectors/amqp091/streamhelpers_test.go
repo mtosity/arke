@@ -103,7 +103,7 @@ func Test_getStreamConnectionString(t *testing.T) {
 				},
 				tlsEnabled: false,
 			},
-			expected: "rabbitmq-stream://user:pass@localhost:5552//",
+			expected: "rabbitmq-stream://user:pass@localhost:5552/%2F",
 		},
 		{
 			name: "with tenant and without TLS",
@@ -132,7 +132,7 @@ func Test_getStreamConnectionString(t *testing.T) {
 				},
 				tlsEnabled: true,
 			},
-			expected: "rabbitmq-stream+tls://user:pass@localhost:5552//",
+			expected: "rabbitmq-stream+tls://user:pass@localhost:5552/%2F",
 		},
 		{
 			name: "with tenant and TLS",
@@ -148,6 +148,36 @@ func Test_getStreamConnectionString(t *testing.T) {
 				tlsEnabled: true,
 			},
 			expected: "rabbitmq-stream+tls://user:pass@localhost:5552/tenant1",
+		},
+		{
+			name: "escapechar tenant and TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host:   "localhost",
+					Tenant: "/",
+				},
+				tlsEnabled: false,
+			},
+			expected: "rabbitmq-stream://user:pass@localhost:5552/%2F",
+		},
+		{
+			name: "escapechar tenant and TLS",
+			bd: &BrokerDetails{
+				connectionConfig: &pb.ConnectionConfiguration{
+					Credentials: &pb.Credentials{
+						Username: "user",
+						Password: "pass",
+					},
+					Host:   "localhost",
+					Tenant: "/",
+				},
+				tlsEnabled: true,
+			},
+			expected: "rabbitmq-stream+tls://user:pass@localhost:5552/%2F",
 		},
 	}
 

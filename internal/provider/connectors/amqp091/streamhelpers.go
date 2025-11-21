@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -52,8 +53,16 @@ func getStreamConnectionString(bd *BrokerDetails) string {
 		scheme = fmt.Sprintf("%s+tls", scheme)
 	}
 
-	return fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme, cf.GetCredentials().GetUsername(),
-		cf.GetCredentials().GetPassword(), cf.GetHost(), port, tenant)
+	// URL-encode username and password
+	encodedUsername := url.QueryEscape(cf.GetCredentials().GetUsername())
+	encodedPassword := url.QueryEscape(cf.GetCredentials().GetPassword())
+	encodedTenant := url.QueryEscape(tenant)
+
+	// Build the connection string with encoded components
+	return fmt.Sprintf("%s://%s:%s@%s:%d/%s", scheme,
+		encodedUsername,
+		encodedPassword,
+		cf.GetHost(), port, encodedTenant)
 }
 
 func toStreamMessage(origMsg streamMessage) message.StreamMessage {
