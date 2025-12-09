@@ -3132,6 +3132,226 @@ func TestConsumeSourceStats(t *testing.T) {
 
 }
 
+func TestConsumeSourceStatsGroup(t *testing.T) {
+	testUUID := uuid.New().String()
+
+	var declareOnlyTests = []struct {
+		addressType           pb.Address_TargetType
+		sourceType            pb.Source_TargetType
+		name                  string
+		expectedConsumerCount int32
+		expectedMessageCount  int64
+		publishMessageCount   int
+	}{
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream", testUUID), 0, 0, 5},
+		{pb.Address_STREAM, pb.Source_STREAM, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.stream.zero", testUUID), 0, 0, 0},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue", testUUID), 0, 4, 4},
+		{pb.Address_TOPIC, pb.Source_QUEUE, fmt.Sprintf("%s.%s", "sas.test.proxy.TCSS.queue.zero", testUUID), 0, 0, 0},
+	}
+
+	for _, dot := range declareOnlyTests {
+		// set up the consumer with DeclareOnly=true because we don't want to consume anything
+		timeout := 15 * time.Second
+		connConfig := connectConfig(t.Name())
+		consumerConnection := connect()
+		defer consumerConnection.Close()
+
+		// must publish to Address.Name equal to Source.Name of the consumer
+		subjects := make([]string, 0)
+		subjects = append(subjects, dot.name)
+		address := &pb.Address{Name: dot.name, Subjects: subjects, Type: dot.addressType}
+		source := &pb.Source{Name: dot.name, Address: address, PrefetchCount: 5,
+			DeclareOnly: true, Type: dot.sourceType}
+		// put two identical sources in the Sources request
+		sources := &pb.Sources{Sources: []*pb.Source{source, source}}
+
+		c := pb.NewConsumerClient(consumerConnection)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		defer c.Disconnect(ctx, &pb.Empty{})
+
+		connResp, err := c.Connect(ctx, connConfig)
+		assert.Nil(t, err)
+		assert.NotNil(t, connResp)
+		assert.True(t, connResp.GetSuccess())
+
+		consumerStream, err := c.Consume(ctx)
+		assert.Nil(t, err)
+
+		cnsm := &pb.Consume{Msg: &pb.Consume_Src{Src: source}}
+		err = consumerStream.Send(cnsm)
+		assert.Nil(t, err)
+
+		cr, _ := consumerStream.Recv()
+		assert.NotNil(t, cr.GetDeclareOnlyResponse())
+		assert.Nil(t, cr.GetError())
+		dor := cr.GetDeclareOnlyResponse()
+		assert.Nil(t, dor.Error)
+		assert.True(t, dor.GetSuccess())
+
+		if dot.publishMessageCount > 0 {
+			// set up the producer so we can send messages
+			producerConnection := connect()
+			defer producerConnection.Close()
+			pc := pb.NewProducerClient(producerConnection)
+			pctx := context.Background()
+			defer pc.Disconnect(pctx, &pb.Empty{})
+
+			message := &pb.Message{Body: []byte("mybody1"), Address: address}
+
+			if dot.addressType == pb.Address_TOPIC {
+				err = mf.ProduceSendMessages(pc, pctx, dot.publishMessageCount, message, t.Name())
+			} else {
+				err = mf.ProduceMessagesUnary(producerConnection, pc, pctx, dot.publishMessageCount, message, "", false, t.Name())
+			}
+			assert.Nil(t, err)
+		}
+
+		// request SourceStats a few times over 45 seconds to see if the rabbit API is available now
+		start := time.Now()
+		var statsCollection *pb.SourceStatsCollection
+		var ssErr error
+		for time.Since(start) <= timeout {
+			statsCollection, ssErr = c.SourceStatsGroup(ctx, sources)
+			expectedOffset := dot.publishMessageCount
+			if expectedOffset > 0 {
+				expectedOffset--
+			}
+			done := true
+			for _, stats := range statsCollection.Stats {
+				if ssErr == nil && ((stats.MessageCount == int64(dot.publishMessageCount)) || (stats.GetLastOffset() >= int64(expectedOffset))) {
+					t.Logf("%s: got stats for messageCount=%d", dot.name, stats.MessageCount)
+				} else {
+					done = false
+				}
+			}
+			if done {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
+
+		assert.Nil(t, ssErr)
+		assert.NotNil(t, statsCollection)
+		for _, stats := range statsCollection.Stats {
+			if dot.publishMessageCount == 0 && dot.addressType == pb.Address_STREAM {
+				assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
+			} else {
+				assert.Nil(t, stats.Error)
+			}
+			assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount, dot.name)
+			assert.Equal(t, dot.expectedMessageCount, stats.MessageCount, dot.name)
+			assert.Equal(t, int64(0), stats.GetCurrentOffset(), dot.name)
+			if dot.publishMessageCount > 0 && dot.sourceType == pb.Source_STREAM {
+				assert.Greater(t, stats.LastOffset, int64(0), dot.name)
+			}
+		}
+	}
+
+	for _, dot := range declareOnlyTests {
+		if dot.sourceType != pb.Source_STREAM {
+			continue
+		}
+
+		messages := make(chan *pb.Message)
+		done := make(chan bool)
+		clientConnected := make(chan bool)
+
+		consumerConnection := connect()
+		c := pb.NewConsumerClient(consumerConnection)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		defer c.Disconnect(ctx, &pb.Empty{})
+		defer consumerConnection.Close()
+
+		address := &pb.Address{Name: dot.name, Type: dot.addressType}
+		source := &pb.Source{SingleActiveConsumer: true, Name: dot.name, Address: address, PrefetchCount: 5, Type: dot.sourceType, Options: map[string]string{"Offset": "first", "ConsumerGroup": "MyGroupName"}}
+		// put two identical sources in the Sources request
+		sources := &pb.Sources{Sources: []*pb.Source{source, source}}
+		go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+		<-clientConnected
+
+		msgCount := 0
+
+		breakLoop := false
+		for start := time.Now(); time.Since(start) < 5*time.Second; {
+			select {
+			case <-messages:
+				msgCount++
+			case <-done:
+				breakLoop = true
+			case <-time.After(1 * time.Second):
+				breakLoop = true
+			}
+			if breakLoop {
+				break
+			}
+		}
+
+		statsCollection, ssErr := c.SourceStatsGroup(ctx, sources)
+		assert.Nil(t, ssErr)
+		assert.NotNil(t, statsCollection)
+		for _, stats := range statsCollection.Stats {
+			assert.NotNil(t, stats)
+			assert.Equal(t, dot.expectedConsumerCount, stats.ConsumerCount)
+			assert.Equal(t, dot.expectedMessageCount, stats.MessageCount)
+			assert.Equal(t, dot.publishMessageCount, msgCount)
+			expectedOffset := dot.publishMessageCount
+			if dot.publishMessageCount > 0 {
+				expectedOffset--
+				assert.Nil(t, stats.Error)
+			} else {
+				assert.Equal(t, "Offset not found", stats.GetError().GetMessage())
+			}
+			assert.Equal(t, int64(expectedOffset), stats.LastOffset, dot.name)
+			assert.Equal(t, int64(expectedOffset), stats.GetCurrentOffset(), dot.name)
+			assert.Equal(t, stats.GetLastOffset(), stats.GetCurrentOffset(), dot.name)
+		}
+	}
+
+	for _, dot := range declareOnlyTests {
+		if dot.sourceType != pb.Source_STREAM {
+			continue
+		}
+		if dot.publishMessageCount > 0 {
+			// must publish to Address.Name equal to Source.Name of the consumer
+			subjects := make([]string, 0)
+			subjects = append(subjects, dot.name)
+			address := &pb.Address{Name: dot.name, Subjects: subjects, Type: dot.addressType}
+			source := &pb.Source{SingleActiveConsumer: true, Name: dot.name, Address: address, PrefetchCount: 5, Type: dot.sourceType, Options: map[string]string{"Offset": "first", "ConsumerGroup": "MyGroupName"}}
+			// put two identical sources in the Sources request
+			sources := &pb.Sources{Sources: []*pb.Source{source, source}}
+
+			// set up the producer so we can send messages
+			producerConnection := connect()
+			defer producerConnection.Close()
+			pc := pb.NewProducerClient(producerConnection)
+			pctx := context.Background()
+			defer pc.Disconnect(pctx, &pb.Empty{})
+
+			message := &pb.Message{Body: []byte("mybody1"), Address: address}
+
+			err := mf.ProduceMessagesUnary(producerConnection, pc, pctx, dot.publishMessageCount, message, "", false, t.Name())
+			assert.Nil(t, err)
+
+			consumerConnection := connect()
+			connConfig := connectConfig(t.Name())
+			c := pb.NewConsumerClient(consumerConnection)
+			connResp, err := c.Connect(pctx, connConfig)
+			assert.Nil(t, err)
+			assert.NotNil(t, connResp)
+			assert.True(t, connResp.GetSuccess())
+			statsCollection, ssErr := c.SourceStatsGroup(pctx, sources)
+			assert.Nil(t, ssErr)
+			assert.NotNil(t, statsCollection)
+			for i := 0; i < len(statsCollection.Stats); i++ {
+				assert.Greater(t, statsCollection.Stats[i].GetCurrentOffset(), statsCollection.Stats[i].GetLastOffset()-int64(i), dot.name)
+			}
+		}
+	}
+
+}
+
 func TestProduceFailsIfNoStream(t *testing.T) {
 	ctx := context.Background()
 	conn := connect()

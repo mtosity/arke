@@ -7,8 +7,8 @@ require (
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.77.0
 	gopkg.in/yaml.v2 v2.4.0
-	sassoftware.io/viya/arke v1.33.0
-	sassoftware.io/viya/arke/api v1.8.1
+	sassoftware.io/viya/arke v1.33.1
+	sassoftware.io/viya/arke/api v1.9.0
 )
 
 require (
@@ -50,10 +50,10 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/rabbitmq/rabbitmq-stream-go-client v1.6.0 // indirect
+	github.com/rabbitmq/rabbitmq-stream-go-client v1.6.1 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect

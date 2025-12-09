@@ -26,6 +26,8 @@
     - [Source](#arke-Source)
     - [Source.OptionsEntry](#arke-Source-OptionsEntry)
     - [SourceStats](#arke-SourceStats)
+    - [SourceStatsCollection](#arke-SourceStatsCollection)
+    - [Sources](#arke-Sources)
   
     - [Address.TargetType](#arke-Address-TargetType)
     - [Filter.MatchType](#arke-Filter-MatchType)
@@ -435,6 +437,38 @@ SourceStats includes information about the source from the broker
 | consumer_count | [int32](#int32) |  | Number of consumers on the queue or stream. |
 | last_offset | [int64](#int64) |  | Offset of the last message in the stream. |
 | current_offset | [int64](#int64) |  | Current stream offset for the specified consumer. |
+| name | [string](#string) |  | Name of the source. |
+
+
+
+
+
+
+<a name="arke-SourceStatsCollection"></a>
+
+### SourceStatsCollection
+Return a group of SourceStats for the specified Sources.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| error | [Error](#arke-Error) |  | Any error encountered while retrieving the SourcesMetrics |
+| stats | [SourceStats](#arke-SourceStats) | repeated | A list of SourceStats |
+
+
+
+
+
+
+<a name="arke-Sources"></a>
+
+### Sources
+Represents a group of Sources
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| sources | [Source](#arke-Source) | repeated | The sources we want metrics returned for. |
 
 
 
@@ -510,6 +544,7 @@ Service for consuming messages
 | Consume | [Consume](#arke-Consume) stream | [ConsumeResponse](#arke-ConsumeResponse) stream | Subscribe to a message broker source and receive a stream of messages when they are available. |
 | Disconnect | [Empty](#arke-Empty) | [Empty](#arke-Empty) | Disconnect from the proxy and the message broker. |
 | SourceStats | [Source](#arke-Source) | [SourceStats](#arke-SourceStats) | Ask for and receive information about an arke.Source |
+| SourceStatsGroup | [Sources](#arke-Sources) | [SourceStatsCollection](#arke-SourceStatsCollection) | Ask for and receive information about a group of arke.Sources |
 
 
 <a name="arke-Healthz"></a>

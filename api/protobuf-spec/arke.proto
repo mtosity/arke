@@ -213,6 +213,22 @@ message ConsumeResponse {
     int32 consumer_count = 3; // Number of consumers on the queue or stream.
     int64 last_offset = 4; // Offset of the last message in the stream.
     int64 current_offset = 5; // Current stream offset for the specified consumer.
+   string name = 6; // Name of the source.
+}
+
+/**
+ * Represents a group of Sources
+ */
+message Sources {
+  repeated arke.Source sources = 1; // The sources we want metrics returned for.
+}
+
+/**
+ * Return a group of SourceStats for the specified Sources.
+ */
+message SourceStatsCollection {
+  arke.Error error = 1; // Any error encountered while retrieving the SourcesMetrics
+  repeated arke.SourceStats stats = 2; // A list of SourceStats
 }
 
 /*
@@ -243,6 +259,8 @@ service Consumer {
     rpc Disconnect(arke.Empty) returns (arke.Empty) {}
     // Ask for and receive information about an arke.Source
     rpc SourceStats(arke.Source) returns (arke.SourceStats) {}
+    // Ask for and receive information about a group of arke.Sources
+    rpc SourceStatsGroup(arke.Sources) returns (arke.SourceStatsCollection) {}
 }
 
 /**

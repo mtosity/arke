@@ -556,27 +556,53 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 	return returnError
 }
 
-// Disconnect disconnect from the consumer server
+// Disconnect disconnects from the consumer server
 func (s *ConsumerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 	retVal, _ := brokerDisconnect(ctx, empty)
 	return retVal, nil
 }
 
-// Disconnect disconnect from the producer server
+// Disconnect disconnects from the producer server
 func (s *ProducerServer) Disconnect(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
 	retVal, _ := brokerDisconnect(ctx, empty)
 	return retVal, nil
 }
 
-// Disconnect disconnect from the consumer server
+// SourceStats get stats for a specific source
 func (s *ConsumerServer) SourceStats(ctx context.Context, source *pb.Source) (*pb.SourceStats, error) {
-
+	// Find the provider for this client
 	prov, findErr := findProvider(ctx)
 	if prov == nil {
 		ftlError := errors.New(findErr.GetMessage())
 		stats := &pb.SourceStats{Error: findErr}
 		return stats, ftlError
 	}
+	// Get stats for the individual source
+	return getSourceStats(ctx, source, prov), nil
+}
+
+// SourceStatsGroup get stats for a group of sources
+func (s *ConsumerServer) SourceStatsGroup(ctx context.Context, sources *pb.Sources) (*pb.SourceStatsCollection, error) {
+	// Initialize an empty list to hold the stats
+	var sourceStatsList []*pb.SourceStats
+	// Find the provider for this client
+	prov, findErr := findProvider(ctx)
+	if prov == nil {
+		ftlError := errors.New(findErr.GetMessage())
+		statsCollection := &pb.SourceStatsCollection{Error: findErr}
+		return statsCollection, ftlError
+	}
+	// Iterate over each source and get its stats
+	for _, source := range sources.GetSources() {
+		// Get stats for the individual source and append to list
+		stats := getSourceStats(ctx, source, prov)
+		sourceStatsList = append(sourceStatsList, stats)
+	}
+	// Return the collection of source stats
+	return &pb.SourceStatsCollection{Stats: sourceStatsList}, nil
+}
+
+func getSourceStats(ctx context.Context, source *pb.Source, prov provider.Provider) *pb.SourceStats {
 	stats := prov.SourceStats(ctx, source)
 	consumerGroup := ""
 	// if the consumer group option is set, format it for logging
@@ -584,7 +610,7 @@ func (s *ConsumerServer) SourceStats(ctx context.Context, source *pb.Source) (*p
 		consumerGroup = fmt.Sprintf(" (%s)", consumerGroupOption)
 	}
 	util.Logger.Debugf("SourceStats for %s%s: %+v", source.GetAddress().GetName(), consumerGroup, stats)
-	return stats, nil
+	return stats
 }
 
 func SetSourceDefaults(source *pb.Source) {

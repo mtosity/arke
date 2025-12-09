@@ -1200,7 +1200,10 @@ func TestConsumerServerConsume_SubscribeDeclareOnly(t *testing.T) {
 func Test_SourceStats(t *testing.T) {
 	mockp.ExpectedCalls = make([]*mock.Call, 0)
 
-	source := &pb.Source{}
+	// Use a source with a ConsumerGroup option to test that code path
+	source := &pb.Source{
+		Options: map[string]string{"ConsumerGroup": "group"},
+	}
 	returnStats := &pb.SourceStats{Error: &pb.Error{}}
 
 	mockp.On("SourceStats", mock.Anything, source).Return(returnStats, nil)
@@ -1236,6 +1239,54 @@ func Test_SourceStats_noProvider(t *testing.T) {
 	assert.Nil(t, err)
 
 	stats, err := conSrv.SourceStats(ctx, source)
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedError, err.Error())
+	assert.Equal(t, expectedError, stats.GetError().GetMessage())
+
+	mockp.AssertExpectations(t)
+}
+
+func Test_SourceStatsGroup(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	source := &pb.Source{}
+	returnStats := &pb.SourceStats{Error: &pb.Error{}}
+	sources := &pb.Sources{Sources: []*pb.Source{source}}
+	returnStatsCollection := &pb.SourceStatsCollection{Stats: []*pb.SourceStats{returnStats}}
+
+	mockp.On("SourceStats", mock.Anything, source).Return(returnStats, nil)
+	mockp.MockConnect()
+
+	_, err := conSrv.Connect(ctx, cf)
+	assert.Nil(t, err)
+
+	stats, err := conSrv.SourceStatsGroup(ctx, sources)
+	assert.Nil(t, err)
+	assert.Equal(t, returnStatsCollection, stats)
+
+	mockp.AssertExpectations(t)
+}
+
+func Test_SourceStatsGroup_noProvider(t *testing.T) {
+	mockp.ExpectedCalls = make([]*mock.Call, 0)
+
+	expectedError := "noclientidentifier"
+
+	oldClientIdentifier := s.GetClientIdentifier
+	s.GetClientIdentifier = func(context.Context) (string, error) {
+		return "", errors.New(expectedError)
+	}
+	defer func() {
+		s.GetClientIdentifier = oldClientIdentifier
+	}()
+
+	sources := &pb.Sources{}
+	mockp.MockConnect()
+
+	_, err := conSrv.Connect(ctx, cf)
+	assert.Nil(t, err)
+
+	stats, err := conSrv.SourceStatsGroup(ctx, sources)
 	assert.NotNil(t, err)
 	assert.Equal(t, expectedError, err.Error())
 	assert.Equal(t, expectedError, stats.GetError().GetMessage())
