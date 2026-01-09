@@ -25,6 +25,7 @@ import (
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	channelzservice "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 	pb "sassoftware.io/viya/arke/api"
@@ -56,6 +57,7 @@ func (a *Arke) Build() *Arke {
 	a.serverOptions = append(a.serverOptions, grpc.ChainUnaryInterceptor(a.interceptors.chainUnary...))
 	a.serverOptions = append(a.serverOptions, grpc.ChainStreamInterceptor(a.interceptors.chainStream...))
 	a.server = grpc.NewServer(a.serverOptions...)
+	channelzservice.RegisterChannelzServiceToServer(a.server)
 	return a
 }
 
