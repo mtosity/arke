@@ -45,6 +45,7 @@ type streamPublisherShim interface {
 	GetPCChannel() chan streamMessageResponseShim
 	GetStreamName() string
 	GetPublisherName() string
+	Close() error
 }
 
 type streamPublisher struct {
@@ -120,7 +121,10 @@ func (sc *streamConnection) PutPublisher(confirm bool, pub streamPublisherShim) 
 	key := genPublisherKey(pub.GetStreamName(), pub.GetPublisherName(), confirm)
 	pool, ok := sc.publishers.Get(key)
 	if ok {
-		pool.(*util.BlockingPool).Put(pub)
+		if err := pool.(*util.BlockingPool).Put(pub); err != nil {
+			util.Logger.Debugf("Failed to return publisher to pool: %s", err.Error())
+			pub.Close()
+		}
 	}
 }
 

@@ -1440,13 +1440,23 @@ func (prov *amqp091provider) publishOneQueue(ctx context.Context, msg *pb.Messag
 		amc = bd.pubChannels.Get()
 	}
 	if amc == nil {
-		return &pb.Error{Message: "connected to broker, but failed to create a channel"}
+		return &pb.Error{Message: "failed to get channel from pool"}
 	}
 	amqpChannel := amc.(*amqp091ChannelShim)
 	if msg.GetConfirm() {
-		defer bd.pubPCChannels.Put(amqpChannel)
+		defer func() {
+			if err := bd.pubPCChannels.Put(amqpChannel); err != nil {
+				util.Logger.Debugf("Failed to return channel to pool: %s", err.Error())
+				(*amqpChannel).Close()
+			}
+		}()
 	} else {
-		defer bd.pubChannels.Put(amqpChannel)
+		defer func() {
+			if err := bd.pubChannels.Put(amqpChannel); err != nil {
+				util.Logger.Debugf("Failed to return channel to pool: %s", err.Error())
+				(*amqpChannel).Close()
+			}
+		}()
 	}
 
 	return prov.prepareAndSend(ctx, msg, bd, *amqpChannel)

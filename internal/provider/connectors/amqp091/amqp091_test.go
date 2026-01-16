@@ -1986,7 +1986,7 @@ func Test_PublishOneFailedNewChannel(t *testing.T) {
 
 	suberr := prov.PublishOne(ctx, msg)
 	assert.NotNil(t, suberr)
-	assert.Equal(t, "connected to broker, but failed to create a channel", suberr.GetMessage())
+	assert.Equal(t, "failed to get channel from pool", suberr.GetMessage())
 
 	cmock.AssertExpectations(t)
 	amock.AssertExpectations(t)

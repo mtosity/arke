@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 )
 
@@ -23,7 +24,28 @@ func NewBlockingPool(ctx context.Context, limit int, constructor func() any) *Bl
 }
 
 func (p *BlockingPool) Get() any {
+	select {
+	case e, ok := <-p.pool:
+		if ok {
+			return e
+		}
+		return nil
+	default:
+		// Pool is empty
+	}
+
 	for {
+		// Try to create new if under limit
+		current := p.count.Load()
+		if current < p.limit {
+			if p.count.CompareAndSwap(current, current+1) {
+				return p.New()
+			}
+			// retry if failed
+			continue
+		}
+
+		// When full wait
 		select {
 		case <-p.ctx.Done():
 			return nil
@@ -31,17 +53,24 @@ func (p *BlockingPool) Get() any {
 			if ok {
 				return e
 			}
-		default:
-			if p.count.Load() < p.limit {
-				p.count.Add(1)
-				return p.New()
-			}
+			return nil
 		}
 	}
 }
 
-func (p *BlockingPool) Put(x any) {
-	if x != nil {
-		p.pool <- x
+func (p *BlockingPool) Put(x any) error {
+	if x == nil {
+		Logger.Warn("cannot put nil value into pool")
+		return fmt.Errorf("cannot put nil value into pool")
+	}
+	select {
+	case p.pool <- x:
+		return nil
+	case <-p.ctx.Done():
+		Logger.Debugf("Context cancelled, skipping Put operation to pool")
+		return p.ctx.Err()
+	default:
+		Logger.Debugf("pool is full, cannot accept item")
+		return fmt.Errorf("pool is full, cannot accept item")
 	}
 }

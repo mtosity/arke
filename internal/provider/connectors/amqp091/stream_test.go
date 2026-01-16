@@ -119,6 +119,11 @@ func (m *streamPublisherMock) GetStreamName() string {
 	return args.Get(0).(string)
 }
 
+func (m *streamPublisherMock) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 type streamConsumerMock struct {
 	mock.Mock
 }
