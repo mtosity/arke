@@ -20,6 +20,8 @@ import (
 
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	"sassoftware.io/viya/arke/internal/metrics"
+	"sassoftware.io/viya/arke/internal/metrics/rabbitmq"
 	"sassoftware.io/viya/arke/internal/provider"
 	"sassoftware.io/viya/arke/internal/util"
 	"sassoftware.io/viya/arke/internal/util/tracing"
@@ -65,6 +67,8 @@ type BrokerDetails struct {
 	Connection   amqp091ConnectionShim
 	ErrorChannel chan amqp091Error
 	RetryChannel *amqp091ChannelShim
+
+	metricsClient metrics.BrokerMetricsProvider
 
 	// Ctx used by both pubChannels and pubPCChannels
 	pubChannelCtx context.Context
@@ -428,9 +432,13 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 	activeMessages := util.NewConcurrentMap()
 	pubChCtx := context.WithValue(context.Background(), CtxKey{name: "clientIdentifier"}, clientIdentifier)
 	pubChCtx, pubChCancel := context.WithCancel(pubChCtx)
+
+	metricsClient := rabbitmq.NewMetricsClient(cf)
+
 	bd := BrokerDetails{
 		connectionConfig: cf,
 		ClientIdentifier: clientIdentifier,
+		metricsClient:    metricsClient,
 		ErrorChannel:     make(chan amqp091Error),
 		activeMessages:   activeMessages,
 		tlsSkipVerify:    tlsSkipVerify,
@@ -1672,50 +1680,34 @@ func (bd *BrokerDetails) getConsumerName(source *pb.Source) (string, *pb.Error) 
 }
 
 func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStats {
-	stats := &pb.SourceStats{}
-	var results map[string]interface{}
-
 	queue := url.QueryEscape(sourceName(source))
-	vhost := bd.connectionConfig.GetTenant()
-	if vhost == "" {
-		vhost = "/"
-	}
-	vhost = url.QueryEscape(vhost)
 
-	urn := fmt.Sprintf("/api/queues/%s/%s", vhost, queue)
-	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
-	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
-		stats.Error = &pb.Error{Message: marshErr.Error()}
-		return stats
-	}
-	util.Logger.Debugf("Stats results from management API for %s: %s", queue, string(body))
-
-	// consumer count comes from the API and is accurate
-	if consumersCountRaw, ok := results["consumers"]; ok {
-		stats.ConsumerCount = int32(consumersCountRaw.(float64))
-	}
-
-	// message count is only accurate for queues, return 0 for streams
-	util.Logger.Debugf("Source: %+v", source)
-	util.Logger.Debugf("Source.Type: %d", source.Type)
-	util.Logger.Debugf("results: %+v", results)
-
-	if source.Type == pb.Source_QUEUE {
-		if messageCountRaw, ok := results["messages"]; ok {
-			stats.MessageCount = int64(messageCountRaw.(float64))
-			util.Logger.Debugf("Message count for queue %s: %d", queue, stats.MessageCount)
-		} else {
-			util.Logger.Debugf("No message count found for queue %s", queue)
+	// Get prometheus metrics and translate to *pb.SourceStats
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	qs, err := bd.metricsClient.GetQueueStats(ctx, queue)
+	if err != nil {
+		return &pb.SourceStats{
+			Name:  queue,
+			Error: &pb.Error{Message: fmt.Sprintf("failed to get stats for queue %s: %s", queue, err.Error())},
 		}
-	} else if source.Type == pb.Source_STREAM {
+	}
+	if qs == nil {
+		return &pb.SourceStats{
+			Name:  queue,
+			Error: &pb.Error{Message: fmt.Sprintf("failed to get stats for queue %s", queue)},
+		}
+	}
+	stats := &pb.SourceStats{
+		Name:          queue,
+		ConsumerCount: int32(qs.ConsumersCount),
+		MessageCount:  int64(qs.TotalMessagesCount),
+	}
+
+	if source.Type == pb.Source_STREAM {
 		bd.updateStatsForStream(source, stats)
 	}
-
-	if err != nil {
-		util.Logger.Debugf("Error retrieving queue/stream from management API %s: %s", queue, err.Error())
-		stats.Error = &pb.Error{Message: err.Error()}
-		return stats
-	}
+	util.Logger.Debugf("queue stats for %s: %+v", queue, qs)
 
 	return stats
 }
@@ -1896,7 +1888,7 @@ func (bd *BrokerDetails) loadExchanges() {
 		return
 	}
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
-		util.Logger.Debugf("Error unmarshaling exchanges from management API: %s", err.Error())
+		util.Logger.Debugf("Error unmarshaling exchanges from management API: %s", marshErr.Error())
 		return
 	}
 	util.Logger.Debugf("Loaded exchanges from management API: %s", string(body))

@@ -1,0 +1,667 @@
+{
+  "name": "rabbitmq_detailed_queue_messages_unacked",
+  "help": "Messages delivered to consumers but not yet acknowledged",
+  "type": 1,
+  "metric": [
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPOSCOWC"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPMCM.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPSCP.8014c4e5-e6a1-4cd2-bed7-396d25485ff1"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCR.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPSWD.4f609d12-7c04-43c7-828d-75cdb77a8863"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.THNSS.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDL.Consumer.dlq"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.HeaderCheck"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCS.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPCFMAny.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPE.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TCCO-fc066905-d172-45c1-8502-84a57e09adb5"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCSCTN.Consumer2.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDLQPolicy.sas.dlq.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.stream.56b54fe1-4227-450c-b887-ef4fdb3a8e8b"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TNSNB.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TAIIDNC.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.queue.c3a29d02-fd55-44d7-bcbf-1fb81ff97f24.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPTSCT2"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCN.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPCFMAll.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCDO.queue.d03b4849-db00-42d1-9067-dd264c487bf7.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCDB.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "noname-41c687a4-7251-4a7b-a61d-39b39f049d5a"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDLQPolicy.sas.dlq.Consumer.dlq"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.stream.c3a29d02-fd55-44d7-bcbf-1fb81ff97f24"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDLQPolicy.sastest.dlq-notdefault.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.stream.zero.c3a29d02-fd55-44d7-bcbf-1fb81ff97f24"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCSCQN.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDL.Consumer.2fa12a05-c1e7-423f-a21e-48d47526fadd.dlq"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TH.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCDO.stream.639d42b6-f847-41de-ba62-0a3111eebb05"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TAIID.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPOSCO"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.stream.TPTSCT"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.stream.zero.56b54fe1-4227-450c-b887-ef4fdb3a8e8b"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.queue.zero.c3a29d02-fd55-44d7-bcbf-1fb81ff97f24.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TPSCSCTN.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TSMS.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDLQPolicy.sastest.dlq-notdefault.Consumer.dlq"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.PubOne.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.queue.56b54fe1-4227-450c-b887-ef4fdb3a8e8b.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TCSS.queue.zero.56b54fe1-4227-450c-b887-ef4fdb3a8e8b.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    },
+    {
+      "label": [
+        {
+          "name": "vhost",
+          "value": "/"
+        },
+        {
+          "name": "queue",
+          "value": "sas.test.proxy.TDL.Consumer.quorum"
+        }
+      ],
+      "gauge": {
+        "value": 0
+      }
+    }
+  ]
+}
