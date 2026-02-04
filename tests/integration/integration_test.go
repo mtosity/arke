@@ -174,16 +174,6 @@ func arkeAddress() string {
 	return arkeAddress
 }
 
-func rabbitMQAddress() string {
-	var addr string
-	if value, ok := os.LookupEnv("RABBITMQ_INTEGRATION_HOSTNAME"); ok {
-		addr = value
-	} else {
-		addr = "localhost"
-	}
-	return addr
-}
-
 func connectConfig(clientName string) *pb.ConnectionConfiguration {
 
 	connConfig := cfg.ConnectionConfigurationFromEnv()

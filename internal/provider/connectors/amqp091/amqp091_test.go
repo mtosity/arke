@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"sassoftware.io/viya/arke/internal/metrics"
 	"sassoftware.io/viya/arke/internal/provider"
 	"sassoftware.io/viya/arke/internal/util"
 
@@ -2398,11 +2397,14 @@ func mockManagementRequestServer() *httptest.Server {
 			// handle special cases here
 			switch r.URL.Path {
 			case "/api/queues/tenant/sourceQueue.quorum":
-				panic("should not be using /api/queues/*")
+				status = http.StatusOK
+				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum"}`)
 			case "/api/queues/tenant/sourceStream":
-				panic("should not be using /api/queues/*")
+				status = http.StatusOK
+				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
 			case "/api/queues/tenant/sourceStream2":
-				panic("should not be using /api/queues/*")
+				status = http.StatusOK
+				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream"}`)
 			case "/api/exchanges/%2f":
 				status = http.StatusOK
 				body = []byte(`[]`)
@@ -2747,21 +2749,6 @@ func Test_SourceStats(t *testing.T) {
 			}
 		}
 
-		vhost := bd.connectionConfig.Tenant
-		queue := test.sourceName
-		if test.sourceType == pb.Source_QUEUE {
-			queue += ".quorum"
-		}
-		expQueueStats := &metrics.QueueStats{
-			Queue:              queue,
-			VHost:              vhost,
-			ConsumersCount:     int(test.consumerCnt),
-			TotalMessagesCount: int(test.messageCnt),
-		}
-
-		mockMetricsClient := &MockBrokerMetricsProvider{}
-		mockMetricsClient.On("GetQueueStats", mock.Anything, queue).Return(expQueueStats, nil)
-		bd.metricsClient = mockMetricsClient
 		stats := prov.SourceStats(ctx, src)
 		assert.NotNil(t, stats)
 		assert.Equal(t, test.consumerCnt, stats.ConsumerCount)
@@ -2827,13 +2814,4 @@ func TestCopyHeaderToTimestamp(t *testing.T) {
 	addTimeStampHeader(msg.Headers)
 	// Assert that the new header is set
 	assert.Equal(t, msg.Headers[rabbitReceivedTimeHeaderName], msg.Headers[timeStampInMSHeaderName])
-}
-
-type MockBrokerMetricsProvider struct {
-	mock.Mock
-}
-
-func (m *MockBrokerMetricsProvider) GetQueueStats(ctx context.Context, queue string) (*metrics.QueueStats, error) {
-	args := m.Called(ctx, queue)
-	return args.Get(0).(*metrics.QueueStats), args.Error(1)
 }

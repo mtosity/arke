@@ -8,8 +8,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
 	github.com/prometheus/client_golang v1.19.1
-	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.48.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/rabbitmq/rabbitmq-stream-go-client v1.6.2
 	github.com/soheilhy/cmux v0.1.5
@@ -68,6 +66,8 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/prometheus/client_model v0.6.0 // indirect
+	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
