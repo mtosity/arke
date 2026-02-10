@@ -298,6 +298,12 @@ func (sp streamPublisher) GetStreamName() string {
 }
 
 func (sp streamPublisher) Publish(msg streamMessage) error {
+	compressedMsg, err := compressMessage(msg)
+	if err != nil {
+		util.Logger.Debugf("Compression failed, sending uncompressed message: %v", err)
+	} else {
+		msg = compressedMsg
+	}
 	return sp.publisher.Send(toStreamMessage(msg))
 }
 

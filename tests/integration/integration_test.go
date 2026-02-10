@@ -342,6 +342,125 @@ func connect() *grpc.ClientConn {
 	return conn
 }
 
+func TestProduceTwoStreamConsumeTwoCompressed(t *testing.T) {
+	producerConnection := connect()
+	defer producerConnection.Close()
+	expectedMessageCount := 10
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+	// consume before we produce
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	options := make(map[string]string)
+	options["MessageTTL"] = "120"
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.PubOne")
+	address := &pb.Address{Name: "sas.test.stream.TPTSCT", Subjects: subjects, Type: pb.Address_STREAM}
+	source := &pb.Source{Name: "sas.test.stream.TPTSCT", Address: address, PrefetchCount: 1,
+		Type: pb.Source_STREAM, Options: options}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	// Second consumer
+	done2 := make(chan bool)
+	clientConnected2 := make(chan bool)
+	address2 := &pb.Address{Name: "sas.test.stream.TPTSCT2", Subjects: subjects, Type: pb.Address_STREAM}
+	source2 := &pb.Source{Name: "sas.test.stream.TPTSCT2", Address: address2, PrefetchCount: 1,
+		Type: pb.Source_STREAM, Options: options}
+	c2 := pb.NewConsumerClient(consumerConnection)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel2()
+	defer c2.Disconnect(ctx2, &pb.Empty{})
+	messages2 := make(chan *pb.Message)
+
+	go consumeMessages(consumerConnection, c2, ctx2, messages2, done2, clientConnected2, source2, defaultHandler, t)
+	<-clientConnected2
+
+	// Create a large payload exceeding the compression threshold
+	payloadSize := 2 * 1024 * 1024
+	payload := make([]byte, payloadSize)
+	for i := range payload {
+		payload[i] = byte(i % 256)
+	}
+
+	message := &pb.Message{Body: payload, Address: address, Headers: map[string]string{"test-header": "compressed-pathway"}}
+
+	connConfig := connectConfig(t.Name())
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	pc.Connect(pctx, connConfig)
+
+	// Publish messages to first stream without modifying the payload
+	for i := 0; i < expectedMessageCount; i++ {
+		resp, err := pc.PublishOne(pctx, message)
+		assert.Nil(t, err)
+		if resp != nil {
+			assert.True(t, resp.GetSuccess())
+		}
+	}
+
+	// Publish messages to second stream
+	message.Address = address2
+	for i := 0; i < expectedMessageCount; i++ {
+		resp, err := pc.PublishOne(pctx, message)
+		assert.Nil(t, err)
+		if resp != nil {
+			assert.True(t, resp.GetSuccess())
+		}
+	}
+
+	msgCount := 0
+	breakLoop := false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case msg := <-messages:
+			// Verify the message body was decompressed and matches the original payload
+			assert.Equal(t, payload, msg.Body, "Message body should match the original payload after decompression")
+			assert.Equal(t, payloadSize, len(msg.Body), "Message body size should match the original payload size")
+			msgCount++
+		case <-done:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount)
+
+	msgCount2 := 0
+	breakLoop = false
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		select {
+		case msg := <-messages2:
+			// Verify the message body was decompressed and matches the original payload
+			assert.Equal(t, payload, msg.Body, "Message body should match the original payload after decompression")
+			assert.Equal(t, payloadSize, len(msg.Body), "Message body size should match the original payload size")
+			msgCount2++
+		case <-done2:
+			breakLoop = true
+		case <-time.After(2 * time.Second):
+			breakLoop = true
+		}
+		if breakLoop {
+			break
+		}
+	}
+	assert.Equal(t, expectedMessageCount, msgCount2)
+}
+
 func TestProduceSingleConsumeSingle(t *testing.T) {
 	producerConnection := connect()
 	defer producerConnection.Close()

@@ -36,6 +36,7 @@ const streamOffsetHeaderName = "x-current-offset"
 const retryCountHeaderName = "x-retry-count"
 const rabbitReceivedTimeHeaderName = "x-opt-rabbitmq-received-time"
 const timeStampInMSHeaderName = "timestamp_in_ms"
+const transferEncodingHeaderName = "Transfer-Encoding"
 
 const maxPubChannels = 10
 const maxPubPCChannels = 10
@@ -1219,7 +1220,20 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 
 		addTimeStampHeader(hdrs)
 
-		m := &pb.Message{Uuid: messageUUID, Body: message.GetData(),
+		// Attempt to decompress stream messages if they are marked/compressed.
+		data := message.GetData()
+
+		if hdrs[transferEncodingHeaderName] == "gzip" {
+			decompressedData, err := decompressBody(data)
+			if err != nil {
+				util.Logger.Debugf("Failed to decompress stream message: %v", err)
+			} else {
+				data = decompressedData
+				delete(hdrs, transferEncodingHeaderName)
+			}
+		}
+
+		m := &pb.Message{Uuid: messageUUID, Body: data,
 			Headers: hdrs, Address: source.GetAddress()}
 
 		consumerGroup := ""
