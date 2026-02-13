@@ -185,7 +185,7 @@ func (prov *amqp091provider) Ack(ctx context.Context, msgid string) *pb.Error {
 		switch rm := rmu.(type) {
 		case amqp091Message:
 			util.Logger.Tracef("Acking message %s with tag %d", msgid, rm.DeliveryTag)
-			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" ack", trace.SpanKindInternal)
+			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), "message ack", trace.SpanKindInternal)
 			span.SetAttributes(attribute.String("messaging.message.id", msgid),
 				attribute.String("messaging.client_id", bd.ClientIdentifier))
 			span.AddEvent("provider acking message")
@@ -236,7 +236,7 @@ func (prov *amqp091provider) Nack(ctx context.Context, msgid string) *pb.Error {
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		switch rm := rmu.(type) {
 		case amqp091Message:
-			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), msgid+" nack", trace.SpanKindInternal)
+			_, span = tracing.SpanFromHeaders(ctx, fromTableToMap(rm.Headers), "message nack", trace.SpanKindInternal)
 			span.SetAttributes(attribute.String("messaging.message.id", msgid),
 				attribute.String("messaging.client_id", bd.ClientIdentifier))
 			span.AddEvent("provider nacking message")
@@ -277,7 +277,7 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 	}
 
 	var retrySpan trace.Span
-	_, retrySpan = tracing.SpanFromHeaders(ctx, nil, msgid+" retry", trace.SpanKindInternal)
+	_, retrySpan = tracing.SpanFromHeaders(ctx, nil, "message retry", trace.SpanKindInternal)
 	defer func() {
 		if retrySpan != nil {
 			retrySpan.End()
@@ -287,7 +287,8 @@ func (prov *amqp091provider) Retry(ctx context.Context, origSource *pb.Source, m
 	origSource.Name = sourceName(origSource)
 
 	retrySpan.SetAttributes(attribute.String("source.name", origSource.GetName()),
-		attribute.String("messaging.client_id", bd.ClientIdentifier))
+		attribute.String("messaging.client_id", bd.ClientIdentifier),
+		attribute.String("messaging.message.id", msgid))
 	if rmu, ok := bd.activeMessages.Get(msgid); ok {
 		switch rm := rmu.(type) {
 		case streamMessage:
