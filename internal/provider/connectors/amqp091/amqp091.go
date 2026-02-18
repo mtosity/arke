@@ -1549,7 +1549,7 @@ func (prov *amqp091provider) prepareAndSend(ctx context.Context, msg *pb.Message
 
 	if err != nil {
 		util.Logger.WarnI(i18n.PublishError, err.Error())
-
+		span.RecordError(err)
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
@@ -1579,7 +1579,7 @@ func (prov *amqp091provider) streamPrepareAndSend(ctx context.Context, msg *pb.M
 
 	if err != nil {
 		util.Logger.WarnI(i18n.PublishError, err.Error())
-
+		span.RecordError(err)
 		errMsg := &pb.Error{
 			Message: err.Error(),
 			IsFatal: true,
