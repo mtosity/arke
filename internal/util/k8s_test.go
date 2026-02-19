@@ -1,10 +1,9 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,25 +107,12 @@ func Test_MonitorHPA(t *testing.T) {
 			healthChan := make(chan pb.HealthStatus_Code, 1)
 
 			// Recreate slog logger with our pipe writer
-			oldWriter := LogWriter
-			defer func() {
-				LogWriter = oldWriter
-				os.Unsetenv(envLogFormat)
-				os.Unsetenv(envLogLevel)
-			}()
-			slogReader, slogWriter, _ := os.Pipe()
-			LogWriter = slogWriter
-			os.Setenv(envLogFormat, "json")
-			os.Setenv(envLogLevel, "DEBUG")
-			logger = createLogger()
-
-			out := make(chan string, 1)
-
-			go func() {
-				var buf bytes.Buffer
-				io.Copy(&buf, slogReader) // nolint:errcheck
-				out <- buf.String()
-			}()
+			ResetLogger()
+			r, w, _ := os.Pipe()
+			LogOutputFile = w
+			t.Setenv(EnvLogFormat, "json")
+			t.Setenv(EnvLogLevel, "DEBUG")
+			NewArkeLogger()
 
 			// Setup test conditions
 			cleanup := tt.setupFunc()
@@ -136,12 +122,21 @@ func Test_MonitorHPA(t *testing.T) {
 			MonitorHPA(healthChan, "test-arke")
 
 			// Close writer and read output
-			slogWriter.Close()
-			logOutput := <-out
+			w.Close()
 
+			outputBuffer := make([]byte, 1024)
+			bytesRead, _ := r.Read(outputBuffer)
+			logMsg := string(outputBuffer[:bytesRead])
 			// Validate the log output
-			assert.True(t, validateLogEntry(logOutput, tt.expectedMsg),
-				"Expected log message '%s' not found in: %s", tt.expectedMsg, logOutput)
+			assert.True(t, strings.Contains(logMsg, tt.expectedMsg))
+
+			pentry := map[string]interface{}{}
+			err := json.Unmarshal(outputBuffer[:bytesRead], &pentry)
+			assert.NoError(t, err, "Log entry is not valid JSON: %v", err)
+			for _, field := range []string{"level", "caller", "version", "timeStamp", "source", "message"} {
+				_, ok := pentry[field]
+				assert.True(t, ok, "Log entry missing field '%s': %s", field, logMsg)
+			}
 
 			// Verify no health status was sent if function returned early
 			if tt.expectNoReturn {
@@ -154,28 +149,4 @@ func Test_MonitorHPA(t *testing.T) {
 			}
 		})
 	}
-}
-
-func validateLogEntry(entry string, expectedMsg string) bool {
-	res := true
-	res = res && bytes.Contains([]byte(entry), []byte(expectedMsg))
-	pentry := &map[string]interface{}{}
-	err := json.Unmarshal([]byte(entry), &pentry)
-	if err != nil {
-		return false
-	}
-	for _, field := range []string{"level", "version", "timeStamp", "source", "properties", "message"} {
-		_, ok := (*pentry)[field]
-		if !ok {
-			return false
-		}
-	}
-	props := (*pentry)["properties"].(map[string]interface{})
-	for _, field := range []string{"caller"} {
-		_, ok := props[field]
-		if !ok {
-			return false
-		}
-	}
-	return res
 }

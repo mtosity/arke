@@ -2412,10 +2412,12 @@ func mockManagementRequestServer() *httptest.Server {
 		} else if r.Method == "DELETE" {
 			status = http.StatusNoContent
 		}
+		// we must call WriteHeader before w.Write otherwise we get a log warning message
+		// note this was previously suppressed with zlog
+		w.WriteHeader(status)
 		if body != nil {
 			w.Write(body) //nolint:errcheck
 		}
-		w.WriteHeader(status)
 	}))
 	return server
 }

@@ -6,15 +6,12 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sassoftware.io/viya/arke/internal/metrics"
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"sassoftware.io/viya/zlog"
-
+	"sassoftware.io/viya/arke/internal/metrics"
+	"sassoftware.io/viya/arke/internal/provider"
 	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
@@ -96,8 +93,6 @@ func Test_gatherClientStats(t *testing.T) {
 }
 
 func Test_Serve(t *testing.T) {
-	util.Logger.Level = zlog.Debug
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -134,7 +129,6 @@ func Test_Serve(t *testing.T) {
 }
 
 func Test_ServePprofEnabled(t *testing.T) {
-	util.Logger.Level = zlog.Debug
 	os.Setenv(pprofEnv, "true")
 
 	ctx, cancel := context.WithCancel(context.Background())

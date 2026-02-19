@@ -1,8 +1,12 @@
 package i18n
 
 import (
+	"bufio"
+	"bytes"
 	"embed"
 	"fmt"
+	"strings"
+	"sync"
 
 	"golang.org/x/text/language"
 )
@@ -10,15 +14,26 @@ import (
 const embedPropDir = "resources"
 const messageFilePrefix = "GoLogMessages"
 
-var l10Messages []byte
+var (
+	l10Messages    []byte
+	l10SyncOnce    = sync.Once{}
+	bundle         *propertiesBundle
+	bundleSyncOnce = sync.Once{}
+	bundleErr      error
+)
 
 //go:embed resources/*.properties
 var propertyFiles embed.FS
 
+func init() {
+	// Force initialization of system locale at startup
+	_, _ = newPropertiesBundle(L10n())
+}
+
 // L10n - Load the localization messages from the appropriate locale properties file
 // and return the contents
 func L10n() []byte {
-	if l10Messages == nil {
+	l10SyncOnce.Do(func() {
 		InitializeSystemLocale()
 		filePaths := getLocaleFileNames(messageFilePrefix, SystemLocale)
 		l10Messages = []byte{}
@@ -31,7 +46,7 @@ func L10n() []byte {
 			}
 			// fmt.Printf("Missing property file %s\n", p)
 		}
-	}
+	})
 	return l10Messages
 }
 
@@ -70,4 +85,63 @@ func getLocaleFileNames(filePrefix string, locale string) []string {
 		fmt.Sprintf("%s/%s_%s.properties", embedPropDir, filePrefix, lang),
 		defaultFile,
 	}
+}
+
+// propertiesBundle holds message templates loaded from .properties files
+type propertiesBundle struct {
+	messages map[string]string
+}
+
+// newPropertiesBundle creates a new properties bundle and parses the given data
+func newPropertiesBundle(data []byte) (*propertiesBundle, error) {
+	bundleSyncOnce.Do(func() {
+		bundle = &propertiesBundle{
+			messages: make(map[string]string),
+		}
+
+		// If there's no data to load, we still do not want to return
+		// and error - we will just log the message keys
+		if data == nil {
+			return
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+
+			// Skip comments and empty lines
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+
+			// Parse key=value
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				bundle.messages[key] = value
+			}
+		}
+		if scanner.Err() != nil {
+			bundleErr = scanner.Err()
+			fmt.Printf("Error reading properties data: %v\n", bundleErr)
+		}
+	})
+
+	return bundle, bundleErr
+}
+
+// T - Translate the given message ID to the localized message and substitute
+// parameters. If the message ID is not found in the bundle, the message ID itself is
+// used as the message template, parameters substituted, and returned.
+func T(messageID string, args ...interface{}) string {
+	msg := messageID
+	if msgTemplate, ok := bundle.messages[messageID]; ok {
+		msg = msgTemplate
+	}
+	for i, arg := range args {
+		placeholder := fmt.Sprintf("{%d}", i)
+		msg = strings.ReplaceAll(msg, placeholder, fmt.Sprintf("%v", arg))
+	}
+	return msg
 }

@@ -130,7 +130,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		ftlError := errors.New(findErr.Message)
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: findErr}}
 		_ = sender.Send(cnsmResp)
-		util.Logger.DebugI(i18n.SubscribeError, findErr.Message)
+		util.Logger.Debug(i18n.SubscribeError, findErr.Message)
 		return ftlError
 	}
 
@@ -139,7 +139,7 @@ func (s *ConsumerServer) Consume(stream pb.Consumer_ConsumeServer) error {
 		ciErr := &pb.Error{Message: err.Error(), IsFatal: true}
 		cnsmResp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Error{Error: ciErr}}
 		_ = sender.Send(cnsmResp)
-		util.Logger.DebugI(i18n.SubscribeError, ciErr.Message)
+		util.Logger.Debug(i18n.SubscribeError, ciErr.Message)
 		return err
 	}
 
@@ -197,9 +197,9 @@ consumeLoop:
 
 			if cnsmRecv.err != nil {
 				if cnsmRecv.err == io.EOF {
-					util.Logger.DebugI(i18n.ConsumeRecvChanError, clientIdentifier, cnsmRecv.err.Error())
+					util.Logger.Debug(i18n.ConsumeRecvChanError, clientIdentifier, cnsmRecv.err.Error())
 				} else {
-					util.Logger.WarnI(i18n.ConsumeRecvChanError, clientIdentifier, cnsmRecv.err.Error())
+					util.Logger.Warn(i18n.ConsumeRecvChanError, clientIdentifier, cnsmRecv.err.Error())
 				}
 				returnError = cnsmRecv.err
 				break consumeLoop
@@ -227,7 +227,7 @@ consumeLoop:
 				options := source.GetOptions()
 				for option := range options {
 					if _, ok := validOptions[option]; !ok {
-						util.Logger.InfoI(i18n.UnsupportedSourceOption, option)
+						util.Logger.Info(i18n.UnsupportedSourceOption, option)
 						unsupported = append(unsupported, option)
 					}
 				}
@@ -261,7 +261,7 @@ consumeLoop:
 							resp := &pb.ConsumeResponse{Resp: &pb.ConsumeResponse_Msg{Msg: message}}
 							err := sender.Send(resp)
 							if err != nil {
-								util.Logger.WarnI(i18n.StreamSendError, err.Error(), clientIdentifier)
+								util.Logger.Warn(i18n.StreamSendError, err.Error(), clientIdentifier)
 								span.RecordError(err)
 								*returnErr = err
 								if *stopFor != nil {
@@ -282,7 +282,7 @@ consumeLoop:
 					if connected {
 						err := prov.Subscribe(cont, source, mc)
 						if err != nil {
-							util.Logger.WarnI(i18n.SubscribeError, err.Message)
+							util.Logger.Warn(i18n.SubscribeError, err.Message)
 							*returnErr = errors.New(err.GetMessage())
 						}
 
@@ -305,7 +305,7 @@ consumeLoop:
 							*stopFor <- true
 						}
 					} else {
-						util.Logger.WarnI(i18n.BrokerConnectError, "could not connect to broker")
+						util.Logger.Warn(i18n.BrokerConnectError, "could not connect to broker")
 						*returnErr = errors.New("could not connect to broker")
 						if *stopFor != nil {
 							*stopFor <- true
@@ -506,7 +506,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				}
 
 				if err != nil {
-					util.Logger.WarnI(i18n.StreamSendError, err.Error(), clientIdentifier)
+					util.Logger.Warn(i18n.StreamSendError, err.Error(), clientIdentifier)
 					returnError = err
 					stopPublish = true
 					span.RecordError(err)
@@ -530,7 +530,7 @@ func (s *ProducerServer) Publish(stream pb.Producer_PublishServer) error {
 				if connected {
 					continue
 				}
-				util.Logger.WarnI(i18n.BrokerConnectError, err.Message)
+				util.Logger.Warn(i18n.BrokerConnectError, err.Message)
 			} else {
 				util.Logger.Debugf("Client no longer exists. Stopping publish.")
 				stopPublish = true
@@ -705,7 +705,7 @@ func brokerDisconnect(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 		prov, _ := provider.GetProvider(providerType)
 		prov.Disconnect(ctx)
 		connectionMap.Delete(clientIdentifier)
-		util.Logger.InfoI(i18n.ClientDisconnect, clientIdentifier)
+		util.Logger.Info(i18n.ClientDisconnect, clientIdentifier)
 		return &pb.Empty{}, nil
 	}
 
@@ -720,7 +720,7 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 			Message: err.Error(),
 			IsFatal: true,
 		}
-		util.Logger.WarnI(i18n.ClientFailedIdentifierError, clientIdentifier, err.Error())
+		util.Logger.Warn(i18n.ClientFailedIdentifierError, clientIdentifier, err.Error())
 		return nil, errMsg
 	}
 
@@ -730,7 +730,7 @@ func findProvider(ctx context.Context) (provider.Provider, *pb.Error) {
 			Message: "Failed to find connection information.",
 			IsFatal: true,
 		}
-		util.Logger.WarnI(i18n.ClientNoProviderError, clientIdentifier)
+		util.Logger.Warn(i18n.ClientNoProviderError, clientIdentifier)
 		return nil, errMsg
 	}
 

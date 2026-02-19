@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"sassoftware.io/viya/zlog"
 	metrics "sassoftware.io/viya/arke/internal/metrics/prometheus"
 	"sassoftware.io/viya/arke/internal/server"
 	"sassoftware.io/viya/arke/internal/server/prometheus"
@@ -79,10 +78,10 @@ func (a *Arke) WithRateLimit(rlp *RateLimitParameters) *Arke {
 
 	rl, err := ratelimiter.NewClientLimitManager(rlp.BucketSize, rlp.RefillInterval, rlp.MaxAgeStaleClient, rlp.Enforced)
 	if err != nil {
-		util.Logger.WarnI(i18n.CouldNotCreateRateLimiter, err.Error())
+		util.Logger.Warn(i18n.CouldNotCreateRateLimiter, err.Error())
 		return a
 	}
-	util.Logger.Info(i18n.RateLimiterInitialized, zlog.P{"bucketSize": rlp.BucketSize, "refillInterval": rlp.RefillInterval, "maxAgeStaleClients": rlp.MaxAgeStaleClient})
+	util.Logger.Info(i18n.RateLimiterInitialized2, rlp.BucketSize, rlp.RefillInterval, rlp.MaxAgeStaleClient)
 	a.ratelimiter = rl
 
 	a.interceptors.chainUnary = append(
@@ -147,7 +146,7 @@ func GetRateLimitParameters(bucketSize string, refillIntervalSec string, maxAgeS
 	if err == nil {
 		p.BucketSize = bsEnv
 	} else {
-		util.Logger.WarnI(i18n.InvalidBucketSize, bucketSize)
+		util.Logger.Warn(i18n.InvalidBucketSize, bucketSize)
 		settingsOK = false
 	}
 
@@ -155,7 +154,7 @@ func GetRateLimitParameters(bucketSize string, refillIntervalSec string, maxAgeS
 	if err == nil {
 		p.MaxAgeStaleClient = time.Duration(maxAgeDuration) * time.Second
 	} else {
-		util.Logger.WarnI(i18n.InvalidMaxAge, maxAgeStaleClientSec)
+		util.Logger.Warn(i18n.InvalidMaxAge, maxAgeStaleClientSec)
 		settingsOK = false
 	}
 
@@ -163,7 +162,7 @@ func GetRateLimitParameters(bucketSize string, refillIntervalSec string, maxAgeS
 	if err == nil {
 		p.RefillInterval = time.Duration(refillDuration) * time.Second
 	} else {
-		util.Logger.WarnI(i18n.InvalidRefillInterval, refillIntervalSec)
+		util.Logger.Warn(i18n.InvalidRefillInterval, refillIntervalSec)
 		settingsOK = false
 	}
 
@@ -200,7 +199,7 @@ func DefaultArkeServer() *Arke {
 
 	tp, err := tracing.InitTracerProvider()
 	if err != nil {
-		util.Logger.FatalI(i18n.OTELInitError, err)
+		util.Logger.Fatal(i18n.OTELInitError, err)
 	}
 	a.tracerProvider = tp
 
@@ -211,7 +210,7 @@ func DefaultArkeServer() *Arke {
 		var err error
 		a.port, err = strconv.Atoi(portEnv)
 		if err != nil {
-			util.Logger.FatalI(i18n.PortParsingError, err)
+			util.Logger.Fatal(i18n.PortParsingError, err)
 		}
 	}
 
@@ -294,7 +293,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	if a.tracerProvider != nil {
 		defer func() {
 			if err := a.tracerProvider.Shutdown(context.Background()); err != nil {
-				util.Logger.ErrorI(i18n.OTELShutdownError, err)
+				util.Logger.Error(i18n.OTELShutdownError, err)
 			}
 		}()
 	}
@@ -302,7 +301,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	lis, err := a.listener()
 
 	if err != nil {
-		util.Logger.ErrorI(i18n.NetListenError, err.Error())
+		util.Logger.Error(i18n.NetListenError, err.Error())
 		return err
 	}
 
@@ -321,7 +320,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	util.Logger.Debug("Registering reflection service")
 	reflection.Register(a.server)
 
-	util.Logger.InfoI(i18n.Starting, a.port)
+	util.Logger.Info(i18n.Starting, a.port)
 
 	a.mux = cmux.New(lis)
 	httpListener := a.mux.Match(cmux.HTTP1Fast())
@@ -354,7 +353,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 		a.mux.Close()
 	case serveErr = <-serveErrChan:
 		if serveErr != nil {
-			util.Logger.ErrorI(i18n.FailedServeError, serveErr.Error())
+			util.Logger.Error(i18n.FailedServeError, serveErr.Error())
 		}
 	}
 	return serveErr

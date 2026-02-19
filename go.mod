@@ -10,6 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/rabbitmq/rabbitmq-stream-go-client v1.6.3
+	github.com/rs/zerolog v1.34.0
 	github.com/shirou/gopsutil/v4 v4.26.1
 	github.com/soheilhy/cmux v0.1.5
 	github.com/stretchr/testify v1.11.1
@@ -22,7 +23,6 @@ require (
 	golang.org/x/time v0.11.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.10
-	sassoftware.io/viya/zlog v0.3.0
 	k8s.io/api v0.32.4
 	k8s.io/apimachinery v0.32.4
 	k8s.io/client-go v0.32.4
@@ -36,7 +36,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/fatih/color v1.16.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -50,8 +49,6 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
-	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
@@ -61,7 +58,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -74,7 +71,6 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect

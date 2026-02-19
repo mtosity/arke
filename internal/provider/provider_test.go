@@ -1,7 +1,7 @@
 package provider_test
 
 import (
-	"bytes"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -11,7 +11,6 @@ import (
 	"sassoftware.io/viya/arke/internal/util"
 
 	"github.com/stretchr/testify/assert"
-	"sassoftware.io/viya/zlog"
 	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
@@ -34,20 +33,22 @@ func TestTestProvider(t *testing.T) {
 }
 
 func TestRegisterFail(t *testing.T) {
-	regOutput := captureOutput(func() {
+	regOutput := captureOutput(t, func() {
 		p.Register("fail", nil)
 	})
 	assert.Regexp(t, regexp.MustCompile("can not be nil"), regOutput)
 }
 
 func TestRegisterTwice(t *testing.T) {
-	regOutput := captureOutput(func() {
+	regOutput := captureOutput(t, func() {
 		p.Register("test", NewTestProvider)
 	})
 	assert.Regexp(t, regexp.MustCompile("already registered"), regOutput)
 }
 
 func TestGetProvider(t *testing.T) {
+	util.ResetLogger()
+	util.NewArkeLogger()
 	// Make sure GetProvider returns a Provider
 	prov, err := p.GetProvider("amqp091")
 	assert.NotNil(t, prov)
@@ -64,12 +65,16 @@ func TestGetProvider(t *testing.T) {
 }
 
 func TestGetProvider_Fail(t *testing.T) {
+	util.ResetLogger()
+	util.NewArkeLogger()
 	prov, err := p.GetProvider("unknown")
 	assert.Nil(t, prov)
 	assert.Regexp(t, regexp.MustCompile("invalid provider name"), err.Error())
 }
 
 func TestConcurrentNewProvider(t *testing.T) {
+	util.ResetLogger()
+	util.NewArkeLogger()
 	// Register a whole bunch of providers, then GetProvider on all of them.
 	// This would panic every time because of concurrent writes before the
 	// change to util.ConcurrentMap for providerVault
@@ -90,15 +95,24 @@ func TestConcurrentNewProvider(t *testing.T) {
 	assert.Equal(t, 54, providers.Length())
 }
 
-func captureOutput(f func()) string {
-	var buf bytes.Buffer
-	oldLogger := util.Logger
-	defer func() { util.Logger = oldLogger }()
-	util.Logger = zlog.New(&buf, "term")
-	util.Logger.Level = zlog.Debug
+func captureOutput(t *testing.T, f func()) string {
+	// Recreate slog logger with our pipe writer
+	util.ResetLogger()
+	r, w, _ := os.Pipe()
+	util.LogOutputFile = w
+	t.Setenv(util.EnvLogFormat, "term")
+	t.Setenv(util.EnvLogLevel, "DEBUG")
+	util.NewArkeLogger()
 
 	f()
-	return buf.String()
+
+	// Close writer and read output
+	w.Close()
+	outputBuffer := make([]byte, 1024)
+	bytesRead, _ := r.Read(outputBuffer)
+	logMsg := string(outputBuffer[:bytesRead])
+
+	return logMsg
 }
 
 /*

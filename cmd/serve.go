@@ -27,11 +27,11 @@ func run(ctx context.Context) error {
 	if *cpuprofile != "" {
 		f, err := os.Create(filepath.Clean(*cpuprofile))
 		if err != nil {
-			util.Logger.FatalI(i18n.CPUProfileError, err)
+			util.Logger.Fatal(i18n.CPUProfileError, err)
 		}
 		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
-			util.Logger.FatalI(i18n.CPUProfileError, err)
+			util.Logger.Fatal(i18n.CPUProfileError, err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -40,12 +40,12 @@ func run(ctx context.Context) error {
 		if *memprofile != "" {
 			f, err := os.Create(filepath.Clean(*memprofile))
 			if err != nil {
-				util.Logger.FatalI(i18n.MemProfileError, err)
+				util.Logger.Fatal(i18n.MemProfileError, err)
 			}
 			defer f.Close()
 			runtime.GC() // get up-to-date statistics
 			if err := pprof.WriteHeapProfile(f); err != nil {
-				util.Logger.FatalI(i18n.MemProfileError, err)
+				util.Logger.Fatal(i18n.MemProfileError, err)
 			}
 		}
 	}()
@@ -60,7 +60,7 @@ func run(ctx context.Context) error {
 
 	rlp, err := arke.GetRateLimitParameters(bsEnv, refillDuration, maxAgeDuration, rateLimitEnforced)
 	if err != nil {
-		util.Logger.WarnI(i18n.InvalidRateParameters, err)
+		util.Logger.Warn(i18n.InvalidRateParameters, err)
 	}
 
 	svr := arke.DefaultArkeServer().
@@ -77,7 +77,7 @@ func run(ctx context.Context) error {
 		case *net.OpError:
 			return nil
 		default:
-			util.Logger.FatalI(i18n.GenericError, err)
+			util.Logger.Fatal(i18n.GenericError, err)
 		}
 	}
 	return err

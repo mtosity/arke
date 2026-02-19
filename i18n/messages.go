@@ -57,13 +57,18 @@ const (
 	TLSError                         = BundleID + ".error.tls.log"
 	OTELShutdownError                = BundleID + ".error.otel.shutdown.log"
 	OTELInitError                    = BundleID + ".error.otel.init.log"
+	// Deprecated: (2025.12) - will be removed in 2026.05
 	RateLimiterInitialized           = BundleID + ".info.ratelimiterInitialized.log"
+	RateLimiterInitialized2          = BundleID + ".info.ratelimiterInitialized2.log"
 	RateLimiterNoClientIdentifier    = BundleID + ".warn.rateLimiterNoClientIdentifer.log"
+	// Deprecated: (2025.12) - will be removed in 2026.05
 	RateLimitExceeded                = BundleID + ".warn.rateLimitExceeded.log"
+	RateLimitExceeded2               = BundleID + ".warn.rateLimitExceeded2.log"
 	CouldNotCreateRateLimiter        = BundleID + ".warn.couldNotCreateRateLimiter.log"
 	CouldNotCreateRateLimiterFromEnv = BundleID + ".warn.couldNotCreateRateLimiterFromEnv.log"
 	InvalidRateParameters            = BundleID + ".warn.invalidRateParameters.log"
 	InvalidBucketSize                = BundleID + ".warn.invalidBucketSize.log"
 	InvalidMaxAge                    = BundleID + ".warn.invalidMaxAge.log"
 	InvalidRefillInterval            = BundleID + ".warn.invalidRefillInterval.log"
+	HPAScaled                        = BundleID + ".info.hpaScaled.log"
 )

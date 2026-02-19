@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -34,7 +33,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	}
 
 	if namespace == "" {
-		logger.Debug("No kubernetes namespace detected, not monitoring HPA for changes")
+		Logger.Debug("No kubernetes namespace detected, not monitoring HPA for changes")
 		return
 	}
 
@@ -44,12 +43,12 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 		kubeconfig := filepath.Join(home, ".kube", "config")
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
-			logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
+			Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 			return
 		}
 
 	} else if err != nil {
-		logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
+		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 		return
 	}
 
@@ -58,14 +57,14 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Could not configure HPA cluster monitoring: %s", err.Error()))
+		Logger.Debugf("Could not configure HPA cluster monitoring: %s", err.Error())
 		return
 	}
 
 	defer func() {
 		// protect from send on closed channel
 		if err := recover(); err != nil {
-			logger.Debug(fmt.Sprintf("Error monitoring HPA: %s", err))
+			Logger.Debugf("Error monitoring HPA: %s", err)
 			return
 		}
 	}()
@@ -74,7 +73,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 		// hpa := clientset.AutoscalingV1().HorizontalPodAutoscalers()
 		watcher, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, metav1.ListOptions{})
 		if err != nil {
-			logger.Debug(fmt.Sprintf("Could not get HPA watcher: %s", err))
+			Logger.Debugf("Could not get HPA watcher: %s", err)
 		}
 		if watcher == nil {
 			return
@@ -95,7 +94,8 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 			}
 
 			if currentReplicaCount > 0 && newReplicaCount > currentReplicaCount {
-				Logger.InfoI(i18n.Scaled, arkeHpaName, currentReplicaCount, newReplicaCount)
+				Logger.Info(i18n.Scaled, arkeHpaName, currentReplicaCount, newReplicaCount)
+
 				// slight delay to let the service start load balancing
 				time.Sleep(10 * time.Second)
 				healthChan <- pb.HealthStatus_GOAWAY

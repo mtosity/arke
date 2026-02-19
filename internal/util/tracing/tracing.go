@@ -87,15 +87,15 @@ func InitTracerProvider() (*sdktrace.TracerProvider, error) {
 		var exporter sdktrace.SpanExporter
 		var err error
 		if os.Getenv("TELEMETRY_EXPORTER") == "stdout" {
-			util.Logger.Debugf("Initializing OpenTelemetry exporter to stdout")
+			util.Logger.Debug("Initializing OpenTelemetry exporter to stdout")
 			exporter, err = stdouttrace.New()
 		} else {
-			util.Logger.Debugf("Initializing OpenTelemetry exporter to grpc")
+			util.Logger.Debug("Initializing OpenTelemetry exporter to grpc")
 			otelAddr := getTelemetryCollectorAddress()
 			exporter, err = otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(otelAddr), otlptracegrpc.WithInsecure())
 		}
 		if err != nil {
-			util.Logger.InfoI(i18n.FailedInitTelemetryExporter, err.Error())
+			util.Logger.Info(i18n.FailedInitTelemetryExporter, err.Error())
 			return nil, err
 		}
 

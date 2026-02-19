@@ -12,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
-	"sassoftware.io/viya/zlog"
 	"sassoftware.io/viya/arke/api"
 	"sassoftware.io/viya/arke/i18n"
 	"sassoftware.io/viya/arke/internal/metrics"
@@ -52,13 +51,7 @@ func LimitMethods(_ context.Context, c interceptors.CallMeta) bool {
 
 	// This may be helpful in debugging, but is very verbose
 	if os.Getenv("SAS_LOG_DEBUG_LIMIT_METHODS") == "true" && c.FullMethod() != "/grpc.health.v1.Health/Check" {
-		util.Logger.Debug(
-			"Rate limiter checking method name",
-			zlog.P{
-				"method":        c.FullMethod(),
-				"isRateLimited": isRateLimited,
-			},
-		)
+		util.Logger.Debugf("Rate limiter checking method name %s (isRateLimited=%v)", c.FullMethod(), isRateLimited)
 	}
 	return isRateLimited
 }
@@ -105,21 +98,9 @@ func (clm *ClientLimitManager) cullStaleClients() {
 			lastSeconds := int(time.Since(clientLimiter.lastConnectionTime).Seconds())
 			maxSeconds := int(clm.maxAgeStaleClients.Seconds())
 
-			util.Logger.Debug("rate limiter checking for stale clients", zlog.P{
-				"clientIdentifier":   clientID,
-				"lastConnectionTime": clientLimiter.lastConnectionTime,
-				"now":                time.Now(),
-				"lastSeconds":        lastSeconds,
-				"maxSeconds":         maxSeconds,
-			})
+			util.Logger.Debugf("rate limiter checking for stale clients: clientIdentifier: %s, lastConnectionTime: %s, now: %s, lastSeconds: %d, maxSeconds: %d", clientID, clientLimiter.lastConnectionTime, time.Now(), lastSeconds, maxSeconds)
 			if lastSeconds > maxSeconds {
-				util.Logger.DebugI(
-					"rate limiter removing stale client",
-					zlog.P{
-						"clientIdentifier":   clientID,
-						"lastConnectionTime": clientLimiter.lastConnectionTime,
-					},
-				)
+				util.Logger.Debugf("clientIdentifier: %s, lastConnectionTime: %s, rate limiter removing stale client", clientID, clientLimiter.lastConnectionTime)
 				clm.clients.Delete(clientID)
 			}
 		}
@@ -139,7 +120,7 @@ func (clm *ClientLimitManager) Limit(ctx context.Context) error {
 
 	var c *clientLimiter
 	if lim, ok := clm.clients.Get(clientIdentifier); ok {
-		util.Logger.Debug("Rate limiter found client", zlog.P{"clientIdentifier": clientIdentifier, "clientCount": clm.clients.Length()})
+		util.Logger.Debugf("Rate limiter found client: clientIdentifier %s, clientCount %d, ", clientIdentifier, clm.clients.Length())
 		c = lim.(*clientLimiter)
 	} else {
 		c = &clientLimiter{
@@ -171,13 +152,7 @@ func (clm *ClientLimitManager) Limit(ctx context.Context) error {
 		// Is this needed? Or should I just immediately end the span?
 		span.AddEvent("rate limit exceeded")
 
-		util.Logger.Warn(i18n.RateLimitExceeded, zlog.P{
-			"clientIdentifier":  clientIdentifier,
-			"maxEventRateLimit": c.limiter.Limit(),
-			"maxEventRateBurst": c.limiter.Burst(),
-			"availableTokens":   c.limiter.Tokens(),
-			"rateLimitEnforced": clm.enforced,
-		})
+		util.Logger.Warn(i18n.RateLimitExceeded2, clientIdentifier, c.limiter.Limit(), c.limiter.Burst(), c.limiter.Tokens(), clm.enforced)
 		if clm.enforced {
 			return ErrTooManyRequests
 		}

@@ -169,7 +169,7 @@ func (ch *amqp091Channel) ensureChannel() error {
 	if ch.channel.IsClosed() {
 		newCh, err := ch.connection.NewChannel(ch.confirm)
 		if err != nil {
-			util.Logger.DebugI(i18n.EnsureChannelError, ch.connection.clientIdentifier, err)
+			util.Logger.Debug(i18n.EnsureChannelError, ch.connection.clientIdentifier, err)
 			return err
 		}
 		ch.channel = newCh.(*amqp091Channel).channel
