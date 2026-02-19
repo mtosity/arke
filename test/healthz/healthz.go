@@ -8,9 +8,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sassoftware.io/viya/arke/internal/util"
 	"syscall"
 	"time"
+
+	"sassoftware.io/viya/arke/internal/util"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -59,7 +60,11 @@ func main() {
 				return
 			}
 			if status := hlth.GetStatus(); status != nil {
-				fmt.Printf("health for uuid %s is %s\n", status.GetUuid(), status.GetCode())
+				fmt.Printf("health for uuid %s is %s, cpu availability is %v, memory availability is %v\n",
+					status.GetUuid(),
+					status.GetCode(),
+					status.GetCpuAvailability(),
+					status.GetMemoryAvailability())
 			}
 		}
 	}()

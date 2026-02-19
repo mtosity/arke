@@ -265,8 +265,8 @@ Message containing the response to a health check request
 | uuid | [string](#string) |  | UUID of the HealthCheck message being responded to |
 | time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  |  |
 | code | [HealthStatus.Code](#arke-HealthStatus-Code) |  |  |
-| cpu_availability | [float](#float) |  | CPU availability as a ratio (0.0 to 1.0) |
-| memory_availability | [float](#float) |  | Memory availability as a ratio (0.0 to 1.0) |
+| cpu_availability | [float](#float) |  | CPU availability as a ratio (0.0 to 1.0, -1 as unknown) |
+| memory_availability | [float](#float) |  | Memory availability as a ratio (0.0 to 1.0, -1 as unknown) |
 
 
 

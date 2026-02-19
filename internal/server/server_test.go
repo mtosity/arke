@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"runtime"
 	"testing"
 	"time"
 
@@ -1061,13 +1060,9 @@ func TestHealthzServerCheck_CPUHigh(t *testing.T) {
 	}()
 
 	s.GetProcessStats = func() *util.ProcessStats {
-		cpus := runtime.NumCPU()
 		ps := &util.ProcessStats{}
-		ps.MaxMemory = 1000
-		ps.MemoryAverage = 50
-		ps.CurrentMemory = 50
-		ps.CPUUsageAverage = float64(100 * cpus)
-		ps.CurrentCPUUsage = float64(100 * cpus)
+		ps.CPUAvailability = 0.01 // very low CPU availability to trigger unhealthy status
+		ps.MemoryAvailability = 0.99
 		return ps
 	}
 
@@ -1107,11 +1102,8 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 
 	s.GetProcessStats = func() *util.ProcessStats {
 		ps := &util.ProcessStats{}
-		ps.MaxMemory = 1000
-		ps.MemoryAverage = 1000
-		ps.CurrentMemory = 1000
-		ps.CPUUsageAverage = 0
-		ps.CurrentCPUUsage = 0
+		ps.MemoryAvailability = 0.01 // very low memory availability to trigger unhealthy status
+		ps.CPUAvailability = 0.99
 		return ps
 	}
 
@@ -1132,6 +1124,47 @@ func TestHealthzServerCheck_MemoryHigh(t *testing.T) {
 		// Just check that we have a health status message with UNHEALTHY code
 		if status, ok := h.GetResp().(*pb.Health_Status); ok && status != nil && status.Status != nil {
 			return status.Status.Code == pb.HealthStatus_UNHEALTHY
+		}
+		return false
+	})).Return(nil)
+
+	err := hlthSrv.Check(stream)
+	assert.Nil(t, err)
+	stream.AssertExpectations(t)
+	s.GetProcessStats = oldGetProcessStats
+}
+
+func TestHealthzServerCheck_OK(t *testing.T) {
+
+	oldGetProcessStats := s.GetProcessStats
+	defer func() {
+		s.GetProcessStats = oldGetProcessStats
+	}()
+
+	s.GetProcessStats = func() *util.ProcessStats {
+		ps := &util.ProcessStats{}
+		ps.CPUAvailability = 0.99    // very high CPU availability to trigger healthy status
+		ps.MemoryAvailability = 0.99 // very high memory availability to trigger healthy status
+		return ps
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	stream := &MockHealthzCheckServerStream{}
+	stream.On("Context").Return(ctx)
+	uuid := util.GenUUID()
+	hc := &pb.Health_Check{}
+	hc.Check = &pb.HealthCheck{Uuid: uuid}
+	hlth := &pb.Health{Resp: hc}
+	stream.On("Recv").Return(hlth, nil).Once()
+	stream.On("Recv").Return(nil, errors.New("termM")).Once() // send an error to force termination
+
+	// Use mock.MatchedBy to match health status properties - accept any valid health message
+	stream.On("Send", mock.MatchedBy(func(h *pb.Health) bool {
+		// Just check that we have a health status message with OK code
+		if status, ok := h.GetResp().(*pb.Health_Status); ok && status != nil && status.Status != nil {
+			return status.Status.Code == pb.HealthStatus_OK
 		}
 		return false
 	})).Return(nil)

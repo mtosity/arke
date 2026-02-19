@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -820,16 +819,16 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 
 			if check := msg.GetCheck(); check != nil {
 				// client asked for a health check
-				util.Logger.Debugf("healthz check requested for %s with uuid %s", clientAddr, check.GetUuid())
+				util.Logger.Tracef("healthz check requested for %s with uuid %s", clientAddr, check.GetUuid())
 				hlth := &pb.Health{}
 				hs := &pb.Health_Status{}
 				hs.Status = &pb.HealthStatus{}
 				hs.Status.Uuid = check.GetUuid()
 				hs.Status.Code = pb.HealthStatus_OK
+				processStats := GetProcessStats()
 				hs.Status.CpuAvailability = processStats.CPUAvailability
 				hs.Status.MemoryAvailability = processStats.MemoryAvailability
 				hs.Status.Code = pb.HealthStatus_OK
-				processStats := GetProcessStats()
 
 				// if mem usage > 90% or cpu usage has been high for an extended period then report unhealthy
 				cpuAndMemoryHealthSet(processStats, hs)
@@ -881,9 +880,7 @@ func (s *HealthzServer) Check(stream pb.Healthz_CheckServer) error {
 }
 
 func cpuAndMemoryHealthSet(processStats *util.ProcessStats, initialStatus *pb.Health_Status) {
-	if processStats.MaxMemory > 0 && (processStats.MemoryAverage)/float64(processStats.MaxMemory) > 0.9 {
-		initialStatus.Status.Code = pb.HealthStatus_UNHEALTHY
-	} else if processStats.CPUUsageAverage/float64(runtime.NumCPU()) > 90 {
+	if processStats.IsUnhealthyUsage() {
 		initialStatus.Status.Code = pb.HealthStatus_UNHEALTHY
 	}
 }
