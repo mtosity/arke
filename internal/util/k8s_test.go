@@ -106,13 +106,11 @@ func Test_MonitorHPA(t *testing.T) {
 			// Setup test logging
 			healthChan := make(chan pb.HealthStatus_Code, 1)
 
-			// Recreate slog logger with our pipe writer
-			ResetLogger()
-			r, w, _ := os.Pipe()
-			LogOutputFile = w
 			t.Setenv(EnvLogFormat, "json")
 			t.Setenv(EnvLogLevel, "DEBUG")
-			NewArkeLogger()
+
+			logger, cleanupLogger := GetTestLoggerWithCleanup()
+			defer cleanupLogger()
 
 			// Setup test conditions
 			cleanup := tt.setupFunc()
@@ -121,17 +119,12 @@ func Test_MonitorHPA(t *testing.T) {
 			// Run the function
 			MonitorHPA(healthChan, "test-arke")
 
-			// Close writer and read output
-			w.Close()
-
-			outputBuffer := make([]byte, 1024)
-			bytesRead, _ := r.Read(outputBuffer)
-			logMsg := string(outputBuffer[:bytesRead])
+			logMsg := logger.GetOutput()
 			// Validate the log output
-			assert.True(t, strings.Contains(logMsg, tt.expectedMsg))
+			assert.True(t, strings.Contains(string(logMsg), tt.expectedMsg))
 
 			pentry := map[string]interface{}{}
-			err := json.Unmarshal(outputBuffer[:bytesRead], &pentry)
+			err := json.Unmarshal(logMsg, &pentry)
 			assert.NoError(t, err, "Log entry is not valid JSON: %v", err)
 			for _, field := range []string{"level", "caller", "version", "timeStamp", "source", "message"} {
 				_, ok := pentry[field]

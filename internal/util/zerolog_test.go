@@ -71,7 +71,7 @@ func TestLoadAndParseLevel(t *testing.T) {
 	}
 }
 
-func TestCreateLogger(t *testing.T) {
+func TestCreateFileLogger(t *testing.T) {
 	tests := []struct {
 		name      string
 		logLevel  string
@@ -128,7 +128,7 @@ func TestCreateLogger(t *testing.T) {
 			LogOutputFile = w
 
 			// test
-			l := createLogger()
+			l := createFileLogger(LogOutputFile)
 			expLevel, err := zerolog.ParseLevel(tt.logLevel)
 			if err != nil {
 				expLevel = zerolog.InfoLevel

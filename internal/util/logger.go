@@ -1,6 +1,7 @@
 package util
 
 import (
+	"os"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -22,8 +23,12 @@ type ArkeLogger struct {
 }
 
 func NewArkeLogger() *ArkeLogger {
+	return NewArkeFileLogger(LogOutputFile)
+}
+
+func NewArkeFileLogger(file *os.File) *ArkeLogger {
 	loggerSyncOnce.Do(func() {
-		zl := createLogger()
+		zl := createFileLogger(file)
 		// since we call l.logger.Info() in each of the log methods in this file we need to adjust where the caller is reported from
 		// default is 2
 		zerolog.CallerSkipFrameCount = 3

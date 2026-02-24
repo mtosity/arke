@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
@@ -35,25 +34,13 @@ func TestArkeLogger_InfoT(t *testing.T) {
 	for _, tt := range tests {
 		t.Setenv(EnvLogLevel, "info")
 		t.Run(tt.name, func(t *testing.T) {
-			r, w, err := os.Pipe()
-			if err != nil {
-				t.Fatalf("failed to create pipe: %v", err)
-			}
-			defer r.Close()
-			defer w.Close()
+			logger, cleanup := GetTestLoggerWithCleanup()
+			defer cleanup()
 
 			ResetLogger()
-			LogOutputFile = w
 
-			al := NewArkeLogger()
-
-			al.Info(tt.messageID, tt.args...)
-			w.Close()
-
-			output := make([]byte, 1024)
-			n, _ := r.Read(output)
-			r.Close()
-			logOutput := string(output[:n])
+			logger.Info(tt.messageID, tt.args...)
+			logOutput := string(logger.GetOutput())
 			t.Logf("Log Output: %s", logOutput)
 			assert.Contains(t, logOutput, tt.expectedMsg)
 		})
@@ -63,31 +50,18 @@ func TestArkeLogger_InfoT(t *testing.T) {
 func TestArkeLogger_Levels(t *testing.T) {
 	t.Setenv(EnvLogLevel, "trace")
 
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create pipe: %v", err)
-	}
-	defer r.Close()
-	defer w.Close()
+	logger, cleanup := GetTestLoggerWithCleanup()
+	defer cleanup()
 
-	ResetLogger()
-	LogOutputFile = w
+	logger.Trace("trace_message")
+	logger.Tracef("tracef_message: %s", "formatted")
+	logger.Debug("debug_message")
+	logger.Debugf("debugf_message: %s", "formatted")
+	logger.Info("info_message")
+	logger.Warn("warn_message")
+	logger.Error("error_message")
 
-	al := NewArkeLogger()
-
-	al.Trace("trace_message")
-	al.Tracef("tracef_message: %s", "formatted")
-	al.Debug("debug_message")
-	al.Debugf("debugf_message: %s", "formatted")
-	al.Info("info_message")
-	al.Warn("warn_message")
-	al.Error("error_message")
-	w.Close()
-
-	output := make([]byte, 2048)
-	n, _ := r.Read(output)
-	r.Close()
-	logOutput := string(output[:n])
+	logOutput := string(logger.GetOutput())
 	t.Logf("Log Output: %s", logOutput)
 	assert.Contains(t, logOutput, "trace_message")
 	assert.Contains(t, logOutput, "tracef_message: formatted")
@@ -101,25 +75,13 @@ func TestArkeLogger_Levels(t *testing.T) {
 func TestArkeLogger_fields(t *testing.T) {
 	t.Setenv(EnvLogFormat, "json")
 
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create pipe: %v", err)
-	}
-	defer r.Close()
-	defer w.Close()
+	logger, cleanup := GetTestLoggerWithCleanup()
+	defer cleanup()
 
-	ResetLogger()
-	LogOutputFile = w
-
-	al := NewArkeLogger()
-
-	al.Info("hi")
+	logger.Info("hi")
 	expectedLogTime := time.Now()
 
-	output := make([]byte, 2048)
-	n, _ := r.Read(output)
-	r.Close()
-	logOutput := string(output[:n])
+	logOutput := string(logger.GetOutput())
 	t.Logf("Log Output: %s", logOutput)
 
 	data := map[string]interface{}{}
@@ -139,7 +101,6 @@ func TestArkeLogger_fields(t *testing.T) {
 	}
 
 	// make sure zerolog.CallerSkipFrameCount is set properly
-	assert.Contains(t, data["caller"], "util/logger_test.go:116")
+	assert.Contains(t, data["caller"], "util/logger_test.go:81")
 	assert.Equal(t, "hi", data["message"])
-	w.Close()
 }

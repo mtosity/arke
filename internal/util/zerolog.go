@@ -30,11 +30,10 @@ const EnvLogLevel = "LOG_LEVEL"
 const versionKey = "version"
 
 func init() {
-	createLogger()
+	createFileLogger(LogOutputFile)
 }
 
-// createLogger - Create and configure the root zerolog logger instance
-func createLogger() *zerolog.Logger {
+func createFileLogger(file *os.File) *zerolog.Logger {
 	zloggerSyncOnce.Do(func() {
 		level, err := loadAndParseLevel()
 
@@ -43,9 +42,9 @@ func createLogger() *zerolog.Logger {
 		}
 		outputFormat := os.Getenv("LOG_FORMAT")
 		if outputFormat == "term" {
-			logWriter = zerolog.ConsoleWriter{Out: LogOutputFile}
+			logWriter = zerolog.ConsoleWriter{Out: file}
 		} else {
-			logWriter = LogOutputFile
+			logWriter = file
 		}
 
 		// default is time.RFC3339

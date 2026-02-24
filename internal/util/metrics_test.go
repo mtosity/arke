@@ -79,7 +79,6 @@ func Test_IsUnhealthyUsage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			memHistory = NewSafeBuffer(5)
 			cpuMillicoreHistory = NewSafeBuffer(5)
-
 			ps := &ProcessStats{CPUAvailability: tt.cpuAvailability, MemoryAvailability: tt.memoryAvailability}
 
 			result := ps.IsUnhealthyUsage()

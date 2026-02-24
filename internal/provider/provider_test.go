@@ -1,7 +1,6 @@
 package provider_test
 
 import (
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -33,16 +32,22 @@ func TestTestProvider(t *testing.T) {
 }
 
 func TestRegisterFail(t *testing.T) {
-	regOutput := captureOutput(t, func() {
-		p.Register("fail", nil)
-	})
+	t.Setenv(util.EnvLogFormat, "term")
+	t.Setenv(util.EnvLogLevel, "DEBUG")
+	logger, cleanup := util.GetTestLoggerWithCleanup()
+	defer cleanup()
+	p.Register("fail", nil)
+	regOutput := string(logger.GetOutput())
 	assert.Regexp(t, regexp.MustCompile("can not be nil"), regOutput)
 }
 
 func TestRegisterTwice(t *testing.T) {
-	regOutput := captureOutput(t, func() {
-		p.Register("test", NewTestProvider)
-	})
+	t.Setenv(util.EnvLogFormat, "term")
+	t.Setenv(util.EnvLogLevel, "DEBUG")
+	logger, cleanup := util.GetTestLoggerWithCleanup()
+	defer cleanup()
+	p.Register("test", NewTestProvider)
+	regOutput := string(logger.GetOutput())
 	assert.Regexp(t, regexp.MustCompile("already registered"), regOutput)
 }
 
@@ -93,26 +98,6 @@ func TestConcurrentNewProvider(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	providers := p.RegisteredProviders()
 	assert.Equal(t, 54, providers.Length())
-}
-
-func captureOutput(t *testing.T, f func()) string {
-	// Recreate slog logger with our pipe writer
-	util.ResetLogger()
-	r, w, _ := os.Pipe()
-	util.LogOutputFile = w
-	t.Setenv(util.EnvLogFormat, "term")
-	t.Setenv(util.EnvLogLevel, "DEBUG")
-	util.NewArkeLogger()
-
-	f()
-
-	// Close writer and read output
-	w.Close()
-	outputBuffer := make([]byte, 1024)
-	bytesRead, _ := r.Read(outputBuffer)
-	logMsg := string(outputBuffer[:bytesRead])
-
-	return logMsg
 }
 
 /*
