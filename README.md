@@ -1,4 +1,4 @@
-# Arke
+# ![Arke message broker proxy](doc/images/arke_logo.png)
 
 ## Overview
 
@@ -11,7 +11,9 @@ pluggable back-end message brokers. Currently supported: **AMQP 0.9.1** (e.g. Ra
 
 Arke lets your application talk to a single gRPC interface while Arke handles
 the broker-specific protocol on the back end. Swapping or upgrading a message
-broker does not require changes to your application.
+broker does not require changes to your application. This abstraction also gives
+operators centralized control over which broker features are exposed and how they
+are used, without requiring modifications to individual applications.
 
 ```text
 Your Application
@@ -268,6 +270,10 @@ Maintainers are accepting patches and contributions to this project.
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details about submitting contributions to this project.
 
 ---
+
+## Security Policy
+
+Please see our [Security Policy](SECURITY.md) for details.
 
 ## License
 
