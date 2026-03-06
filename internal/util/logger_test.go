@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sassoftware/arke/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sassoftware.io/viya/arke/i18n"
 )
 
 func TestArkeLogger_InfoT(t *testing.T) {
@@ -104,6 +104,6 @@ func TestArkeLogger_fields(t *testing.T) {
 	}
 
 	// make sure zerolog.CallerSkipFrameCount is set properly
-	assert.Contains(t, data["caller"], "util/logger_test.go:81")
+	assert.Contains(t, data["caller"], "util/logger_test.go:84")
 	assert.Equal(t, "hi", data["message"])
 }

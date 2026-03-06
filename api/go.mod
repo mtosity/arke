@@ -1,4 +1,4 @@
-module sassoftware.io/viya/arke/api
+module github.com/sassoftware/arke/api
 
 go 1.25.0
 

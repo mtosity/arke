@@ -10,9 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util"
 
-	pb "sassoftware.io/viya/arke/api"
+	pb "github.com/sassoftware/arke/api"
 )
 
 // Provider interface is for broker providers. For instance, to access

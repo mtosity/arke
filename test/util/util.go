@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sassoftware/arke/internal/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -20,7 +21,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
-	"sassoftware.io/viya/arke/internal/util"
 )
 
 const (

@@ -10,11 +10,12 @@ import (
 	"net/http/pprof"
 	"os"
 	"regexp"
-	"sassoftware.io/viya/arke/internal/metrics"
-	"sassoftware.io/viya/arke/internal/provider"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sassoftware/arke/internal/metrics"
+	"github.com/sassoftware/arke/internal/provider"
 
 	met "github.com/armon/go-metrics"
 	promet "github.com/armon/go-metrics/prometheus"

@@ -23,14 +23,14 @@ import (
 
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
-	"sassoftware.io/viya/arke/internal/util/tracing"
+	"github.com/sassoftware/arke/internal/provider"
+	"github.com/sassoftware/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util/tracing"
 
+	pb "github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/i18n"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/i18n"
 )
 
 const providerName string = "amqp091"

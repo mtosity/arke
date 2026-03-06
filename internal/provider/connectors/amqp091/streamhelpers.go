@@ -14,7 +14,7 @@ import (
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util"
 )
 
 const maxProducers = 100

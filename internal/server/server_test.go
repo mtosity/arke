@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"sassoftware.io/viya/arke/internal/provider"
-	s "sassoftware.io/viya/arke/internal/server"
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/provider"
+	s "github.com/sassoftware/arke/internal/server"
+	"github.com/sassoftware/arke/internal/util"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	pb "github.com/sassoftware/arke/api"
 	"github.com/stretchr/testify/mock"
-	pb "sassoftware.io/viya/arke/api"
-	// mp "sassoftware.io/viya/arke/internal/provider/mock"
+	// mp "github.com/sassoftware/arke/internal/provider/mock"
 )
 
 var ctx context.Context

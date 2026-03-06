@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/sassoftware/arke/i18n"
 	"github.com/stretchr/testify/mock"
-	"sassoftware.io/viya/arke/i18n"
 )
 
 // amqp091ConnectionShim Shim so we can do unit testing

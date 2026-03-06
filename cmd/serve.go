@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"sassoftware.io/viya/arke/internal/util"
-	"sassoftware.io/viya/arke/pkg/arke"
+	"github.com/sassoftware/arke/internal/util"
+	"github.com/sassoftware/arke/pkg/arke"
 
-	"sassoftware.io/viya/arke/i18n"
-	_ "sassoftware.io/viya/arke/internal/provider/connectors"
+	"github.com/sassoftware/arke/i18n"
+	_ "github.com/sassoftware/arke/internal/provider/connectors"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")

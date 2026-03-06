@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/internal/metrics"
-	"sassoftware.io/viya/arke/internal/metrics/prometheus"
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/internal/metrics"
+	"github.com/sassoftware/arke/internal/metrics/prometheus"
+	"github.com/sassoftware/arke/internal/util"
 
 	"google.golang.org/grpc"
 )

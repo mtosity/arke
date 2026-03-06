@@ -20,15 +20,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	pb "github.com/sassoftware/arke/api"
+	cfg "github.com/sassoftware/arke/test/config"
+	mf "github.com/sassoftware/arke/test/messagefunctions"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"gopkg.in/yaml.v2"
-	pb "sassoftware.io/viya/arke/api"
-	cfg "sassoftware.io/viya/arke/test/config"
-	mf "sassoftware.io/viya/arke/test/messagefunctions"
 )
 
 type ComposeFile struct {

@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
+	"github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/i18n"
+	"github.com/sassoftware/arke/internal/metrics"
+	"github.com/sassoftware/arke/internal/metrics/prometheus"
+	"github.com/sassoftware/arke/internal/util"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
-	"sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/i18n"
-	"sassoftware.io/viya/arke/internal/metrics"
-	"sassoftware.io/viya/arke/internal/metrics/prometheus"
-	"sassoftware.io/viya/arke/internal/util"
 )
 
 // ClientLimitManager manages rate limiting for clients.

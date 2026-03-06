@@ -12,16 +12,16 @@ import (
 	"os"
 	"strings"
 
-	"sassoftware.io/viya/arke/internal/util/tracing"
+	"github.com/sassoftware/arke/internal/util/tracing"
 
 	"sync"
 	"time"
 
+	pb "github.com/sassoftware/arke/api"
+	cfg "github.com/sassoftware/arke/test/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	pb "sassoftware.io/viya/arke/api"
-	cfg "sassoftware.io/viya/arke/test/config"
 )
 
 func connectConfig(clientName string) *pb.ConnectionConfiguration {
@@ -59,7 +59,7 @@ func ProduceSendMessages(c pb.ProducerClient, ctx context.Context, cnt int, mess
 
 	defer func() {
 		if _, err := c.Disconnect(ctx, &pb.Empty{}); err != nil {
-			fmt.Printf("Disconnect error: %v\n", err)
+			// fmt.Printf("Disconnect error: %v\n", err)
 		}
 	}()
 
@@ -71,18 +71,18 @@ func ProduceSendMessages(c pb.ProducerClient, ctx context.Context, cnt int, mess
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-	fmt.Printf("Publisher connected - connConfig: %+v\n", &connConfig)
-	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
+	// fmt.Printf("Publisher connected - connConfig: %+v\n", &connConfig)
+	// fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
 
 	stream, err := c.Publish(ctx)
 	if err != nil {
-		fmt.Printf("got an err on publish(): %v", err)
+		// fmt.Printf("got an err on publish(): %v", err)
 		return err
 	}
 	for i := 0; i < cnt; i++ {
 		err = stream.Send(message)
 		if err != nil {
-			fmt.Println(err)
+			// fmt.Println(err)
 			return err
 		}
 		r, err := stream.Recv()
@@ -102,20 +102,20 @@ func ProduceMessagesUnary(conn *grpc.ClientConn, c pb.ProducerClient, ctx contex
 
 	defer func() {
 		if _, err := c.Disconnect(ctx, &pb.Empty{}); err != nil {
-			fmt.Printf("Disconnect error: %v\n", err)
+			// fmt.Printf("Disconnect error: %v\n", err)
 		}
 	}()
 
 	authResp, err := c.Connect(ctx, connConfig)
 	if err != nil {
-		fmt.Printf("error calling pb.ProducerClient.Connect: %v\n", err)
+		// fmt.Printf("error calling pb.ProducerClient.Connect: %v\n", err)
 		return err
 	}
 	if !authResp.GetSuccess() {
 		return errors.New(authResp.GetError().GetMessage())
 	}
-	fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
-	fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
+	// fmt.Printf("Publisher connected - connConfig: %+v\n", connConfig)
+	// fmt.Printf("Publisher connected - authResp: %+v\n", authResp)
 	return ProduceMessagesUnaryWOConnect(conn, c, ctx, cnt, message, producerName, includePubID, clientName)
 }
 
@@ -130,7 +130,7 @@ func ProduceMessagesUnaryWOConnect(conn *grpc.ClientConn, c pb.ProducerClient, c
 		message.Body = []byte(fmt.Sprintf("%d of %d", i, cnt))
 		resp, err := c.PublishOne(ctx, message)
 		if err != nil {
-			fmt.Printf("error calling pb.ProducerClient.PublishOne: %v\n", err)
+			// fmt.Printf("error calling pb.ProducerClient.PublishOne: %v\n", err)
 			return err
 		}
 		if resp != nil && !resp.GetSuccess() {

@@ -1973,9 +1973,9 @@ const file_arke_proto_rawDesc = "" +
 	"\vSourceStats\x12\f.arke.Source\x1a\x11.arke.SourceStats\"\x00\x12@\n" +
 	"\x10SourceStatsGroup\x12\r.arke.Sources\x1a\x1b.arke.SourceStatsCollection\"\x0024\n" +
 	"\aHealthz\x12)\n" +
-	"\x05Check\x12\f.arke.Health\x1a\f.arke.Health\"\x00(\x010\x01B4\n" +
+	"\x05Check\x12\f.arke.Health\x1a\f.arke.Health\"\x00(\x010\x01B7\n" +
 	"\borg.arkeB\n" +
-	"ArkeProtosZ\x1csassoftware.io/viya/arke/apib\x06proto3"
+	"ArkeProtosZ\x1fgithub.com/sassoftware/arke/apib\x06proto3"
 
 var (
 	file_arke_proto_rawDescOnce sync.Once

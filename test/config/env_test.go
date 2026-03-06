@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	pb "github.com/sassoftware/arke/api"
 	"github.com/stretchr/testify/assert"
-	pb "sassoftware.io/viya/arke/api"
 )
 
 func TestGetenv(t *testing.T) {

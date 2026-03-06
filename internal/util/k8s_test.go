@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	pb "github.com/sassoftware/arke/api"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/rest"
-	pb "sassoftware.io/viya/arke/api"
 )
 
 // Test_MonitorHPA currently only tests the logging output for various failure scenarios

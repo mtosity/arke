@@ -14,25 +14,25 @@ import (
 	"strconv"
 	"time"
 
-	metrics "sassoftware.io/viya/arke/internal/metrics/prometheus"
-	"sassoftware.io/viya/arke/internal/server"
-	"sassoftware.io/viya/arke/internal/server/prometheus"
-	"sassoftware.io/viya/arke/internal/server/ratelimiter"
-	"sassoftware.io/viya/arke/internal/util"
-	"sassoftware.io/viya/arke/internal/util/tracing"
+	metrics "github.com/sassoftware/arke/internal/metrics/prometheus"
+	"github.com/sassoftware/arke/internal/server"
+	"github.com/sassoftware/arke/internal/server/prometheus"
+	"github.com/sassoftware/arke/internal/server/ratelimiter"
+	"github.com/sassoftware/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util/tracing"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/ratelimit"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
+	pb "github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/i18n"
+	_ "github.com/sassoftware/arke/internal/provider/connectors" // initializes providers
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	channelzservice "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
-	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/i18n"
-	_ "sassoftware.io/viya/arke/internal/provider/connectors" // initializes providers
 )
 
 type Arke struct {

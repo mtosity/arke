@@ -14,11 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/util"
 
+	pb "github.com/sassoftware/arke/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
-	pb "sassoftware.io/viya/arke/api"
 )
 
 const (

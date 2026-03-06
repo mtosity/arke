@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
+	"github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/internal/util"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc/peer"
-	"sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/internal/util"
 )
 
 func resetRateLimitEnv() {

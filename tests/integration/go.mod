@@ -1,18 +1,19 @@
-module sassoftware.io/viya/arke/tests/integration
+module github.com/sassoftware/arke/tests/integration
 
 go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/sassoftware/arke v1.33.1
+	github.com/sassoftware/arke/api v1.9.0
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.78.0
 	gopkg.in/yaml.v2 v2.4.0
-	sassoftware.io/viya/arke v1.33.1
-	sassoftware.io/viya/arke/api v1.9.0
 )
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
@@ -44,17 +45,17 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.38.0 // indirect
+	go.opentelemetry.io/otel v1.40.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.19.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.19.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.19.0 // indirect
-	go.opentelemetry.io/otel/metric v1.38.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.38.0 // indirect
-	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.opentelemetry.io/otel/metric v1.40.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.40.0 // indirect
+	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
@@ -75,6 +76,6 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace sassoftware.io/viya/arke => ../..
+replace github.com/sassoftware/arke => ../..
 
-replace sassoftware.io/viya/arke/api => ../../api
+replace github.com/sassoftware/arke/api => ../../api

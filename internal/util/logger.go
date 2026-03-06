@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"sassoftware.io/viya/arke/i18n"
+	"github.com/sassoftware/arke/i18n"
 )
 
 var (

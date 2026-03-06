@@ -17,10 +17,10 @@ import (
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/amqp"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/message"
 	"github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
+	pb "github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/internal/util"
 )
 
 type streamConnectionMock struct {

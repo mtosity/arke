@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sassoftware/arke/internal/metrics"
+	"github.com/sassoftware/arke/internal/provider"
+	_ "github.com/sassoftware/arke/internal/provider/connectors"
 	"github.com/stretchr/testify/assert"
-	"sassoftware.io/viya/arke/internal/metrics"
-	"sassoftware.io/viya/arke/internal/provider"
-	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
 func Test_Metrics(t *testing.T) {

@@ -6,8 +6,8 @@ package amqp091
 import (
 	"time"
 
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/provider"
+	"github.com/sassoftware/arke/internal/util"
 )
 
 // every 30 seconds check the list of active connections

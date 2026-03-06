@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	p "sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
+	p "github.com/sassoftware/arke/internal/provider"
+	"github.com/sassoftware/arke/internal/util"
 
+	_ "github.com/sassoftware/arke/internal/provider/connectors"
 	"github.com/stretchr/testify/assert"
-	_ "sassoftware.io/viya/arke/internal/provider/connectors"
 )
 
 func TestNewProvider(t *testing.T) {

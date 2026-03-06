@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	pb "github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/i18n"
 	v1 "k8s.io/api/autoscaling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -16,8 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	pb "sassoftware.io/viya/arke/api"
-	"sassoftware.io/viya/arke/i18n"
 )
 
 var namespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"

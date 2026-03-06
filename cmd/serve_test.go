@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pb "sassoftware.io/viya/arke/api"
+	pb "github.com/sassoftware/arke/api"
 )
 
 func testHealth(port int) error {

@@ -15,14 +15,14 @@ import (
 	"testing"
 	"time"
 
-	"sassoftware.io/viya/arke/internal/provider"
-	"sassoftware.io/viya/arke/internal/util"
+	"github.com/sassoftware/arke/internal/provider"
+	"github.com/sassoftware/arke/internal/util"
 
 	// "github.com/NeowayLabs/wabbit/amqptest/server"
 	amqp "github.com/rabbitmq/amqp091-go"
+	pb "github.com/sassoftware/arke/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	pb "sassoftware.io/viya/arke/api"
 )
 
 var ctx context.Context

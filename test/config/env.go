@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	pb "sassoftware.io/viya/arke/api"
+	pb "github.com/sassoftware/arke/api"
 )
 
 const brokerP = "SAS_BROKER_PASSWORD"
