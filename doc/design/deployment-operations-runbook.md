@@ -165,13 +165,24 @@ spec:
 
 ### 6. Prometheus Scraping
 
-Prometheus metrics are served at `http://<pod-ip>:<PORT>/metrics`. Add a `PodMonitor` or annotate the pod:
+Prometheus metrics are served at `http://<pod-ip>:<PORT>/metrics`. Add a `PodMonitor` for scraping the metrics:
 
 ```yaml
-annotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "50051"
-  prometheus.io/path: "/metrics"
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: arke
+  labels:
+    release: prometheus   # match your Prometheus Operator selector
+spec:
+  selector:
+    matchLabels:
+      app: arke
+  podMetricsEndpoints:
+    - port: arke          # matches the named port in the Pod spec
+      path: /metrics
+      scheme: http
+      enableHttp2: false  # disable http2 because it requires http 1.1
 ```
 
 ---
