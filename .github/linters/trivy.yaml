@@ -1,0 +1,12 @@
+# https://trivy.dev/docs/latest/guide/references/configuration/config-file/
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/aquasecurity/trivy/refs/tags/v0.69.3/schema/trivy-config.json
+
+---
+license:
+  confidenceLevel: 0.8
+
+scanners:
+  - vuln
+  - secret
+  - license
