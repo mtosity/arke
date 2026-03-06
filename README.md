@@ -38,6 +38,7 @@ Your Application
 - [Rate Limiting](#rate-limiting)
 - [Observability](#observability)
 - [Development](#development)
+- [Design Documentation](#design-documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -105,29 +106,7 @@ Arke is configured entirely through environment variables.
 | `CERT_FILE` | *(none)* | Path to the PEM-encoded TLS certificate file. Required together with `CERT_KEY` to enable TLS. |
 | `CERT_KEY` | *(none)* | Path to the PEM-encoded TLS private key file. |
 
-### Rate Limiting Variables
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `RATE_LIMIT_ENFORCED` | `false` | Set to `true` to enforce the rate limit (requests over the limit are rejected). When `false`, violations are logged but allowed. |
-| `RATE_LIMIT_BUCKET_SIZE` | *(disabled)* | Token-bucket capacity per client. Must be a positive integer. |
-| `RATE_LIMIT_REFILL_SECONDS` | *(disabled)* | Interval in seconds at which the bucket refills one token. |
-| `RATE_LIMIT_MAX_AGE_STALE_CLIENTS` | *(disabled)* | Seconds of inactivity before a client's rate-limit state is evicted. |
-
-Rate limiting is disabled unless all three numeric variables are set to valid positive values.
-
-### TLS (Provider Side)
-
-| Variable | Description |
-| --- | --- |
-| `SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE` | Path to a PEM file containing CA certificates trusted for broker connections. |
-
-### Observability Variables
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `localhost:4317` | gRPC endpoint of the OpenTelemetry collector. |
-| `OTEL_SDK_DISABLED` | `false` | Set to `true` to disable OpenTelemetry tracing entirely. |
+> For the complete environment variable reference — including rate limiting, TLS, and observability variables — see the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#environment-variables-reference).
 
 ---
 
@@ -170,49 +149,30 @@ endpoint remain accessible on the same port.
 Pass `tls: true` (and optionally `ca_certificate` bytes) in `ConnectionConfiguration`
 when calling `Connect`. Arke will use the provided CA certificate for verification,
 or fall back to the system trust store if none is provided.
-Set `SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE` to supply additional trusted CA certificates
+Set `TRUSTED_CA_CERTIFICATES_PEM_FILE` to supply additional trusted CA certificates
 globally at the process level.
 
 Use `--tls-skip-verify` to disable certificate verification entirely (not recommended for production).
+
+For Kubernetes TLS secret mount and certificate rotation guidance, see the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#tls-certificates-secret-mount).
 
 ---
 
 ## Rate Limiting
 
-Arke implements a per-client token-bucket rate limiter. The limiter is applied to
-the `Connect`, `Publish`, and `Consume` RPCs.
+Arke implements a per-client token-bucket rate limiter applied to the `Connect`, `Publish`, and `Consume` RPCs. Each client consumes one token per call; the bucket refills on a configurable interval. By default (`RATE_LIMIT_ENFORCED=false`) violations are logged but allowed — set `RATE_LIMIT_ENFORCED=true` to reject over-limit requests with `RESOURCE_EXHAUSTED`.
 
-- Each client starts with a full bucket of `RATE_LIMIT_BUCKET_SIZE` tokens.
-- One token is consumed per RPC call.
-- The bucket refills at the rate of one token per `RATE_LIMIT_REFILL_SECONDS`.
-- Client state is evicted after `RATE_LIMIT_MAX_AGE_STALE_CLIENTS` seconds of inactivity.
-- When `RATE_LIMIT_ENFORCED=true`, clients that exceed the limit receive a `RESOURCE_EXHAUSTED` gRPC status.
-- When `RATE_LIMIT_ENFORCED=false` (default), violations are logged but requests are allowed.
+See the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#rate-limiting) for the full variable reference and tuning guidance.
 
 ---
 
 ## Observability
 
-### Prometheus Metrics
+- **Prometheus metrics** – Available over HTTP on the same port as gRPC via `cmux`. Scrape endpoint: `http://<host>:<port>/metrics`
+- **OpenTelemetry tracing** – Traces exported via OTLP gRPC to `OTEL_EXPORTER_OTLP_ENDPOINT` (default `localhost:4317`). Disable with `OTEL_SDK_DISABLED=true`.
+- **Health check** – Standard `grpc.health.v1.Health` for Kubernetes probes, plus a custom `Healthz` bidirectional stream that reports CPU/memory availability and emits `GOAWAY` signals during HPA scale-up.
 
-Prometheus metrics are available over HTTP on the same port as gRPC (default `50051`).
-Arke uses connection multiplexing (`cmux`) to serve both protocols on a single listener.
-Scrape endpoint: `http://<host>:<port>/metrics`
-
-### OpenTelemetry Tracing
-
-Traces are exported via OTLP gRPC to the endpoint specified by `OTEL_EXPORTER_OTLP_ENDPOINT`
-(default: `localhost:4317`). Each RPC propagates trace context using W3C `traceparent`/`tracestate`
-and B3 (`X-B3-TraceId` / `X-B3-SpanId`) headers.
-
-Disable tracing by setting `OTEL_SDK_DISABLED=true`.
-
-### Health Check
-
-The standard gRPC health protocol (`grpc.health.v1.Health`) is registered on the server
-and can be used by Kubernetes liveness/readiness probes. The custom `Healthz` service
-additionally reports CPU availability, memory availability, and can signal clients to
-reconnect (`GOAWAY`) when the pod is being scaled up. Handling the `GOAWAY` is not mandatory, but should be respected in an environment where Arke is loadbalanced to distribute the load.
+For alert thresholds, key metric names, tracing header formats, and Kubernetes probe configuration see the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#metrics-tracing-and-health).
 
 ---
 
@@ -261,6 +221,20 @@ make lint
 ### Makefile Targets
 
 Run `make help` for a complete list of available targets.
+
+---
+
+## Design Documentation
+
+Detailed design and operational documents live in [`doc/design/`](doc/design/).
+
+| Document | Description |
+| --- | --- |
+| [Architecture Overview](doc/design/architecture-overview.md) | Component map, data-flow diagrams, key design decisions, and repository structure |
+| [Connection and Message Lifecycle](doc/design/connection-message-lifecycle.md) | Detailed session phases, goroutine topology, ack/nack state machine, and GOAWAY flow |
+| [Provider/Connector Interface Contract](doc/design/provider-connector-interface.md) | Interface specification and guide for adding new broker backends |
+| [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md) | Full environment variable reference, Kubernetes deployment checklist, observability setup, and troubleshooting |
+| [Protocol Reference](doc/arke_protocol.md) | Auto-generated reference for all protobuf messages, fields, enums, and gRPC service methods |
 
 ---
 
