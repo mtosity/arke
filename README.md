@@ -41,6 +41,7 @@ Your Application
 - [Design Documentation](#design-documentation)
 - [Contributing](#contributing)
 - [License](#license)
+- [Third-party dependencies](#third-party-dependencies)
 
 ---
 
@@ -252,3 +253,32 @@ Please see our [Security Policy](SECURITY.md) for details.
 ## License
 
 This project is licensed under the [Apache 2.0 License](LICENSE).
+
+---
+
+## Third-party dependencies
+
+| Dependency | License |
+|---|---|
+| `github.com/KimMachineGun/automemlimit` | [LICENSE](https://github.com/KimMachineGun/automemlimit/blob/main/LICENSE) |
+| `github.com/armon/go-metrics` | [LICENSE](https://github.com/armon/go-metrics/blob/master/LICENSE) |
+| `github.com/google/uuid` | [LICENSE](https://github.com/google/uuid/blob/master/LICENSE) |
+| `github.com/grpc-ecosystem/go-grpc-middleware/v2` | [LICENSE](https://github.com/grpc-ecosystem/go-grpc-middleware/blob/main/LICENSE) |
+| `github.com/prometheus/client_golang` | [LICENSE](https://github.com/prometheus/client_golang/blob/main/LICENSE) |
+| `github.com/rabbitmq/amqp091-go` | [LICENSE](https://github.com/rabbitmq/amqp091-go/blob/main/LICENSE) |
+| `github.com/rabbitmq/rabbitmq-stream-go-client` | [LICENSE](https://github.com/rabbitmq/rabbitmq-stream-go-client/blob/main/LICENSE) |
+| `github.com/rs/zerolog` | [LICENSE](https://github.com/rs/zerolog/blob/master/LICENSE) |
+| `github.com/soheilhy/cmux` | [LICENSE](https://github.com/soheilhy/cmux/blob/master/LICENSE) |
+| `github.com/stretchr/testify` | [LICENSE](https://github.com/stretchr/testify/blob/master/LICENSE) |
+| `go.opentelemetry.io/otel` | [LICENSE](https://github.com/open-telemetry/opentelemetry-go/blob/main/LICENSE) |
+| `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc` | [LICENSE](https://github.com/open-telemetry/opentelemetry-go/blob/main/LICENSE) |
+| `go.opentelemetry.io/otel/exporters/stdout/stdouttrace` | [LICENSE](https://github.com/open-telemetry/opentelemetry-go/blob/main/LICENSE) |
+| `go.opentelemetry.io/otel/sdk` | [LICENSE](https://github.com/open-telemetry/opentelemetry-go/blob/main/LICENSE) |
+| `go.opentelemetry.io/otel/trace` | [LICENSE](https://github.com/open-telemetry/opentelemetry-go/blob/main/LICENSE) |
+| `golang.org/x/text` | [LICENSE](https://github.com/golang/text/blob/master/LICENSE) |
+| `golang.org/x/time` | [LICENSE](https://github.com/golang/time/blob/master/LICENSE) |
+| `google.golang.org/grpc` | [LICENSE](https://github.com/grpc/grpc-go/blob/master/LICENSE) |
+| `google.golang.org/protobuf` | [LICENSE](https://github.com/protocolbuffers/protobuf-go/blob/master/LICENSE) |
+| `k8s.io/api` | [LICENSE](https://github.com/kubernetes/api/blob/master/LICENSE) |
+| `k8s.io/apimachinery` | [LICENSE](https://github.com/kubernetes/apimachinery/blob/master/LICENSE) |
+| `k8s.io/client-go` | [LICENSE](https://github.com/kubernetes/client-go/blob/master/LICENSE) |
