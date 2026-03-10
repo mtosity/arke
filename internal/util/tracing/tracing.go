@@ -89,7 +89,7 @@ func InitTracerProvider() (*sdktrace.TracerProvider, error) {
 
 		var exporter sdktrace.SpanExporter
 		var err error
-		if os.Getenv("TELEMETRY_EXPORTER") == "stdout" {
+		if os.Getenv("ARKE_TELEMETRY_EXPORTER") == "stdout" {
 			util.Logger.Debug("Initializing OpenTelemetry exporter to stdout")
 			exporter, err = stdouttrace.New()
 		} else {

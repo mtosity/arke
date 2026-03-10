@@ -208,7 +208,7 @@ func DefaultArkeServer() *Arke {
 
 	setGoMemLimit()
 
-	portEnv := os.Getenv("PORT")
+	portEnv := os.Getenv("ARKE_PORT")
 	if portEnv != "" {
 		var err error
 		a.port, err = strconv.Atoi(portEnv)

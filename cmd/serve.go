@@ -53,13 +53,13 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	certFile := os.Getenv("CERT_FILE")
-	certKey := os.Getenv("CERT_KEY")
+	certFile := os.Getenv("ARKE_CERT_FILE")
+	certKey := os.Getenv("ARKE_CERT_KEY")
 
-	rateLimitEnforced := os.Getenv("RATE_LIMIT_ENFORCED")
-	bsEnv := os.Getenv("RATE_LIMIT_BUCKET_SIZE")
-	maxAgeDuration := os.Getenv("RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
-	refillDuration := os.Getenv("RATE_LIMIT_REFILL_SECONDS")
+	rateLimitEnforced := os.Getenv("ARKE_RATE_LIMIT_ENFORCED")
+	bsEnv := os.Getenv("ARKE_RATE_LIMIT_BUCKET_SIZE")
+	maxAgeDuration := os.Getenv("ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
+	refillDuration := os.Getenv("ARKE_RATE_LIMIT_REFILL_SECONDS")
 
 	rlp, err := arke.GetRateLimitParameters(bsEnv, refillDuration, maxAgeDuration, rateLimitEnforced)
 	if err != nil {

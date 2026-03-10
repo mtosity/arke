@@ -5,6 +5,7 @@ package util
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 	"time"
 
@@ -104,6 +105,7 @@ func TestArkeLogger_fields(t *testing.T) {
 	}
 
 	// make sure zerolog.CallerSkipFrameCount is set properly
-	assert.Contains(t, data["caller"], "util/logger_test.go:84")
+	logMatch := regexp.MustCompile(`util/logger_test.go:\d+`)
+	assert.Regexp(t, logMatch, data["caller"])
 	assert.Equal(t, "hi", data["message"])
 }

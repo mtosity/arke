@@ -41,13 +41,13 @@ func Test_defaultKAEP(t *testing.T) {
 }
 
 func Test_DefaultArkeServerWithPortEnv(t *testing.T) {
-	os.Setenv("PORT", "1234")
+	os.Setenv("ARKE_PORT", "1234")
 	a := DefaultArkeServer()
 	assert.Equal(t, 1234, a.port)
 }
 
 func Test_DefaultArkeServerWithPortEnvWithPortCall(t *testing.T) {
-	os.Setenv("PORT", "1234")
+	os.Setenv("ARKE_PORT", "1234")
 	a := DefaultArkeServer().WithPort(1235)
 	assert.Equal(t, 1235, a.port)
 }

@@ -34,7 +34,7 @@ import (
 )
 
 const providerName string = "amqp091"
-const trustedCerts = "SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE"
+const trustedCerts = "ARKE_TRUSTED_CA_CERTIFICATES_PEM_FILE"
 const streamOffsetHeaderName = "x-current-offset"
 const retryCountHeaderName = "x-retry-count"
 const rabbitReceivedTimeHeaderName = "x-opt-rabbitmq-received-time"

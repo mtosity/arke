@@ -35,7 +35,7 @@ var (
 	registry *prometheus.Registry
 )
 
-const pprofEnv = "PPROF_ENABLED"
+const pprofEnv = "ARKE_PPROF_ENABLED"
 
 func init() {
 	Stats = &stats{}

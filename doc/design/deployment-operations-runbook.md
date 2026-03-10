@@ -14,7 +14,7 @@ A Docker image can be built from:
 FROM rockylinux:9
 COPY build/linux/arke /opt/bin/
 ENV PATH=$PATH:/opt/bin
-ENV PORT=50051
+ENV ARKE_PORT=50051
 CMD [ "arke" ]
 ```
 
@@ -35,9 +35,9 @@ All configuration is provided through environment variables. No config file is r
 
 | Variable | Default | Required | Description |
 | --- | --- | --- | --- |
-| `PORT` | `50051` | No | TCP port for both gRPC and Prometheus HTTP |
-| `CERT_FILE` | *(none)* | Paired with `CERT_KEY` | Path to PEM TLS certificate (enables TLS) |
-| `CERT_KEY` | *(none)* | Paired with `CERT_FILE` | Path to PEM TLS private key |
+| `ARKE_PORT` | `50051` | No | TCP port for both gRPC and Prometheus HTTP |
+| `ARKE_CERT_FILE` | *(none)* | Paired with `ARKE_CERT_KEY` | Path to PEM TLS certificate (enables TLS) |
+| `ARKE_CERT_KEY` | *(none)* | Paired with `ARKE_CERT_FILE` | Path to PEM TLS private key |
 
 ### Rate Limiting
 
@@ -45,16 +45,16 @@ All three numeric variables must be set to valid positive integers for rate limi
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `RATE_LIMIT_BUCKET_SIZE` | *(disabled)* | Token bucket capacity per client |
-| `RATE_LIMIT_REFILL_SECONDS` | *(disabled)* | Seconds between bucket refill events (1 token per interval) |
-| `RATE_LIMIT_MAX_AGE_STALE_CLIENTS` | *(disabled)* | Seconds of inactivity before a client's rate-limit state is evicted |
-| `RATE_LIMIT_ENFORCED` | `false` | `true` = reject over-limit requests with `RESOURCE_EXHAUSTED`; `false` = log only |
+| `ARKE_RATE_LIMIT_BUCKET_SIZE` | *(disabled)* | Token bucket capacity per client |
+| `ARKE_RATE_LIMIT_REFILL_SECONDS` | *(disabled)* | Seconds between bucket refill events (1 token per interval) |
+| `ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS` | *(disabled)* | Seconds of inactivity before a client's rate-limit state is evicted |
+| `ARKE_RATE_LIMIT_ENFORCED` | `false` | `true` = reject over-limit requests with `RESOURCE_EXHAUSTED`; `false` = log only |
 
 ### Backend TLS (Broker Connection)
 
 | Variable | Description |
 | --- | --- |
-| `TRUSTED_CA_CERTIFICATES_PEM_FILE` | PEM file with additional CA certificates trusted when connecting to the broker |
+| `ARKE_TRUSTED_CA_CERTIFICATES_PEM_FILE` | PEM file with additional CA certificates trusted when connecting to the broker |
 
 ### Observability
 
@@ -67,7 +67,7 @@ All three numeric variables must be set to valid positive integers for rate limi
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HPA_NAME` | `arke` | Name of the HorizontalPodAutoscaler Arke monitors for scale-up events. Override with `WithHpaName()` in code or via the environment equivalent if exposed. |
+| `ARKE_HPA_NAME` | `arke` | Name of the HorizontalPodAutoscaler Arke monitors for scale-up events. Override with `WithHpaName()` in code or via the environment equivalent if exposed. |
 
 ---
 
@@ -124,9 +124,9 @@ Alternatively, use `grpc_health_probe` as an exec probe for older Kubernetes ver
 
 ```yaml
 env:
-  - name: CERT_FILE
+  - name: ARKE_CERT_FILE
     value: /etc/arke/tls/tls.crt
-  - name: CERT_KEY
+  - name: ARKE_CERT_KEY
     value: /etc/arke/tls/tls.key
 volumeMounts:
   - name: arke-tls
@@ -146,7 +146,7 @@ Arke broadcasts `GOAWAY` to connected clients when it detects an HPA scale-up. T
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: sas-arke     # must match the HPA_NAME env var (default: "arke")
+  name: arke     # must match the ARKE_HPA_NAME env var (default: "arke")
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -219,7 +219,7 @@ Key metrics to alert on:
 
 | Metric | Alert condition |
 | --- | --- |
-| `grpc_server_handled_total{grpc_code="ResourceExhausted"}` | Rate-limit rejections — tune `RATE_LIMIT_BUCKET_SIZE` / `RATE_LIMIT_REFILL_SECONDS` |
+| `grpc_server_handled_total{grpc_code="ResourceExhausted"}` | Rate-limit rejections — tune `ARKE_RATE_LIMIT_BUCKET_SIZE` / `ARKE_RATE_LIMIT_REFILL_SECONDS` |
 | `grpc_server_handled_total{grpc_code="Unavailable"}` | Broker connectivity issues |
 | `process_resident_memory_bytes` | Approaching container memory limit |
 | `go_goroutines` | Unexpected goroutine growth (leak indicator) |
@@ -269,14 +269,14 @@ Do not run with profiling enabled in production under sustained load — the fil
 
 Rate limiting is enforced. Check current settings:
 
-1. Review `RATE_LIMIT_BUCKET_SIZE`, `RATE_LIMIT_REFILL_SECONDS`, `RATE_LIMIT_ENFORCED`.
-2. If `RATE_LIMIT_ENFORCED=false` (default), violations are logged but not rejected — check logs for rate-limit warnings.
-3. Increase `RATE_LIMIT_BUCKET_SIZE` or decrease `RATE_LIMIT_REFILL_SECONDS` to raise the effective limit.
+1. Review `ARKE_RATE_LIMIT_BUCKET_SIZE`, `ARKE_RATE_LIMIT_REFILL_SECONDS`, `ARKE_RATE_LIMIT_ENFORCED`.
+2. If `ARKE_RATE_LIMIT_ENFORCED=false` (default), violations are logged but not rejected — check logs for rate-limit warnings.
+3. Increase `ARKE_RATE_LIMIT_BUCKET_SIZE` or decrease `ARKE_RATE_LIMIT_REFILL_SECONDS` to raise the effective limit.
 
 ### Clients receive `Unavailable` on Connect
 
 1. Verify the backend broker is reachable from the Arke pod: `kubectl exec <pod> -- nc -zv <broker-host> <broker-port>`.
-2. Check TLS configuration: if the broker requires TLS, ensure `ConnectionConfiguration.Tls = true` and that `SAS_TRUSTED_CA_CERTIFICATES_PEM_FILE` points to the correct CA bundle.
+2. Check TLS configuration: if the broker requires TLS, ensure `ConnectionConfiguration.Tls = true` and that `SAS_ARKE_TRUSTED_CA_CERTIFICATES_PEM_FILE` points to the correct CA bundle.
 3. Check broker credentials in `ConnectionConfiguration.Credentials`.
 
 ### Connections not cleaned up (connectionMap growing)
@@ -285,7 +285,7 @@ The connection watcher runs every 30 seconds. If `prov.ClientExists()` in the br
 
 ### Clients not receiving GOAWAY during scale-up
 
-1. Confirm the HPA name matches `HPA_NAME` (default: `arke`).
+1. Confirm the HPA name matches `ARKE_HPA_NAME` (default: `arke`).
 2. Verify the Arke pod has RBAC permission to read the HPA resource.
 3. Check logs for `"Monitoring Horizontal Pod Autoscaler"` at startup to confirm the goroutine started.
 
@@ -310,6 +310,6 @@ Set the log level in your Kubernetes deployment:
 
 ```yaml
 env:
-  - name: LOG_LEVEL     # or however zerolog is initialized in internal/util/logger.go
+  - name: ARKE_LOG_LEVEL     # or however zerolog is initialized in internal/util/logger.go
     value: "debug"
 ```

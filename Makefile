@@ -129,7 +129,6 @@ test-nogen: ## Executes unit tests without protoc generation
 
 build_test_c:
 	${BUILD_ENV} OTEL_SDK_DISABLED=true go build -coverpkg ${GOPKGS} -cover -o build/$(UNAME_S)/${OUT_FILE}.test ./cmd
-#${BUILD_ENV} OTEL_SDK_DISABLED=true go test -c ./cmd -cover -covermode=count -coverpkg=./... -o build/$(UNAME_S)/${OUT_FILE}.test
 
 pre_stop_test_c:
 	killall -2 arke.test || true
@@ -177,12 +176,11 @@ integration_test: ## Runs integration tests
 
 integration_test_tls: ## Runs integration tests with TLS enabled
 	echo -e "\033[0;31mProvider TLS enabled\033[0m"
-	cd tests/integration ; PROVIDER_TLS=true SAS_BROKER_PORT=5671 go test -timeout 5m -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
+	cd tests/integration ; ARKE_PROVIDER_TLS=true ARKE_BROKER_PORT=5671 go test -timeout 5m -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
 
 integration_test_tls_send_ca: ## Runs integraiton tests with TLS enabled by sending TLS certs
 	echo "\033[0;31mProvider TLS enabled (sending CA cert)\033[0m"
-	cd tests/integration ; PROVIDER_TLS=sendCA SAS_BROKER_PORT=5671 go test -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
-
+	cd tests/integration ; ARKE_PROVIDER_TLS=sendCA ARKE_BROKER_PORT=5671 go test -count=1 -v -cover -coverprofile=int_coverage.out -tags=integration ./
 integration: compose integration_test ## Runs compose and integration_test
 
 integration_all: integration integration_test_tls integration_test_tls_send_ca ## Runs all integration_test* targets.

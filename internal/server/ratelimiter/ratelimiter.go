@@ -53,7 +53,7 @@ func LimitMethods(_ context.Context, c interceptors.CallMeta) bool {
 	isRateLimited := slices.Contains(limitMethods, c.FullMethod())
 
 	// This may be helpful in debugging, but is very verbose
-	if os.Getenv("SAS_LOG_DEBUG_LIMIT_METHODS") == "true" && c.FullMethod() != "/grpc.health.v1.Health/Check" {
+	if os.Getenv("ARKE_LOG_DEBUG_LIMIT_METHODS") == "true" && c.FullMethod() != "/grpc.health.v1.Health/Check" {
 		util.Logger.Debugf("Rate limiter checking method name %s (isRateLimited=%v)", c.FullMethod(), isRateLimited)
 	}
 	return isRateLimited

@@ -100,11 +100,11 @@ Arke is configured entirely through environment variables.
 
 ### Core
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `PORT` | `50051` | TCP port Arke listens on for both gRPC and HTTP (Prometheus). |
-| `CERT_FILE` | *(none)* | Path to the PEM-encoded TLS certificate file. Required together with `CERT_KEY` to enable TLS. |
-| `CERT_KEY` | *(none)* | Path to the PEM-encoded TLS private key file. |
+| Variable    | Default  | Description                                                                                    |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `PORT`      | `50051`  | TCP port Arke listens on for both gRPC and HTTP (Prometheus).                                  |
+| `ARKE_CERT_FILE` | *(none)* | Path to the PEM-encoded TLS certificate file. Required together with `ARKE_CERT_KEY` to enable TLS. |
+| `ARKE_CERT_KEY`  | *(none)* | Path to the PEM-encoded TLS private key file.                                                  |
 
 > For the complete environment variable reference — including rate limiting, TLS, and observability variables — see the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#environment-variables-reference).
 
@@ -117,7 +117,7 @@ Arke is configured entirely through environment variables.
 PORT=50051 ./build/darwin/arke
 
 # With TLS
-CERT_FILE=/path/to/cert.pem CERT_KEY=/path/to/key.pem ./build/darwin/arke
+ARKE_CERT_FILE=/path/to/cert.pem ARKE_CERT_KEY=/path/to/key.pem ./build/darwin/arke
 
 # CPU and heap profiling
 ./build/darwin/arke --cpuprofile cpu.out --memprofile mem.out
@@ -140,7 +140,7 @@ Arke exposes three gRPC services(Producer, Consumer, and Healthz). Please see pr
 
 ### Server (Arke listener)
 
-Set `CERT_FILE` and `CERT_KEY` to enable TLS on the gRPC listener. The listener
+Set `ARKE_CERT_FILE` and `ARKE_CERT_KEY` to enable TLS on the gRPC listener. The listener
 uses `h2` and `http/1.1` ALPN protocols so that both gRPC and the Prometheus HTTP
 endpoint remain accessible on the same port.
 
@@ -149,7 +149,7 @@ endpoint remain accessible on the same port.
 Pass `tls: true` (and optionally `ca_certificate` bytes) in `ConnectionConfiguration`
 when calling `Connect`. Arke will use the provided CA certificate for verification,
 or fall back to the system trust store if none is provided.
-Set `TRUSTED_CA_CERTIFICATES_PEM_FILE` to supply additional trusted CA certificates
+Set `ARKE_TRUSTED_CA_CERTIFICATES_PEM_FILE` to supply additional trusted CA certificates
 globally at the process level.
 
 Use `--tls-skip-verify` to disable certificate verification entirely (not recommended for production).
@@ -160,7 +160,7 @@ For Kubernetes TLS secret mount and certificate rotation guidance, see the [Depl
 
 ## Rate Limiting
 
-Arke implements a per-client token-bucket rate limiter applied to the `Connect`, `Publish`, and `Consume` RPCs. Each client consumes one token per call; the bucket refills on a configurable interval. By default (`RATE_LIMIT_ENFORCED=false`) violations are logged but allowed — set `RATE_LIMIT_ENFORCED=true` to reject over-limit requests with `RESOURCE_EXHAUSTED`.
+Arke implements a per-client token-bucket rate limiter applied to the `Connect`, `Publish`, and `Consume` RPCs. Each client consumes one token per call; the bucket refills on a configurable interval. By default (`ARKE_RATE_LIMIT_ENFORCED=false`) violations are logged but allowed — set `ARKE_RATE_LIMIT_ENFORCED=true` to reject over-limit requests with `RESOURCE_EXHAUSTED`.
 
 See the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#rate-limiting) for the full variable reference and tuning guidance.
 

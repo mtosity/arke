@@ -114,7 +114,7 @@ func GetEnvMap(t *testing.T, composeFile string) map[string]string {
 
 func GetRateLimitValues(t *testing.T, composeFile string) (*RateLimitSettings, error) {
 	vars := GetEnvMap(t, composeFile)
-	enforced, isSet, err := GetMapBool(vars, "RATE_LIMIT_ENFORCED")
+	enforced, isSet, err := GetMapBool(vars, "ARKE_RATE_LIMIT_ENFORCED")
 	if !isSet {
 		return nil, fmt.Errorf("rate limit enforcement not set")
 	}
@@ -122,21 +122,21 @@ func GetRateLimitValues(t *testing.T, composeFile string) (*RateLimitSettings, e
 		return nil, err
 	}
 
-	bktSize, isSet, err := GetMapInt(vars, "RATE_LIMIT_BUCKET_SIZE")
+	bktSize, isSet, err := GetMapInt(vars, "ARKE_RATE_LIMIT_BUCKET_SIZE")
 	if !isSet {
 		return nil, fmt.Errorf("rate limit bucket size not set")
 	}
 	if err != nil {
 		return nil, err
 	}
-	refill, isSet, err := GetMapInt(vars, "RATE_LIMIT_REFILL_SECONDS")
+	refill, isSet, err := GetMapInt(vars, "ARKE_RATE_LIMIT_REFILL_SECONDS")
 	if !isSet {
 		return nil, fmt.Errorf("rate limit refill seconds not set")
 	}
 	if err != nil {
 		return nil, err
 	}
-	maxAge, isSet, err := GetMapInt(vars, "RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
+	maxAge, isSet, err := GetMapInt(vars, "ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
 	if !isSet {
 		return nil, fmt.Errorf("rate limit max age stale clients not set")
 	}
@@ -181,7 +181,7 @@ func connectConfig(clientName string) *pb.ConnectionConfiguration {
 
 	connConfig := cfg.ConnectionConfigurationFromEnv()
 
-	providerTLS := strings.ToLower(os.Getenv("PROVIDER_TLS"))
+	providerTLS := strings.ToLower(os.Getenv("ARKE_PROVIDER_TLS"))
 
 	if providerTLS == "sendca" {
 		cacert, err := os.ReadFile("certs/testca/ca_certificate.pem")
@@ -226,7 +226,7 @@ func consumeMessages(conn *grpc.ClientConn, c pb.ConsumerClient, ctx context.Con
 	stream.SendMsg(m)
 	defer stream.CloseSend()
 
-	if _, ok := os.LookupEnv("SAS_BROKER_TYPE"); ok {
+	if _, ok := os.LookupEnv("ARKE_BROKER_TYPE"); ok {
 		time.Sleep(500 * time.Millisecond)
 	}
 

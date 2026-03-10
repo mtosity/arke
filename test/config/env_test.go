@@ -79,14 +79,14 @@ func TestGetenv(t *testing.T) {
 func TestConnectionConfigurationFromEnv_Defaults(t *testing.T) {
 	// Clean up all broker-related env vars
 	envVars := []string{
-		"SAS_BROKER_HOSTNAME",
-		"SAS_BROKER_PORT",
-		"SAS_BROKER_ADMIN_PORT",
-		"SAS_BROKER_USERNAME",
-		"SAS_BROKER_PASSWORD",
-		"SAS_BROKER_TYPE",
-		"SAS_BROKER_TENANT",
-		"SAS_BROKER_CA_CERTIFICATE",
+		"ARKE_BROKER_HOSTNAME",
+		"ARKE_BROKER_PORT",
+		"ARKE_BROKER_ADMIN_PORT",
+		"ARKE_BROKER_USERNAME",
+		"ARKE_BROKER_PASSWORD",
+		"ARKE_BROKER_TYPE",
+		"ARKE_BROKER_TENANT",
+		"ARKE_BROKER_CA_CERTIFICATE",
 	}
 
 	for _, v := range envVars {
@@ -112,24 +112,24 @@ func TestConnectionConfigurationFromEnv_Defaults(t *testing.T) {
 
 func TestConnectionConfigurationFromEnv_CustomValues(t *testing.T) {
 	// Set custom environment variables
-	os.Setenv("SAS_BROKER_HOSTNAME", "custom-broker.example.com")
-	os.Setenv("SAS_BROKER_PORT", "5671")
-	os.Setenv("SAS_BROKER_ADMIN_PORT", "15672")
-	os.Setenv("SAS_BROKER_USERNAME", "admin")
-	os.Setenv("SAS_BROKER_PASSWORD", "secret123")
-	os.Setenv("SAS_BROKER_TYPE", "amqp10")
-	os.Setenv("SAS_BROKER_TENANT", "/custom-tenant")
-	os.Setenv("SAS_BROKER_CA_CERTIFICATE", "-----BEGIN CERTIFICATE-----")
+	os.Setenv("ARKE_BROKER_HOSTNAME", "custom-broker.example.com")
+	os.Setenv("ARKE_BROKER_PORT", "5671")
+	os.Setenv("ARKE_BROKER_ADMIN_PORT", "15672")
+	os.Setenv("ARKE_BROKER_USERNAME", "admin")
+	os.Setenv("ARKE_BROKER_PASSWORD", "secret123")
+	os.Setenv("ARKE_BROKER_TYPE", "amqp10")
+	os.Setenv("ARKE_BROKER_TENANT", "/custom-tenant")
+	os.Setenv("ARKE_BROKER_CA_CERTIFICATE", "-----BEGIN CERTIFICATE-----")
 
 	defer func() {
-		os.Unsetenv("SAS_BROKER_HOSTNAME")
-		os.Unsetenv("SAS_BROKER_PORT")
-		os.Unsetenv("SAS_BROKER_ADMIN_PORT")
-		os.Unsetenv("SAS_BROKER_USERNAME")
-		os.Unsetenv("SAS_BROKER_PASSWORD")
-		os.Unsetenv("SAS_BROKER_TYPE")
-		os.Unsetenv("SAS_BROKER_TENANT")
-		os.Unsetenv("SAS_BROKER_CA_CERTIFICATE")
+		os.Unsetenv("ARKE_BROKER_HOSTNAME")
+		os.Unsetenv("ARKE_BROKER_PORT")
+		os.Unsetenv("ARKE_BROKER_ADMIN_PORT")
+		os.Unsetenv("ARKE_BROKER_USERNAME")
+		os.Unsetenv("ARKE_BROKER_PASSWORD")
+		os.Unsetenv("ARKE_BROKER_TYPE")
+		os.Unsetenv("ARKE_BROKER_TENANT")
+		os.Unsetenv("ARKE_BROKER_CA_CERTIFICATE")
 	}()
 
 	config := ConnectionConfigurationFromEnv()
@@ -146,14 +146,14 @@ func TestConnectionConfigurationFromEnv_CustomValues(t *testing.T) {
 
 func TestConnectionConfigurationFromEnv_PartialCustomValues(t *testing.T) {
 	// Set only some custom values, others should use defaults
-	os.Setenv("SAS_BROKER_HOSTNAME", "my-broker.local")
-	os.Setenv("SAS_BROKER_USERNAME", "myuser")
-	os.Setenv("SAS_BROKER_TYPE", "rabbitmq")
+	os.Setenv("ARKE_BROKER_HOSTNAME", "my-broker.local")
+	os.Setenv("ARKE_BROKER_USERNAME", "myuser")
+	os.Setenv("ARKE_BROKER_TYPE", "rabbitmq")
 
 	defer func() {
-		os.Unsetenv("SAS_BROKER_HOSTNAME")
-		os.Unsetenv("SAS_BROKER_USERNAME")
-		os.Unsetenv("SAS_BROKER_TYPE")
+		os.Unsetenv("ARKE_BROKER_HOSTNAME")
+		os.Unsetenv("ARKE_BROKER_USERNAME")
+		os.Unsetenv("ARKE_BROKER_TYPE")
 	}()
 
 	config := ConnectionConfigurationFromEnv()
@@ -208,12 +208,12 @@ func TestConnectionConfigurationFromEnv_PortParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SAS_BROKER_PORT", tt.port)
-			os.Setenv("SAS_BROKER_ADMIN_PORT", tt.adminPort)
+			os.Setenv("ARKE_BROKER_PORT", tt.port)
+			os.Setenv("ARKE_BROKER_ADMIN_PORT", tt.adminPort)
 
 			defer func() {
-				os.Unsetenv("SAS_BROKER_PORT")
-				os.Unsetenv("SAS_BROKER_ADMIN_PORT")
+				os.Unsetenv("ARKE_BROKER_PORT")
+				os.Unsetenv("ARKE_BROKER_ADMIN_PORT")
 			}()
 
 			config := ConnectionConfigurationFromEnv()
@@ -225,8 +225,8 @@ func TestConnectionConfigurationFromEnv_PortParsing(t *testing.T) {
 }
 
 func TestConnectionConfigurationFromEnv_CredentialsNotNil(t *testing.T) {
-	os.Unsetenv("SAS_BROKER_USERNAME")
-	os.Unsetenv("SAS_BROKER_PASSWORD")
+	os.Unsetenv("ARKE_BROKER_USERNAME")
+	os.Unsetenv("ARKE_BROKER_PASSWORD")
 
 	config := ConnectionConfigurationFromEnv()
 
@@ -265,8 +265,8 @@ func TestConnectionConfigurationFromEnv_BrokerTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SAS_BROKER_TYPE", tt.brokerType)
-			defer os.Unsetenv("SAS_BROKER_TYPE")
+			os.Setenv("ARKE_BROKER_TYPE", tt.brokerType)
+			defer os.Unsetenv("ARKE_BROKER_TYPE")
 
 			config := ConnectionConfigurationFromEnv()
 
@@ -306,10 +306,10 @@ func TestConnectionConfigurationFromEnv_TenantValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.tenant != "" {
-				os.Setenv("SAS_BROKER_TENANT", tt.tenant)
-				defer os.Unsetenv("SAS_BROKER_TENANT")
+				os.Setenv("ARKE_BROKER_TENANT", tt.tenant)
+				defer os.Unsetenv("ARKE_BROKER_TENANT")
 			} else {
-				os.Unsetenv("SAS_BROKER_TENANT")
+				os.Unsetenv("ARKE_BROKER_TENANT")
 			}
 
 			config := ConnectionConfigurationFromEnv()
@@ -345,10 +345,10 @@ func TestConnectionConfigurationFromEnv_CACertificate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.certificate != "" {
-				os.Setenv("SAS_BROKER_CA_CERTIFICATE", tt.certificate)
-				defer os.Unsetenv("SAS_BROKER_CA_CERTIFICATE")
+				os.Setenv("ARKE_BROKER_CA_CERTIFICATE", tt.certificate)
+				defer os.Unsetenv("ARKE_BROKER_CA_CERTIFICATE")
 			} else {
-				os.Unsetenv("SAS_BROKER_CA_CERTIFICATE")
+				os.Unsetenv("ARKE_BROKER_CA_CERTIFICATE")
 			}
 
 			config := ConnectionConfigurationFromEnv()
@@ -360,18 +360,18 @@ func TestConnectionConfigurationFromEnv_CACertificate(t *testing.T) {
 
 func TestConnectionConfigurationFromEnv_EmptyStringValues(t *testing.T) {
 	// Set all vars to empty strings
-	os.Setenv("SAS_BROKER_HOSTNAME", "")
-	os.Setenv("SAS_BROKER_USERNAME", "")
-	os.Setenv("SAS_BROKER_PASSWORD", "")
-	os.Setenv("SAS_BROKER_TYPE", "")
-	os.Setenv("SAS_BROKER_TENANT", "")
+	os.Setenv("ARKE_BROKER_HOSTNAME", "")
+	os.Setenv("ARKE_BROKER_USERNAME", "")
+	os.Setenv("ARKE_BROKER_PASSWORD", "")
+	os.Setenv("ARKE_BROKER_TYPE", "")
+	os.Setenv("ARKE_BROKER_TENANT", "")
 
 	defer func() {
-		os.Unsetenv("SAS_BROKER_HOSTNAME")
-		os.Unsetenv("SAS_BROKER_USERNAME")
-		os.Unsetenv("SAS_BROKER_PASSWORD")
-		os.Unsetenv("SAS_BROKER_TYPE")
-		os.Unsetenv("SAS_BROKER_TENANT")
+		os.Unsetenv("ARKE_BROKER_HOSTNAME")
+		os.Unsetenv("ARKE_BROKER_USERNAME")
+		os.Unsetenv("ARKE_BROKER_PASSWORD")
+		os.Unsetenv("ARKE_BROKER_TYPE")
+		os.Unsetenv("ARKE_BROKER_TENANT")
 	}()
 
 	config := ConnectionConfigurationFromEnv()
@@ -419,8 +419,8 @@ func TestConnectionConfigurationFromEnv_HostnameVariations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SAS_BROKER_HOSTNAME", tt.hostname)
-			defer os.Unsetenv("SAS_BROKER_HOSTNAME")
+			os.Setenv("ARKE_BROKER_HOSTNAME", tt.hostname)
+			defer os.Unsetenv("ARKE_BROKER_HOSTNAME")
 
 			config := ConnectionConfigurationFromEnv()
 

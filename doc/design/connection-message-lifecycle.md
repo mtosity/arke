@@ -29,7 +29,7 @@ TCP accept
     └── Other     →  grpc.Server
 ```
 
-If `CERT_FILE` and `CERT_KEY` are set, the listener is wrapped in `tls.NewListener` with ALPN protocols `h2` and `http/1.1`, so both gRPC and Prometheus remain reachable on the same TLS port.
+If `ARKE_CERT_FILE` and `ARKE_CERT_KEY` are set, the listener is wrapped in `tls.NewListener` with ALPN protocols `h2` and `http/1.1`, so both gRPC and Prometheus remain reachable on the same TLS port.
 
 gRPC keepalive parameters applied at the server level:
 

@@ -28,8 +28,8 @@ var (
 	logWriter io.Writer
 )
 
-const EnvLogFormat = "LOG_FORMAT"
-const EnvLogLevel = "LOG_LEVEL"
+const EnvLogFormat = "ARKE_LOG_FORMAT"
+const EnvLogLevel = "ARKE_LOG_LEVEL"
 const versionKey = "version"
 
 func init() {
@@ -43,7 +43,7 @@ func createFileLogger(file *os.File) *zerolog.Logger {
 		zerolog.CallerMarshalFunc = func(_ uintptr, file string, line int) string {
 			return filepath.Join(path.Base(path.Dir(file)), path.Base(file)) + ":" + strconv.Itoa(line)
 		}
-		outputFormat := os.Getenv("LOG_FORMAT")
+		outputFormat := os.Getenv(EnvLogFormat)
 		if outputFormat == "term" {
 			logWriter = zerolog.ConsoleWriter{Out: file}
 		} else {
