@@ -321,7 +321,7 @@ func (a *Arke) Serve(ctx context.Context) error {
 	server.RegisterHealthServer(a.server)
 
 	healthChan := make(chan pb.HealthStatus_Code)
-	go util.MonitorHPA(healthChan, "sas-arke")
+	go util.MonitorHPA(healthChan, a.hpaName)
 	go server.MonitorHealthChan(healthChan)
 
 	util.Logger.Debug("Registering reflection service")
