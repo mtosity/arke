@@ -98,7 +98,7 @@ Every connector package must expose a zero-argument factory function and registe
 
 package mybroker
 
-import "sassoftware.io/viya/arke/internal/provider"
+import "github.com/sassoftware/arke/internal/provider"
 
 func init() {
     provider.Register("mybroker", func() provider.Provider {
@@ -117,7 +117,7 @@ A connector is activated by blank-importing its package in the [connectors.go](.
 
 ```go
 import (
-    _ "sassoftware.io/viya/arke/internal/provider/connectors/mybroker"
+    _ "github.com/sassoftware/arke/internal/provider/connectors/mybroker"
 )
 ```
 

@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	pb "github.com/sassoftware/arke/api"
+	"github.com/sassoftware/arke/pkg/arke"
 )
 
 func testHealth(port int) error {
@@ -38,8 +39,8 @@ func TestMonitorProcessStats(t *testing.T) {
 		assert.Nil(t, err)
 		cancel()
 	}()
-	os.Setenv("ARKE_PORT", "50058")
-	defer os.Unsetenv("ARKE_PORT")
+	os.Setenv(arke.EnvPort, "50058")
+	defer os.Unsetenv(arke.EnvPort)
 	err := run(ctx)
 	assert.Nil(t, err)
 }

@@ -22,6 +22,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	EnvRateLimitEnforced    = "ARKE_RATE_LIMIT_ENFORCED"
+	EnvRateLimitBucketSize  = "ARKE_RATE_LIMIT_BUCKET_SIZE"
+	EnvRateLimitMaxAge      = "ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS"
+	EnvRateLimitRefill      = "ARKE_RATE_LIMIT_REFILL_SECONDS"
+	EnvLogDebugLimitMethods = "ARKE_LOG_DEBUG_LIMIT_METHODS"
+)
+
 // ClientLimitManager manages rate limiting for clients.
 type ClientLimitManager struct {
 	// ConcurrentMap of clientLimiters keyed by client identifier
@@ -53,7 +61,7 @@ func LimitMethods(_ context.Context, c interceptors.CallMeta) bool {
 	isRateLimited := slices.Contains(limitMethods, c.FullMethod())
 
 	// This may be helpful in debugging, but is very verbose
-	if os.Getenv("ARKE_LOG_DEBUG_LIMIT_METHODS") == "true" && c.FullMethod() != "/grpc.health.v1.Health/Check" {
+	if os.Getenv(EnvLogDebugLimitMethods) == "true" && c.FullMethod() != "/grpc.health.v1.Health/Check" {
 		util.Logger.Debugf("Rate limiter checking method name %s (isRateLimited=%v)", c.FullMethod(), isRateLimited)
 	}
 	return isRateLimited

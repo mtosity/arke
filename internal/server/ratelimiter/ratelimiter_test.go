@@ -22,11 +22,11 @@ import (
 )
 
 func resetRateLimitEnv() {
-	_ = os.Unsetenv("ARKE_RATE_LIMIT_ENFORCED")
-	_ = os.Unsetenv("ARKE_RATE_LIMIT_BUCKET_SIZE")
-	_ = os.Unsetenv("ARKE_RATE_LIMIT_REFILL_SECONDS")
-	_ = os.Unsetenv("ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
-	os.Setenv("ARKE_LOG_LEVEL", "DEBUG")
+	_ = os.Unsetenv(EnvRateLimitEnforced)
+	_ = os.Unsetenv(EnvRateLimitBucketSize)
+	_ = os.Unsetenv(EnvRateLimitRefill)
+	_ = os.Unsetenv(EnvRateLimitMaxAge)
+	os.Setenv(util.EnvLogLevel, "DEBUG")
 }
 
 func TestInitializeClientLimitManager(t *testing.T) {

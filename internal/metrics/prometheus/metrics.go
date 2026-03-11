@@ -35,7 +35,7 @@ var (
 	registry *prometheus.Registry
 )
 
-const pprofEnv = "ARKE_PPROF_ENABLED"
+const EnvPprofEnabled = "ARKE_PPROF_ENABLED"
 
 func init() {
 	Stats = &stats{}
@@ -70,7 +70,7 @@ func init() {
 }
 
 func pprofEnabled() bool {
-	enabled, err := strconv.ParseBool(os.Getenv(pprofEnv))
+	enabled, err := strconv.ParseBool(os.Getenv(EnvPprofEnabled))
 	if err != nil {
 		enabled = false
 	}

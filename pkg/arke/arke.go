@@ -35,6 +35,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	EnvPort = "ARKE_PORT"
+)
+
 type Arke struct {
 	port           int
 	certFile       string
@@ -208,7 +212,7 @@ func DefaultArkeServer() *Arke {
 
 	setGoMemLimit()
 
-	portEnv := os.Getenv("ARKE_PORT")
+	portEnv := os.Getenv(EnvPort)
 	if portEnv != "" {
 		var err error
 		a.port, err = strconv.Atoi(portEnv)

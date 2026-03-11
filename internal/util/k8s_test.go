@@ -75,9 +75,9 @@ func Test_MonitorHPA(t *testing.T) {
 			expectedMsg:    "Could not configure HPA cluster monitoring: stat",
 			expectNoReturn: true,
 			setupFunc: func() func() {
-				os.Setenv("NAMESPACE", "test-namespace")
+				os.Setenv(EnvK8SNamespace, "test-namespace")
 				return func() {
-					os.Unsetenv("NAMESPACE")
+					os.Unsetenv(EnvK8SNamespace)
 				}
 			},
 		},

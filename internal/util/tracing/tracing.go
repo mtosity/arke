@@ -32,11 +32,15 @@ const (
 	SpanHeaderName    = "X-B3-SpanId"
 	HeaderTraceParent = "traceparent"
 	HeaderTraceState  = "tracestate"
+
+	EnvOtelSdkDisabled          = "OTEL_SDK_DISABLED"
+	EnvTelemetryExporter        = "ARKE_TELEMETRY_EXPORTER"
+	EnvOtelExporterOtlpEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT"
 )
 
 func getTelemetryCollectorAddress() string {
 
-	if addr := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); addr != "" {
+	if addr := os.Getenv(EnvOtelExporterOtlpEndpoint); addr != "" {
 		return addr
 	}
 
@@ -47,7 +51,7 @@ func getTelemetryCollectorAddress() string {
 // https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#general-sdk-configuration
 func getTelemetryEnabled() bool {
 	tracingEnabled = true
-	if e := os.Getenv("OTEL_SDK_DISABLED"); e != "" {
+	if e := os.Getenv(EnvOtelSdkDisabled); e != "" {
 		disabled, err := strconv.ParseBool(e)
 		if err != nil {
 			tracingEnabled = true
@@ -89,7 +93,7 @@ func InitTracerProvider() (*sdktrace.TracerProvider, error) {
 
 		var exporter sdktrace.SpanExporter
 		var err error
-		if os.Getenv("ARKE_TELEMETRY_EXPORTER") == "stdout" {
+		if os.Getenv(EnvTelemetryExporter) == "stdout" {
 			util.Logger.Debug("Initializing OpenTelemetry exporter to stdout")
 			exporter, err = stdouttrace.New()
 		} else {

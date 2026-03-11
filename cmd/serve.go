@@ -12,11 +12,17 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"github.com/sassoftware/arke/internal/server/ratelimiter"
 	"github.com/sassoftware/arke/internal/util"
 	"github.com/sassoftware/arke/pkg/arke"
 
 	"github.com/sassoftware/arke/i18n"
 	_ "github.com/sassoftware/arke/internal/provider/connectors"
+)
+
+const (
+	EnvCertFile = "ARKE_CERT_FILE"
+	EnvCertKey  = "ARKE_CERT_KEY"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
@@ -53,13 +59,13 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	certFile := os.Getenv("ARKE_CERT_FILE")
-	certKey := os.Getenv("ARKE_CERT_KEY")
+	certFile := os.Getenv(EnvCertFile)
+	certKey := os.Getenv(EnvCertKey)
 
-	rateLimitEnforced := os.Getenv("ARKE_RATE_LIMIT_ENFORCED")
-	bsEnv := os.Getenv("ARKE_RATE_LIMIT_BUCKET_SIZE")
-	maxAgeDuration := os.Getenv("ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS")
-	refillDuration := os.Getenv("ARKE_RATE_LIMIT_REFILL_SECONDS")
+	rateLimitEnforced := os.Getenv(ratelimiter.EnvRateLimitEnforced)
+	bsEnv := os.Getenv(ratelimiter.EnvRateLimitBucketSize)
+	maxAgeDuration := os.Getenv(ratelimiter.EnvRateLimitMaxAge)
+	refillDuration := os.Getenv(ratelimiter.EnvRateLimitRefill)
 
 	rlp, err := arke.GetRateLimitParameters(bsEnv, refillDuration, maxAgeDuration, rateLimitEnforced)
 	if err != nil {

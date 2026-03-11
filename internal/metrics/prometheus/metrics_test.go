@@ -132,7 +132,7 @@ func Test_Serve(t *testing.T) {
 }
 
 func Test_ServePprofEnabled(t *testing.T) {
-	os.Setenv(pprofEnv, "true")
+	os.Setenv(EnvPprofEnabled, "true")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

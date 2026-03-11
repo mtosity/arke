@@ -14,27 +14,27 @@ import (
 )
 
 func TestDetectIETF_LC_ALL(t *testing.T) {
-	os.Setenv("LC_ALL", "fr_FR.UTF-8")
+	os.Setenv(EnvLcAll, "fr_FR.UTF-8")
 	result, _ := DetectIETF()
 	assert.Equal(t, result, "fr-FR")
 }
 
 func TestDetectIETF_LANG(t *testing.T) {
-	os.Setenv("LANG", "fr_FR.UTF-8")
+	os.Setenv(EnvLang, "fr_FR.UTF-8")
 	result, _ := DetectIETF()
 	assert.Equal(t, result, "fr-FR")
 }
 
 func TestDetectIETF_Blank(t *testing.T) {
-	os.Setenv("LC_ALL", "")
-	os.Setenv("LANG", "")
+	os.Setenv(EnvLcAll, "")
+	os.Setenv(EnvLang, "")
 	result, _ := DetectIETF()
 	assert.Equal(t, result, "")
 }
 
 func TestStandardInit(t *testing.T) {
-	os.Unsetenv("LANG")
-	os.Unsetenv("LC_ALL")
+	os.Unsetenv(EnvLang)
+	os.Unsetenv(EnvLcAll)
 	locale, _ := DetectIETF()
 	if "" == locale {
 		locale = defaultLanguage
@@ -43,23 +43,23 @@ func TestStandardInit(t *testing.T) {
 }
 
 func TestLangC(t *testing.T) {
-	os.Unsetenv("LC_ALL")
-	os.Setenv("LANG", "C")
+	os.Unsetenv(EnvLcAll)
+	os.Setenv(EnvLang, "C")
 	locale, err := DetectIETF()
 	assert.NotNil(t, err)
 	assert.Equal(t, "", locale)
 
-	os.Setenv("LANG", "C.UTF-8")
-	defer os.Unsetenv("LANG")
+	os.Setenv(EnvLang, "C.UTF-8")
+	defer os.Unsetenv(EnvLang)
 	locale, err = DetectIETF()
 	assert.NotNil(t, err)
 	assert.Equal(t, "", locale)
 }
 
 func TestInvalidLang(t *testing.T) {
-	os.Unsetenv("LC_ALL")
-	os.Setenv("LANG", "invalid")
-	defer os.Unsetenv("LANG")
+	os.Unsetenv(EnvLcAll)
+	os.Setenv(EnvLang, "invalid")
+	defer os.Unsetenv(EnvLang)
 	locale, err := DetectIETF()
 	assert.NotNil(t, err)
 	assert.Equal(t, "", locale)

@@ -26,6 +26,11 @@ import (
 	_ "github.com/sassoftware/arke/internal/provider/connectors"
 )
 
+const (
+	EnvMaxConnectRetries = "MAX_RECONNECT_RETRIES"
+	EnvMaxConnectDelay   = "MAX_RECONNECT_RETRIES"
+)
+
 var GetClientAddr = util.GetClientAddr
 var GetClientIdentifier = util.GetClientIdentifier
 var SetClientIdentifier = util.SetClientIdentifier
@@ -676,8 +681,8 @@ func brokerConnect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipV
 	}
 	var errMsg *pb.Error
 	var err error
-	maxRetries := util.GetConfig("MAX_RECONNECT_RETRIES", 5)
-	maxSleep := util.GetConfig("MAX_RECONNECT_DELAY", 5000) // Default 5s
+	maxRetries := util.GetConfig(EnvMaxConnectRetries, 5)
+	maxSleep := util.GetConfig(EnvMaxConnectDelay, 5000) // Default 5s
 	for connectTry := 1; connectTry <= maxRetries.(int); connectTry++ {
 		errMsg = prov.Connect(ctx, cf, tlsSkipVerify)
 		if errMsg == nil || errMsg.GetMessage() == "" {

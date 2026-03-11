@@ -20,6 +20,10 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+const (
+	EnvK8SNamespace = "NAMESPACE"
+)
+
 var namespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 var inClusterConfig = rest.InClusterConfig
 
@@ -30,7 +34,7 @@ func MonitorHPA(healthChan chan pb.HealthStatus_Code, arkeHpaName string) {
 	var namespace string
 	data, err := os.ReadFile(namespaceFile)
 	if err != nil {
-		namespace = os.Getenv("NAMESPACE")
+		namespace = os.Getenv(EnvK8SNamespace)
 	} else {
 		namespace = string(data)
 	}

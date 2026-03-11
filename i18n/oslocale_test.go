@@ -35,21 +35,21 @@ func TestArgsInit(t *testing.T) {
 			expected: "zh",
 		},
 		{
-			name:     "LANG",
+			name:     EnvLang,
 			Lang:     "en-US",
 			LcAll:    "",
 			args:     []string{"a"},
 			expected: "en-US",
 		},
 		{
-			name:     "LC_ALL",
+			name:     EnvLcAll,
 			Lang:     "",
 			LcAll:    "de-DE",
 			args:     []string{"a"},
 			expected: "de-DE",
 		},
 		{
-			name:     "LC_ALL priority",
+			name:     EnvLcAll + " priority",
 			Lang:     "zh-Hans",
 			LcAll:    "de-DE",
 			args:     []string{"a"},
@@ -57,15 +57,15 @@ func TestArgsInit(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		oldLang := os.Getenv("LANG")
-		oldLCAll := os.Getenv("LC_ALL")
+		oldLang := os.Getenv(EnvLang)
+		oldLCAll := os.Getenv(EnvLcAll)
 		defer func() {
-			os.Setenv("LANG", oldLang)
-			os.Setenv("LC_ALL", oldLCAll)
+			os.Setenv(EnvLang, oldLang)
+			os.Setenv(EnvLcAll, oldLCAll)
 		}()
 		t.Run(c.name, func(t *testing.T) {
-			os.Setenv("LANG", c.Lang)
-			os.Setenv("LC_ALL", c.LcAll)
+			os.Setenv(EnvLang, c.Lang)
+			os.Setenv(EnvLcAll, c.LcAll)
 			os.Args = c.args
 			l10Messages = nil
 			SystemLocale = ""

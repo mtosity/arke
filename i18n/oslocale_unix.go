@@ -15,10 +15,15 @@ import (
 	loc "golang.org/x/text/language"
 )
 
+const (
+	EnvLcAll = "Lc_ALL"
+	EnvLang  = "LANG"
+)
+
 func getLangFromEnv() (locale string) {
-	locale = os.Getenv("LC_ALL")
+	locale = os.Getenv(EnvLcAll)
 	if locale == "" {
-		locale = os.Getenv("LANG")
+		locale = os.Getenv(EnvLang)
 	}
 	return
 }
