@@ -117,11 +117,11 @@ Arke is configured entirely through environment variables.
 ### Core
 
 <!-- markdownlint-disable MD013 -->
-| Variable    | Default  | Description                                                                                    |
-| ----------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `PORT`      | `50051`  | TCP port Arke listens on for both gRPC and HTTP (Prometheus).                                  |
-| `ARKE_CERT_FILE` | *(none)* | Path to the PEM-encoded TLS certificate file. Required together with `ARKE_CERT_KEY` to enable TLS. |
-| `ARKE_CERT_KEY`  | *(none)* | Path to the PEM-encoded TLS private key file.                                                  |
+| Variable         | Default  | Description                                                                                         |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `ARKE_PORT`      | `50051`  | TCP port Arke listens on for both gRPC and HTTP (Prometheus).                                       |
+| `ARKE_CERT_FILE` | _(none)_ | Path to the PEM-encoded TLS certificate file. Required together with `ARKE_CERT_KEY` to enable TLS. |
+| `ARKE_CERT_KEY`  | _(none)_ | Path to the PEM-encoded TLS private key file.                                                       |
 
 > For the complete environment variable reference — including rate limiting, TLS, and observability variables — see the [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md#environment-variables-reference).
 <!-- markdownlint-enable MD013 -->
@@ -133,7 +133,7 @@ Arke is configured entirely through environment variables.
 <!-- markdownlint-disable MD013 -->
 ```bash
 # Minimal – plain TCP, no TLS, no rate limiting
-PORT=50051 ./build/darwin/arke
+ARKE_PORT=50051 ./build/darwin/arke
 
 # With TLS
 ARKE_CERT_FILE=/path/to/cert.pem ARKE_CERT_KEY=/path/to/key.pem ./build/darwin/arke

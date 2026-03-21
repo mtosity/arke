@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	EnvLcAll = "Lc_ALL"
+	EnvLcAll = "LC_ALL"
 	EnvLang  = "LANG"
 )
 
