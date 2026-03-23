@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -40,6 +41,52 @@ func TestMonitorProcessStats(t *testing.T) {
 	}()
 	os.Setenv(arke.EnvPort, "50058")
 	defer os.Unsetenv(arke.EnvPort)
-	err := run(ctx)
+	run(ctx)
+}
+
+func TestRunWithCPUAndMemProfile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cpuFile, err := os.CreateTemp(tmpDir, "cpuprofile-*.prof")
 	assert.Nil(t, err)
+	cpuFile.Close()
+
+	memFile, err := os.CreateTemp(tmpDir, "memprofile-*.prof")
+	assert.Nil(t, err)
+	memFile.Close()
+
+	*cpuprofile = cpuFile.Name()
+	*memprofile = memFile.Name()
+	defer func() {
+		*cpuprofile = ""
+		*memprofile = ""
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		err := testHealth(50061)
+		assert.Nil(t, err)
+		cancel()
+	}()
+	os.Setenv(arke.EnvPort, "50061")
+	defer os.Unsetenv(arke.EnvPort)
+
+	run(ctx)
+
+	cpuInfo, err := os.Stat(cpuFile.Name())
+	assert.Nil(t, err)
+	assert.Greater(t, cpuInfo.Size(), int64(0))
+
+	memInfo, err := os.Stat(memFile.Name())
+	assert.Nil(t, err)
+	assert.Greater(t, memInfo.Size(), int64(0))
+}
+
+func TestCheckErr(t *testing.T) {
+	isFatal := checkErr(fmt.Errorf("some error"))
+	assert.True(t, isFatal)
+
+	isFatal = checkErr(&net.OpError{})
+	assert.False(t, isFatal)
 }
