@@ -430,8 +430,10 @@ func (prov *amqp091provider) DeadLetter(ctx context.Context, _ *pb.Source, msgid
 func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfiguration, tlsSkipVerify bool) *pb.Error {
 	clientIdentifier, err := GetClientIdentifier(ctx)
 	if err != nil {
+		util.Logger.Debug("could not get client identifier from context during connect")
 		return &pb.Error{Message: err.Error()}
 	}
+	util.Logger.Debugf("Connecting client [%s] to broker [%s:%d]", clientIdentifier, cf.GetHost(), cf.GetPort())
 
 	activeMessages := util.NewConcurrentMap()
 	pubChCtx := context.WithValue(context.Background(), CtxKey{name: "clientIdentifier"}, clientIdentifier)
