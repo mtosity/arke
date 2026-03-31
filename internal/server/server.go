@@ -122,7 +122,6 @@ func (s *ProducerServer) Connect(ctx context.Context, cf *pb.ConnectionConfigura
 // Connect see (ProducerServer).Connect
 func (s *ConsumerServer) Connect(ctx context.Context, cf *pb.ConnectionConfiguration) (*pb.ConnectResponse, error) {
 	resp, err := brokerConnect(ctx, cf, s.TLSSkipVerify)
-	util.Logger.Debugf("ConsumerServer Connect response: %v, error: %v", resp, err)
 	return resp, err
 }
 
