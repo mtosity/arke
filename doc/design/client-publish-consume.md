@@ -41,6 +41,9 @@ Arke keeps broker connection state per gRPC client connection.
 - Keep the connection open for the lifetime of the producer or consumer session.
 - Call `Disconnect` when shutting down cleanly.
 
+If a client is both publishing and consuming, only one connection to arke is
+required.
+
 ---
 
 ## End-to-End Flow
@@ -48,7 +51,7 @@ Arke keeps broker connection state per gRPC client connection.
 ### Produce
 
 ```text
-grpc.Dial(arke)
+grpc.NewClient(arke, creds)
    │
    ├── Producer.Connect(ConnectionConfiguration)
    │
@@ -62,7 +65,7 @@ grpc.Dial(arke)
 ### Consume
 
 ```text
-grpc.Dial(arke)
+grpc.NewClient(arke, creds)
    │
    ├── Consumer.Connect(ConnectionConfiguration)
    │
@@ -128,14 +131,13 @@ Important fields:
 
 | Field            | Required    | Meaning                                                      |
 | ---------------- | ----------- | ------------------------------------------------------------ |
-| `host`           | yes         | Broker hostname or IP                                        |
-| `port`           | yes         | Broker port                                                  |
-| `provider`       | yes         | Broker provider type, currently `amqp091`                    |
-| `credentials`    | usually     | Broker username/password                                     |
-| `tls`            | optional    | Enables TLS on the broker connection                         |
-| `ca_certificate` | optional    | PEM CA bytes used to verify the broker certificate           |
-| `client_name`    | recommended | Human-meaningful name used in the client identifier          |
-| `admin_port`     | optional    | Provider-specific admin port used for some broker operations |
+| `Host`           | yes         | Broker hostname or IP                                        |
+| `Port`           | yes         | Broker port                                                  |
+| `Provider`       | yes         | Broker provider type, currently `amqp091`                    |
+| `Credentials`    | usually     | Broker username/password                                     |
+| `Tls`            | optional    | Enables TLS on the broker connection                         |
+| `ClientName`     | recommended | Human-meaningful name used in the client identifier          |
+| `AdminPort`      | optional    | Provider-specific admin port used for some broker operations |
 
 For a producer:
 
@@ -159,16 +161,17 @@ For a consumer, the call is the same but made through `pb.NewConsumerClient`.
 connection to Arke.
 
 - Use gRPC transport credentials to secure the application-to-Arke hop.
-- Use `ConnectionConfiguration.Tls` and `CaCertificate` to secure the
-  Arke-to-broker hop.
+- Use `ConnectionConfiguration.Tls`  to secure the Arke-to-broker hop. Keys and
+  certificates can be specified by [environment variables](doc/design/deployment-operations-runbook.md#environment-variables-reference).
 
 ---
 
 ## Step 3: Consume, Process, and Ack Messages
 
-It is important that a consumer start consuming before a publisher publishes. The
-consumer will automatically create the source if it doesn't exist, but the
-publisher will fail if the source doesn't exist.
+The consumer will automatically create the source if it doesn't exist, therefore
+it is important that a consumer start consuming before a publisher publishes. If
+a publisher will fail if publishing to a stream that doesn't exist. If publishing
+to a queue, the message will go the exchange, but no queue will receive the message.
 
 `Consumer.Consume` is a bidirectional stream with two client message types:
 
@@ -230,13 +233,15 @@ Each delivery arrives as `ConsumeResponse{Msg: Message}`.
 
 Key fields on the delivered `Message`:
 
-| Field     | Meaning                                             |
-| --------- | --------------------------------------------------- |
-| `uuid`    | Arke-generated message identifier used for Ack/Nack |
-| `headers` | Broker/application headers                          |
-| `body`    | Message payload                                     |
-| `address` | Address associated with the delivery                |
-| `error`   | Error information if the delivery itself failed     |
+| Field       | Meaning                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| `Uuid`      | Arke-generated message identifier used for Ack/Nack                  |
+| `Headers`   | Broker/application headers                                           |
+| `Body`      | Message payload                                                      |
+| `Address`   | Address associated with the delivery                                 |
+| `Error`     | Error information if the delivery itself failed                      |
+| `Confirm`   | Whether or not publication confirmation is required                  |
+| `PublishId` | Unique, sequential identifier required for streams for deduplication |
 
 Typical receive loop:
 
