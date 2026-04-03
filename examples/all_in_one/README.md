@@ -9,5 +9,5 @@ are already running.
 Run the example from this directory with:
 
 ```sh
-go run .
+go run -tags=example .
 ```

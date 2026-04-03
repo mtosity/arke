@@ -1,3 +1,5 @@
+//go:build example
+
 package main
 
 import (
@@ -61,18 +63,23 @@ func main() {
 		!resp.GetSuccess() {
 		log.Fatalf("producer connect failed: %v %v", err, resp.GetError())
 	}
-	defer producer.Disconnect(ctx, &pb.Empty{})
+	defer func() {
+		_, _ = producer.Disconnect(ctx, &pb.Empty{})
+	}()
 
 	if resp, err := consumer.Connect(ctx, consumerCfg); err != nil ||
 		!resp.GetSuccess() {
 		log.Fatalf("consumer connect failed: %v %v", err, resp.GetError())
 	}
-	defer consumer.Disconnect(ctx, &pb.Empty{})
+	defer func() {
+		_, _ = consumer.Disconnect(ctx, &pb.Empty{})
+	}()
 
 	// Get a stream for consuming messages
 	consumeStream, err := consumer.Consume(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("exiting because consume failed: %v", err)
+		return
 	}
 
 	source := &pb.Source{
