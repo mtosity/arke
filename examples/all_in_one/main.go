@@ -36,22 +36,11 @@ func main() {
 	producer := pb.NewProducerClient(conn)
 	consumer := pb.NewConsumerClient(conn)
 
-	producerCfg := &pb.ConnectionConfiguration{
+	connCfg := &pb.ConnectionConfiguration{
 		Host:       "rabbitmq",
 		Port:       5672,
 		Provider:   "amqp091",
-		ClientName: "example-producer",
-		Credentials: &pb.Credentials{
-			Username: "guest",
-			Password: "guest",
-		},
-	}
-
-	consumerCfg := &pb.ConnectionConfiguration{
-		Host:       "rabbitmq",
-		Port:       5672,
-		Provider:   "amqp091",
-		ClientName: "example-consumer",
+		ClientName: "example-all-in-one",
 		Credentials: &pb.Credentials{
 			Username: "guest",
 			Password: "guest",
@@ -59,20 +48,12 @@ func main() {
 	}
 
 	// Connect producer and consumer
-	if resp, err := producer.Connect(ctx, producerCfg); err != nil ||
+	if resp, err := producer.Connect(ctx, connCfg); err != nil ||
 		!resp.GetSuccess() {
 		log.Fatalf("producer connect failed: %v %v", err, resp.GetError())
 	}
 	defer func() {
 		_, _ = producer.Disconnect(ctx, &pb.Empty{})
-	}()
-
-	if resp, err := consumer.Connect(ctx, consumerCfg); err != nil ||
-		!resp.GetSuccess() {
-		log.Fatalf("consumer connect failed: %v %v", err, resp.GetError())
-	}
-	defer func() {
-		_, _ = consumer.Disconnect(ctx, &pb.Empty{})
 	}()
 
 	// Get a stream for consuming messages
@@ -91,10 +72,6 @@ func main() {
 		},
 		Type:          pb.Source_QUEUE,
 		PrefetchCount: 5,
-		Options: map[string]string{
-			"DeadLetterAddress": "orders.dlx",
-			"DeadLetterSubject": "orders.failed",
-		},
 	}
 
 	// Send the source to create the exchange/queue/bindings and start consuming messages.
@@ -136,6 +113,9 @@ func main() {
 		}
 	}()
 
+	// ensure queue is created before publishing
+	time.Sleep(1 * time.Second)
+
 	// After consuming is set up, publish a message to the exchange.
 	pubResp, err := producer.PublishOne(ctx, &pb.Message{
 		Body:       []byte(`{"id":"12345"}`),
@@ -150,7 +130,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !pubResp.GetSuccess() {
+
+	if pubResp.GetSuccess() {
+		log.Println("message published successfully")
+	} else {
 		log.Fatalf("publish failed: %s", pubResp.GetError().GetMessage())
 	}
 
