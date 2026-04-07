@@ -214,3 +214,56 @@ func Test_BlockingPoolGetFromClosedChannelWhileWaiting(t *testing.T) {
 		t.Fatal("Should have returned nil after channel closed")
 	}
 }
+
+func Test_BlockingPoolValidateRejectsOnPut(t *testing.T) {
+	// A stale item returned via Put must be retired; the pool count must drop
+	// so that the next Get allocates a fresh item instead of blocking.
+	pool := NewBlockingPool(context.Background(), 1, func() any { return &Obj{val: 1} })
+
+	o := pool.Get().(*Obj)
+	assert.NotNil(t, o)
+
+	// Mark as stale via the validator.
+	o.val = -1
+	pool.Validate = func(item any) bool {
+		return item.(*Obj).val >= 0
+	}
+
+	err := pool.Put(o)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed validation")
+
+	// Count was decremented, so Get must succeed without blocking by creating
+	// a fresh item.
+	done := make(chan any, 1)
+	go func() { done <- pool.Get() }()
+	select {
+	case fresh := <-done:
+		assert.NotNil(t, fresh)
+		assert.Equal(t, 1, fresh.(*Obj).val, "should be a fresh item from constructor")
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Get blocked after stale Put; count not decremented correctly")
+	}
+}
+
+func Test_BlockingPoolValidateSkipsOnGet(t *testing.T) {
+	// Items that go stale while idle in the pool must be skipped on Get and a
+	// fresh item returned instead.
+	pool := NewBlockingPool(context.Background(), 2, func() any { return &Obj{val: 1} })
+
+	o1 := pool.Get().(*Obj)
+	o2 := pool.Get().(*Obj)
+	o1.val = -1 // stale
+	o2.val = 42 // still good
+
+	_ = pool.Put(o1) // stale, goes into pool first
+	_ = pool.Put(o2) // good
+
+	pool.Validate = func(item any) bool {
+		return item.(*Obj).val >= 0
+	}
+
+	result := pool.Get().(*Obj)
+	// o1 must have been skipped; result is either o2 or a fresh constructor item.
+	assert.True(t, result.val >= 0, "Get must not return a stale item")
+}
