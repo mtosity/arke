@@ -462,11 +462,17 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 		return &newChan
 	}
 
+	validateChannel := func(item any) bool {
+		ch, ok := item.(*amqp091ChannelShim)
+		return ok && ch != nil && !(*ch).IsClosed()
+	}
+
 	bd.pubChannels = util.NewBlockingPool(
 		pubChCtx,
 		maxPubChannels,
 		newPubChannel,
 	)
+	bd.pubChannels.Validate = validateChannel
 
 	newPubPCChannel := func() any {
 		newChan, _ := bd.Connection.NewChannel(true)
@@ -481,6 +487,7 @@ func (prov *amqp091provider) Connect(ctx context.Context, cf *pb.ConnectionConfi
 		maxPubPCChannels,
 		newPubPCChannel,
 	)
+	bd.pubPCChannels.Validate = validateChannel
 
 	_, bdErr := bd.connect()
 	if bdErr != nil {
@@ -1792,29 +1799,35 @@ func (bd *BrokerDetails) connectionWatcher() {
 	}
 }
 
+// waitWhileConnecting waits up to 30 seconds for an in-progress connection attempt to resolve.
+// It returns the resulting state: CONNECTED, CLOSED, or DISCONNECTED (also used for timeouts).
+func (bd *BrokerDetails) waitWhileConnecting() uint16 {
+	for start := time.Now(); time.Since(start) < 30*time.Second; {
+		switch bd.state {
+		case provider.CONNECTED:
+			return provider.CONNECTED
+		case provider.CONNECTING:
+			time.Sleep(100 * time.Millisecond)
+		case provider.CLOSED:
+			return provider.CLOSED
+		case provider.DISCONNECTED:
+			return provider.DISCONNECTED
+		}
+	}
+	return provider.DISCONNECTED
+}
+
 func (bd *BrokerDetails) connect() (bool, error) {
 	if bd.clientDisconnect {
 		return false, nil
 	}
 
 	if bd.state == provider.CONNECTING {
-		for start := time.Now(); time.Since(start) < 30*time.Second; {
-			breakLoop := false
-			switch bd.state {
-			case provider.CONNECTED:
-				return true, nil
-			case provider.CONNECTING:
-				time.Sleep(100 * time.Millisecond)
-				continue
-			case provider.CLOSED:
-				return false, nil
-			case provider.DISCONNECTED:
-				breakLoop = true
-			}
-
-			if breakLoop {
-				break
-			}
+		switch bd.waitWhileConnecting() {
+		case provider.CONNECTED:
+			return true, nil
+		case provider.CLOSED:
+			return false, nil
 		}
 	}
 
