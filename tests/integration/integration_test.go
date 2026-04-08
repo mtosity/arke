@@ -1264,6 +1264,67 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestGetPublishRate(t *testing.T) {
+	msgsPerInterval := 103
+
+	producerConnection := connect()
+	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+
+	messages := make(chan *pb.Message)
+
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.GPR")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_QUEUE}
+	source := &pb.Source{Name: "sas.test.proxy.GPR.Consumer", Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+
+	// in order to generate a publish rate, the publishes must be spread out over sample intervals
+	// which by default is 5s. The sample range and interval are set in the compose file as
+	// ARKE_PUBLISH_RATE_SAMPLE*
+	sampleInterval := 5 // how far apart are the samples we request from broker
+	intervals := 6      // how many samples to get
+	totalMsgsPublished := 0
+
+	t.Logf("Publishing %d messages every %d seconds for %d intervals", msgsPerInterval, sampleInterval, intervals)
+	for i := range intervals {
+		totalMsgsPublished += msgsPerInterval
+		err := mf.ProduceSendMessages(pctx, pc, msgsPerInterval, message, t.Name())
+		// err := mf.ProduceMessagesUnary(pctx, pc, msgsPerInterval, message, false, t.Name())
+		assert.Nil(t, err, "should not get an error producing messages: %v", err)
+		t.Logf("interval %d: published %d messages", i+1, totalMsgsPublished)
+		time.Sleep(time.Duration(sampleInterval) * time.Second)
+	}
+
+	time.Sleep(5 * time.Second)
+	stats, err := c.SourceStats(ctx, source)
+	assert.Nil(t, err, "should not get an error from source stats: %+v", err)
+	assert.NotNil(t, stats, "should have gotten source stats back")
+	t.Logf("Source stats: %+v", stats)
+	assert.Greater(t, stats.GetPublishRate(), float32(0), "publish rate should be greater than 0")
+
+	// estimated publish rate should be about msgsPerInterval/sampleInterval, but allow for
+	// some variance
+	estimatedPublishRate := msgsPerInterval / sampleInterval
+	allowableVariance := 0.2 * float64(estimatedPublishRate)
+	assert.InDelta(t, estimatedPublishRate, float64(stats.GetPublishRate()), allowableVariance, "publish rate should be within expected range")
+}
+
 func TestProduceManyConsumeMany(t *testing.T) {
 	composeFile := "docker-compose.yml"
 	rlSettings, err := GetRateLimitValues(t, composeFile)

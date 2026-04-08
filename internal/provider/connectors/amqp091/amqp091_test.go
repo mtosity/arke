@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -2389,13 +2390,13 @@ func mockManagementRequestServer() *httptest.Server {
 			switch r.URL.Path {
 			case "/api/queues/tenant/sourceQueue.quorum":
 				status = http.StatusOK
-				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum"}`)
+				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum", "message_stats": {"publish_details": {"rate": 1.5	}}}`)
 			case "/api/queues/tenant/sourceStream":
 				status = http.StatusOK
 				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
 			case "/api/queues/tenant/sourceStream2":
 				status = http.StatusOK
-				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream"}`)
+				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream", "message_stats": {"publish_details": {"rate": 5 }}}`)
 			case "/api/exchanges/%2f":
 				status = http.StatusOK
 				body = []byte(`[]`)
@@ -2646,6 +2647,7 @@ func Test_SourceStats(t *testing.T) {
 		singleActive       bool
 		fakeConsLastOffset int64
 		consLastOffset     int64
+		publishRate        float32
 	}{
 		{
 			addressType:        pb.Address_QUEUE,
@@ -2658,6 +2660,7 @@ func Test_SourceStats(t *testing.T) {
 			singleActive:       false,
 			fakeConsLastOffset: int64(0),
 			consLastOffset:     int64(0),
+			publishRate:        float32(1.5),
 		},
 		{
 			addressType:        pb.Address_STREAM,
@@ -2670,6 +2673,7 @@ func Test_SourceStats(t *testing.T) {
 			singleActive:       false,
 			fakeConsLastOffset: int64(5),
 			consLastOffset:     int64(5),
+			publishRate:        float32(0), // should be missing in source stats, so zero
 		},
 		{
 			addressType:        pb.Address_STREAM,
@@ -2682,54 +2686,60 @@ func Test_SourceStats(t *testing.T) {
 			singleActive:       true,
 			fakeConsLastOffset: int64(5),
 			consLastOffset:     int64(5),
+			publishRate:        float32(5.0),
 		},
 	}
 
 	for _, test := range tests {
-		bd.StreamConnection = nil // make sure we call NewStreamConn again
+		testName := fmt.Sprintf("%s_%s", test.addressName, test.sourceName)
+		t.Run(testName, func(t *testing.T) {
+			bd.StreamConnection = nil // make sure we call NewStreamConn again
 
-		addr := &pb.Address{
-			Subjects: []string{"routingkey"},
-			Name:     test.addressName,
-			Type:     test.addressType,
-		}
-		src := &pb.Source{
-			Address:              addr,
-			Name:                 test.sourceName,
-			Type:                 test.sourceType,
-			Options:              map[string]string{"ConsumerGroup": "GroupName"},
-			SingleActiveConsumer: test.singleActive,
-		}
-
-		smock := &streamConnectionMock{}
-		pmock := &streamConsumerMock{}
-
-		if test.sourceType == pb.Source_STREAM {
-			smock.ExpectedCalls = nil
-			pmock.On("Close").Return(nil).Once()
-			smock.On("Connect").Return(nil).Once()
-
-			smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil).Once()
-			smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset), nil).Once()
-			if test.singleActive {
-				smock.On("GetLastOffset", src.GetName(), "GroupName").Return(int(test.consLastOffset), nil).Once()
-			} else {
-				smock.On("GetLastOffset", src.GetName(), test.sourceName).Return(int(test.consLastOffset), nil).Once()
+			addr := &pb.Address{
+				Subjects: []string{"routingkey"},
+				Name:     test.addressName,
+				Type:     test.addressType,
 			}
-			smock.On("StoreOffset", src.GetName(), "arkeSourceStatsConsumer", int64(5)).Return(nil)
-
-			NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
-				return smock
+			src := &pb.Source{
+				Address:              addr,
+				Name:                 test.sourceName,
+				Type:                 test.sourceType,
+				Options:              map[string]string{"ConsumerGroup": "GroupName"},
+				SingleActiveConsumer: test.singleActive,
 			}
-		}
 
-		stats := prov.SourceStats(ctx, src)
-		assert.NotNil(t, stats)
-		assert.Equal(t, test.consumerCnt, stats.ConsumerCount)
-		assert.Equal(t, test.messageCnt, stats.MessageCount)
-		assert.Equal(t, test.lastOffset, stats.LastOffset)
-		pmock.AssertExpectations(t)
-		smock.AssertExpectations(t)
+			smock := &streamConnectionMock{}
+			pmock := &streamConsumerMock{}
+
+			if test.sourceType == pb.Source_STREAM {
+				smock.ExpectedCalls = nil
+				pmock.On("Close").Return(nil).Once()
+				smock.On("Connect").Return(nil).Once()
+
+				smock.On("NewConsumer", src.GetName(), "arkeSourceStatsConsumer", "last", mock.Anything, mock.AnythingOfType("bool")).Return(pmock, nil).Once()
+				smock.On("GetLastOffset", src.GetName(), "arkeSourceStatsConsumer").Return(int(test.fakeConsLastOffset), nil).Once()
+				if test.singleActive {
+					smock.On("GetLastOffset", src.GetName(), "GroupName").Return(int(test.consLastOffset), nil).Once()
+				} else {
+					smock.On("GetLastOffset", src.GetName(), test.sourceName).Return(int(test.consLastOffset), nil).Once()
+				}
+				smock.On("StoreOffset", src.GetName(), "arkeSourceStatsConsumer", int64(5)).Return(nil)
+
+				NewStreamConn = func(string, string, *tls.Config) streamConnectionShim {
+					return smock
+				}
+			}
+
+			stats := prov.SourceStats(ctx, src)
+			assert.NotNil(t, stats)
+			assert.Nil(t, stats.GetError(), "Get SourceStats error should not be nil")
+			assert.Equal(t, test.consumerCnt, stats.ConsumerCount, "Consumer count should match")
+			assert.Equal(t, test.messageCnt, stats.MessageCount, "Message count should match")
+			assert.Equal(t, test.lastOffset, stats.LastOffset, "Last offset should match")
+			assert.Equal(t, test.publishRate, stats.PublishRate, "Publish rate should match")
+			pmock.AssertExpectations(t)
+			smock.AssertExpectations(t)
+		})
 	}
 }
 
@@ -2788,4 +2798,75 @@ func TestCopyHeaderToTimestamp(t *testing.T) {
 	addTimeStampHeader(msg.Headers)
 	// Assert that the new header is set
 	assert.Equal(t, msg.Headers[rabbitReceivedTimeHeaderName], msg.Headers[timeStampInMSHeaderName])
+}
+func Test_setPublishRateParams(t *testing.T) {
+	tests := map[string]struct {
+		envInterval      string
+		envRange         string
+		expectedInterval int
+		expectedRange    int
+	}{
+		"defaults when env vars not set": {
+			envInterval:      "",
+			envRange:         "",
+			expectedInterval: defaultPublishRateSampleInterval,
+			expectedRange:    defaultPublishRateSampleRange,
+		},
+		"custom interval": {
+			envInterval:      "10",
+			envRange:         "",
+			expectedInterval: 10,
+			expectedRange:    defaultPublishRateSampleRange,
+		},
+		"custom range": {
+			envInterval:      "",
+			envRange:         "300",
+			expectedInterval: defaultPublishRateSampleInterval,
+			expectedRange:    300,
+		},
+		"both custom": {
+			envInterval:      "15",
+			envRange:         "120",
+			expectedInterval: 15,
+			expectedRange:    120,
+		},
+		"invalid interval falls back to default": {
+			envInterval:      "notanint",
+			envRange:         "",
+			expectedInterval: defaultPublishRateSampleInterval,
+			expectedRange:    defaultPublishRateSampleRange,
+		},
+		"invalid range falls back to default": {
+			envInterval:      "",
+			envRange:         "notanint",
+			expectedInterval: defaultPublishRateSampleInterval,
+			expectedRange:    defaultPublishRateSampleRange,
+		},
+		"both invalid fall back to defaults": {
+			envInterval:      "bad",
+			envRange:         "bad",
+			expectedInterval: defaultPublishRateSampleInterval,
+			expectedRange:    defaultPublishRateSampleRange,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tc.envInterval != "" {
+				t.Setenv(envPublishRateSampleInterval, tc.envInterval)
+			} else {
+				os.Unsetenv(envPublishRateSampleInterval)
+			}
+			if tc.envRange != "" {
+				t.Setenv(envPublishRateSampleRange, tc.envRange)
+			} else {
+				os.Unsetenv(envPublishRateSampleRange)
+			}
+
+			setPublishRateParams()
+
+			assert.Equal(t, tc.expectedInterval, publishRateSampleInterval)
+			assert.Equal(t, tc.expectedRange, publishRateSampleRange)
+		})
+	}
 }

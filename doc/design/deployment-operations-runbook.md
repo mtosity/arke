@@ -74,6 +74,13 @@ logs a warning.
 | --- | --- | --- |
 | `ARKE_HPA_NAME` | `arke` | Name of the HorizontalPodAutoscaler Arke monitors for scale-up events. Override with `WithHpaName()` in code or via the environment equivalent if exposed. |
 
+### Metrics Collection
+
+| Variable                                    | Default | Description                                                                             |
+| ------------------------------------------- | ------- | --------------------------------------------------------------------------------------- |
+| `ARKE_PUBLISH_RATE_SAMPLE_RANGE_SECONDS`    | 300     | When getting the publish rate for source stats, how far back to go for samples          |
+| `ARKE_PUBLISH_RATE_SAMPLE_INTERVAL_SECONDS` | 5       | When getting the publish rate for source stats, how large the sample interval should be |
+
 ---
 
 ## Kubernetes Deployment Checklist

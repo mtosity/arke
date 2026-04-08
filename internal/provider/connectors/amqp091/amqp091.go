@@ -61,9 +61,31 @@ var NewStreamConn = NewStreamConnection
 // GetClientIdentifier Set function as a variable so we can replace the GetClientIdentifier method in unit tests
 var GetClientIdentifier = util.GetClientIdentifier
 
+// when getting the publish rate, how large of a sample range do you want
+const envPublishRateSampleRange = "ARKE_PUBLISH_RATE_SAMPLE_RANGE_SECONDS"
+const defaultPublishRateSampleRange = 600
+
+var publishRateSampleRange int
+
+// when getting the publish rate, what should the sample size be
+const envPublishRateSampleInterval = "ARKE_PUBLISH_RATE_SAMPLE_INTERVAL_SECONDS"
+const defaultPublishRateSampleInterval = 5
+
+var publishRateSampleInterval int
+
 type amqp091provider struct {
 	tlsConfig   *tls.Config
 	connections *util.ConcurrentMap
+}
+
+type rabbitMQManagementMetrics struct {
+	MessageStats struct {
+		PublishDetails struct {
+			Rate float64 `json:"avg_rate"`
+		} `json:"publish_details"`
+	} `json:"message_stats"`
+	Consumers float64 `json:"consumers"`
+	Messages  float64 `json:"messages"`
 }
 
 // BrokerDetails struct houses connection specific information for the broker
@@ -110,6 +132,26 @@ func init() {
 	}
 	if !strings.HasSuffix(os.Args[0], ".test") {
 		go connectionCleaner(context.Background())
+	}
+
+	setPublishRateParams()
+}
+
+func setPublishRateParams() {
+	publishRateSampleInterval = defaultPublishRateSampleInterval
+	val := os.Getenv(envPublishRateSampleInterval)
+	if val != "" {
+		if i, err := strconv.Atoi(val); err == nil {
+			publishRateSampleInterval = i
+		}
+	}
+
+	publishRateSampleRange = defaultPublishRateSampleRange
+	val = os.Getenv(envPublishRateSampleRange)
+	if val != "" {
+		if i, err := strconv.Atoi(val); err == nil {
+			publishRateSampleRange = i
+		}
 	}
 }
 
@@ -1695,7 +1737,7 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	}
 	vhost = url.QueryEscape(vhost)
 
-	urn := fmt.Sprintf("/api/queues/%s/%s", vhost, queue)
+	urn := fmt.Sprintf("/api/queues/%s/%s?msg_rates_age=%d&msg_rates_incr=%d", vhost, queue, publishRateSampleRange, publishRateSampleInterval)
 	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
 		stats.Error = &pb.Error{Message: marshErr.Error()}
@@ -1711,18 +1753,24 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	// message count is only accurate for queues, return 0 for streams
 	util.Logger.Debugf("Source: %+v", source)
 	util.Logger.Debugf("Source.Type: %d", source.Type)
-	util.Logger.Debugf("results: %+v", results)
+	util.Logger.Debugf("raw sourcestats: %+v", results)
+
+	var mgmtStats rabbitMQManagementMetrics
+	if err := json.Unmarshal(body, &mgmtStats); err != nil {
+		util.Logger.Debugf("Failed to unmarshal management API response into RabbitMQManagementMetrics struct: %s", err.Error())
+	} else {
+		util.Logger.Debugf("mgmtStats: %+v", mgmtStats)
+	}
 
 	switch source.Type { //nolint:exhaustive
 	case pb.Source_QUEUE:
-		if messageCountRaw, ok := results["messages"]; ok {
-			stats.MessageCount = int64(messageCountRaw.(float64))
-			util.Logger.Debugf("Message count for queue %s: %d", queue, stats.MessageCount)
-		} else {
-			util.Logger.Debugf("No message count found for queue %s", queue)
-		}
+		stats.MessageCount = int64(mgmtStats.Messages)
+		stats.PublishRate = float32(mgmtStats.MessageStats.PublishDetails.Rate)
 	case pb.Source_STREAM:
+		// publish rate is not available for streams
+		util.Logger.Debugf("stats before updating for stream: %+v", stats)
 		bd.updateStatsForStream(source, stats)
+		util.Logger.Debugf("stats after updating for stream: %+v", stats)
 	}
 
 	if err != nil {
