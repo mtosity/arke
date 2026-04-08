@@ -84,8 +84,8 @@ jobs:
           os=$(uname -s | tr '[:upper:]' '[:lower:]')
           url="https://github.com/betterleaks/betterleaks/releases/download/v${{ env.BETTERLEAKS_VERSION }}/betterleaks_${{ env.BETTERLEAKS_VERSION }}_${os}_${arch}.tar.gz"
           echo "Downloading betterleaks from $url"
-          curl -sSL $url |  tar zxf - > $outfile
-          $outfile git --config ./.github/linters/betterleaks-config.toml -v
+          curl -sSL "$url" |  tar zxf - > "$outfile"
+          "$outfile" git --config ./.github/linters/betterleaks-config.toml -v
 
   go-lint:
     runs-on: ubuntu-latest
