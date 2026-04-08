@@ -153,6 +153,7 @@ func setPublishRateParams() {
 			publishRateSampleRange = i
 		}
 	}
+	util.Logger.Debugf("Set publish rate sample interval to %d seconds and sample range to %d seconds", publishRateSampleInterval, publishRateSampleRange)
 }
 
 /*
@@ -1738,6 +1739,7 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	vhost = url.QueryEscape(vhost)
 
 	urn := fmt.Sprintf("/api/queues/%s/%s?msg_rates_age=%d&msg_rates_incr=%d", vhost, queue, publishRateSampleRange, publishRateSampleInterval)
+	util.Logger.Debugf("Requesting stats from management API for %s with urn: %s", queue, urn)
 	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
 		stats.Error = &pb.Error{Message: marshErr.Error()}

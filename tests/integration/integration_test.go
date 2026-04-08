@@ -1265,16 +1265,25 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 }
 
 func TestGetPublishRate(t *testing.T) {
-	msgsPerInterval := 103
 
-	producerConnection := connect()
-	defer producerConnection.Close()
-	pc := pb.NewProducerClient(producerConnection)
-	pctx := context.Background()
-	defer pc.Disconnect(pctx, &pb.Empty{})
+	// in order to generate a publish rate, the publishes must be spread out over sample intervals
+	// which by default is 5s. The sample range and interval are set in the compose file as
+	// ARKE_PUBLISH_RATE_SAMPLE*
+	//
+	// If you run this test against a real deployment, make sure you set the env vars appropriately
+	// If you make the collection interval interval too long, your connection will timeout and fail
+	// Best to keep it under a minute
 
+	// how far apart are the samples we request from broker
+	sampleInterval := 5
+	// how many samples to get
+	intervals := 6 // 30s
+
+	msgsPerInterval := 100
+
+	t.Logf("Note that this test will take about %d seconds to run due to the sample intervals configured", sampleInterval*intervals)
+	// consumer setup
 	messages := make(chan *pb.Message)
-
 	done := make(chan bool)
 	clientConnected := make(chan bool)
 
@@ -1292,26 +1301,45 @@ func TestGetPublishRate(t *testing.T) {
 	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
 	<-clientConnected
 
+	t.Log("Setting up producer")
+
+	// publisher setup
+	producerConnection := connect()
+	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	producerCfg := cfg.ConnectionConfigurationFromEnv()
+	producerCfg.ClientName = "publish_rate_producer"
+	authResp, err := pc.Connect(ctx, &producerCfg)
+	assert.Nil(t, err, "should not get an error connecting producer client: %v", err)
+	assert.NotNil(t, authResp, "should have gotten a response from connect")
+	assert.True(t, authResp.GetSuccess(), "should have successfully connected producer client: %v", authResp.GetError())
+
+	// publish messages
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
-
-	// in order to generate a publish rate, the publishes must be spread out over sample intervals
-	// which by default is 5s. The sample range and interval are set in the compose file as
-	// ARKE_PUBLISH_RATE_SAMPLE*
-	sampleInterval := 5 // how far apart are the samples we request from broker
-	intervals := 6      // how many samples to get
 	totalMsgsPublished := 0
+	t.Logf("Publishing %d messages", msgsPerInterval*intervals)
+	stream, err := pc.Publish(ctx)
+	assert.Nil(t, err, "should not get an error creating publish stream: %v", err)
 
-	t.Logf("Publishing %d messages every %d seconds for %d intervals", msgsPerInterval, sampleInterval, intervals)
-	for i := range intervals {
-		totalMsgsPublished += msgsPerInterval
-		err := mf.ProduceSendMessages(pctx, pc, msgsPerInterval, message, t.Name())
-		// err := mf.ProduceMessagesUnary(pctx, pc, msgsPerInterval, message, false, t.Name())
-		assert.Nil(t, err, "should not get an error producing messages: %v", err)
-		t.Logf("interval %d: published %d messages", i+1, totalMsgsPublished)
-		time.Sleep(time.Duration(sampleInterval) * time.Second)
+	sleepDuration := time.Duration(sampleInterval) * time.Second
+
+	for i := range intervals + 2 { // add a couple extra intervals to ensure we have stats to collect at the end
+		t.Logf("Interval %d/%d", i, intervals)
+		for m := range msgsPerInterval {
+			err = stream.Send(message)
+			assert.Nil(t, err, "msg %d: should not get an error sending message on stream: %v", m, err)
+
+			r, err := stream.Recv()
+			assert.Nil(t, err, "msg %d: should not get an error receiving message response from stream: %v", m, err)
+			assert.NotNil(t, r, "msg %d: should have received a message response from stream", m)
+			assert.True(t, r.GetSuccess(), "msg %d: message response should indicate success: %v", m, r.GetError().GetMessage())
+			totalMsgsPublished++
+		}
+		time.Sleep(sleepDuration)
 	}
 
-	time.Sleep(5 * time.Second)
 	stats, err := c.SourceStats(ctx, source)
 	assert.Nil(t, err, "should not get an error from source stats: %+v", err)
 	assert.NotNil(t, stats, "should have gotten source stats back")
