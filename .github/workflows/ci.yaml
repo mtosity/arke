@@ -71,8 +71,9 @@ jobs:
         id: betterleaks
         if: always()
         run: |-
-          curl -sSL https://github.com/betterleaks/betterleaks/releases/download/v${{ env.BETTERLEAKS_VERSION }}/betterleaks_${{ env.BETTERLEAKS_VERSION }}_linux_x64.tar.gz |  tar zxf - > betterleaks
-          betterleaks git --config ./.github/linters/betterleaks-config.toml -v
+          outfile="$(pwd)/betterleaks"
+          curl -sSL https://github.com/betterleaks/betterleaks/releases/download/v${{ env.BETTERLEAKS_VERSION }}/betterleaks_${{ env.BETTERLEAKS_VERSION }}_linux_x64.tar.gz |  tar zxf - > $outfile
+          $outfile git --config ./.github/linters/betterleaks-config.toml -v
 
   go-lint:
     runs-on: ubuntu-latest
