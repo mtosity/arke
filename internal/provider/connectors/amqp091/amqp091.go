@@ -121,7 +121,6 @@ func init() {
 	if !strings.HasSuffix(os.Args[0], ".test") {
 		go connectionCleaner(context.Background())
 	}
-
 }
 
 /*
