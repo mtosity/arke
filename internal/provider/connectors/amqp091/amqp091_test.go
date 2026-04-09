@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -2396,7 +2395,7 @@ func mockManagementRequestServer() *httptest.Server {
 				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
 			case "/api/queues/tenant/sourceStream2":
 				status = http.StatusOK
-				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream", "message_stats": {"publish_details": {"avg_rate": 5 }}}`)
+				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream", "message_stats": {"publish_details": {"rate": 5.0 }}}`)
 			case "/api/exchanges/%2f":
 				status = http.StatusOK
 				body = []byte(`[]`)
@@ -2798,75 +2797,4 @@ func TestCopyHeaderToTimestamp(t *testing.T) {
 	addTimeStampHeader(msg.Headers)
 	// Assert that the new header is set
 	assert.Equal(t, msg.Headers[rabbitReceivedTimeHeaderName], msg.Headers[timeStampInMSHeaderName])
-}
-func Test_setPublishRateParams(t *testing.T) {
-	tests := map[string]struct {
-		envInterval      string
-		envRange         string
-		expectedInterval int
-		expectedRange    int
-	}{
-		"defaults when env vars not set": {
-			envInterval:      "",
-			envRange:         "",
-			expectedInterval: defaultPublishRateSampleInterval,
-			expectedRange:    defaultPublishRateSampleRange,
-		},
-		"custom interval": {
-			envInterval:      "10",
-			envRange:         "",
-			expectedInterval: 10,
-			expectedRange:    defaultPublishRateSampleRange,
-		},
-		"custom range": {
-			envInterval:      "",
-			envRange:         "300",
-			expectedInterval: defaultPublishRateSampleInterval,
-			expectedRange:    300,
-		},
-		"both custom": {
-			envInterval:      "15",
-			envRange:         "120",
-			expectedInterval: 15,
-			expectedRange:    120,
-		},
-		"invalid interval falls back to default": {
-			envInterval:      "notanint",
-			envRange:         "",
-			expectedInterval: defaultPublishRateSampleInterval,
-			expectedRange:    defaultPublishRateSampleRange,
-		},
-		"invalid range falls back to default": {
-			envInterval:      "",
-			envRange:         "notanint",
-			expectedInterval: defaultPublishRateSampleInterval,
-			expectedRange:    defaultPublishRateSampleRange,
-		},
-		"both invalid fall back to defaults": {
-			envInterval:      "bad",
-			envRange:         "bad",
-			expectedInterval: defaultPublishRateSampleInterval,
-			expectedRange:    defaultPublishRateSampleRange,
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			if tc.envInterval != "" {
-				t.Setenv(envPublishRateSampleInterval, tc.envInterval)
-			} else {
-				os.Unsetenv(envPublishRateSampleInterval)
-			}
-			if tc.envRange != "" {
-				t.Setenv(envPublishRateSampleRange, tc.envRange)
-			} else {
-				os.Unsetenv(envPublishRateSampleRange)
-			}
-
-			setPublishRateParams()
-
-			assert.Equal(t, tc.expectedInterval, publishRateSampleInterval)
-			assert.Equal(t, tc.expectedRange, publishRateSampleRange)
-		})
-	}
 }
