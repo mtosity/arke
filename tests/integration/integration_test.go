@@ -1315,14 +1315,14 @@ func TestGetPublishRate(t *testing.T) {
 	// publish messages
 	message := &pb.Message{Body: []byte("mymessage"), Address: address}
 	totalMsgsPublished := 0
-	t.Logf("Publishing %d messages", msgsPerInterval*intervals)
+
 	stream, err := pc.Publish(ctx)
 	assert.Nil(t, err, "should not get an error creating publish stream: %v", err)
 
 	sleepDuration := time.Duration(sampleInterval) * time.Second
 
-	for i := range intervals + 2 { // add a couple extra intervals to ensure we have stats to collect at the end
-		t.Logf("Interval %d/%d", i, intervals)
+	for i := range intervals + 2 {
+		t.Logf("Interval %d", i)
 		for m := range msgsPerInterval {
 			err = stream.Send(message)
 			assert.Nil(t, err, "msg %d: should not get an error sending message on stream: %v", m, err)
@@ -1340,13 +1340,16 @@ func TestGetPublishRate(t *testing.T) {
 	assert.Nil(t, err, "should not get an error from source stats: %+v", err)
 	assert.NotNil(t, stats, "should have gotten source stats back")
 	t.Logf("Source stats: %+v", stats)
+
 	assert.Greater(t, stats.GetPublishRate(), float32(0), "publish rate should be greater than 0")
+	assert.Greater(t, stats.GetDeliverRate(), float32(0), "deliver rate should be greater than 0")
 
 	// estimated publish rate should be about msgsPerInterval/sampleInterval, but allow for
 	// some variance
 	estimatedPublishRate := msgsPerInterval / sampleInterval
 	allowableVariance := 0.2 * float64(estimatedPublishRate)
 	assert.InDelta(t, estimatedPublishRate, float64(stats.GetPublishRate()), allowableVariance, "publish rate should be within expected range")
+	assert.InDelta(t, estimatedPublishRate, float64(stats.GetDeliverRate()), allowableVariance, "deliver rate should be within expected range")
 }
 
 func TestProduceManyConsumeMany(t *testing.T) {

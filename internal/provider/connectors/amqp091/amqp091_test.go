@@ -2389,13 +2389,29 @@ func mockManagementRequestServer() *httptest.Server {
 			switch r.URL.Path {
 			case "/api/queues/tenant/sourceQueue.quorum":
 				status = http.StatusOK
-				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum", "message_stats": {"publish_details": {"rate": 1.5	}}}`)
+				body = []byte(`{
+					"messages": 10,
+					"consumers": 5,
+					"type": "quorum",
+					"message_stats": {
+						"publish_details": { "rate": 1.5 },
+						"deliver_details": { "rate": 2.0 }
+					}
+			}`)
 			case "/api/queues/tenant/sourceStream":
 				status = http.StatusOK
 				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
 			case "/api/queues/tenant/sourceStream2":
 				status = http.StatusOK
-				body = []byte(`{"messages": 11, "consumers": 6, "type": "stream", "message_stats": {"publish_details": {"rate": 5.0 }}}`)
+				body = []byte(`{
+					"messages": 11,
+					"consumers": 6,
+					"type": "stream",
+					"message_stats": {
+						"publish_details": { "rate": 5.0 },
+						"deliver_details": { "rate": 6.4 }
+					}
+				}`)
 			case "/api/exchanges/%2f":
 				status = http.StatusOK
 				body = []byte(`[]`)
@@ -2647,6 +2663,7 @@ func Test_SourceStats(t *testing.T) {
 		fakeConsLastOffset int64
 		consLastOffset     int64
 		publishRate        float32
+		deliverRate        float32
 	}{
 		{
 			addressType:        pb.Address_QUEUE,
@@ -2660,6 +2677,7 @@ func Test_SourceStats(t *testing.T) {
 			fakeConsLastOffset: int64(0),
 			consLastOffset:     int64(0),
 			publishRate:        float32(1.5),
+			deliverRate:        float32(2.0),
 		},
 		{
 			addressType:        pb.Address_STREAM,
@@ -2686,6 +2704,7 @@ func Test_SourceStats(t *testing.T) {
 			fakeConsLastOffset: int64(5),
 			consLastOffset:     int64(5),
 			publishRate:        float32(5.00),
+			deliverRate:        float32(6.4),
 		},
 	}
 

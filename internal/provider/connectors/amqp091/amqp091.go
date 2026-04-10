@@ -71,6 +71,9 @@ type rabbitMQManagementMetrics struct {
 		PublishDetails struct {
 			Rate float64 `json:"rate"`
 		} `json:"publish_details"`
+		DeliverDetails struct {
+			Rate float64 `json:"rate"`
+		} `json:"deliver_details"`
 	} `json:"message_stats"`
 	Consumers float64 `json:"consumers"`
 	Messages  float64 `json:"messages"`
@@ -1723,6 +1726,7 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 		util.Logger.Debugf("Failed to unmarshal management API response into RabbitMQManagementMetrics struct: %s", err.Error())
 	} else {
 		stats.PublishRate = float32(mgmtStats.MessageStats.PublishDetails.Rate)
+		stats.DeliverRate = float32(mgmtStats.MessageStats.DeliverDetails.Rate)
 	}
 
 	switch source.Type { //nolint:exhaustive

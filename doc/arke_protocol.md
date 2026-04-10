@@ -439,6 +439,7 @@ SourceStats includes information about the source from the broker
 | current_offset | [int64](#int64) |  | Current stream offset for the specified consumer. |
 | name | [string](#string) |  | Name of the source. |
 | publish_rate | [float](#float) |  | The rate of messages being published to this source in messages/second. |
+| deliver_rate | [float](#float) |  | The rate of messages being delivered from this source in messages/second. |
 
 
 

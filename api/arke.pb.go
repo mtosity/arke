@@ -1427,6 +1427,7 @@ type SourceStats struct {
 	CurrentOffset int64                  `protobuf:"varint,5,opt,name=current_offset,json=currentOffset,proto3" json:"current_offset,omitempty"` // Current stream offset for the specified consumer.
 	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`                                         // Name of the source.
 	PublishRate   float32                `protobuf:"fixed32,7,opt,name=publish_rate,json=publishRate,proto3" json:"publish_rate,omitempty"`      // The rate of messages being published to this source in messages/second.
+	DeliverRate   float32                `protobuf:"fixed32,8,opt,name=deliver_rate,json=deliverRate,proto3" json:"deliver_rate,omitempty"`      // The rate of messages being delivered from this source in messages/second.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1506,6 +1507,13 @@ func (x *SourceStats) GetName() string {
 func (x *SourceStats) GetPublishRate() float32 {
 	if x != nil {
 		return x.PublishRate
+	}
+	return 0
+}
+
+func (x *SourceStats) GetDeliverRate() float32 {
+	if x != nil {
+		return x.DeliverRate
 	}
 	return 0
 }
@@ -1935,7 +1943,7 @@ const file_arke_proto_rawDesc = "" +
 	"\x11consumed_response\x18\x02 \x01(\v2\x1d.arke.MessageConsumedResponseH\x00R\x10consumedResponse\x12#\n" +
 	"\x05error\x18\x03 \x01(\v2\v.arke.ErrorH\x00R\x05error\x12O\n" +
 	"\x15declare_only_response\x18\x04 \x01(\v2\x19.arke.DeclareOnlyResponseH\x00R\x13declareOnlyResponseB\x06\n" +
-	"\x04resp\"\xfb\x01\n" +
+	"\x04resp\"\x9e\x02\n" +
 	"\vSourceStats\x12!\n" +
 	"\x05error\x18\x01 \x01(\v2\v.arke.ErrorR\x05error\x12#\n" +
 	"\rmessage_count\x18\x02 \x01(\x03R\fmessageCount\x12%\n" +
@@ -1944,7 +1952,8 @@ const file_arke_proto_rawDesc = "" +
 	"lastOffset\x12%\n" +
 	"\x0ecurrent_offset\x18\x05 \x01(\x03R\rcurrentOffset\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12!\n" +
-	"\fpublish_rate\x18\a \x01(\x02R\vpublishRate\"1\n" +
+	"\fpublish_rate\x18\a \x01(\x02R\vpublishRate\x12!\n" +
+	"\fdeliver_rate\x18\b \x01(\x02R\vdeliverRate\"1\n" +
 	"\aSources\x12&\n" +
 	"\asources\x18\x01 \x03(\v2\f.arke.SourceR\asources\"c\n" +
 	"\x15SourceStatsCollection\x12!\n" +

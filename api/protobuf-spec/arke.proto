@@ -215,6 +215,7 @@ message ConsumeResponse {
     int64 current_offset = 5; // Current stream offset for the specified consumer.
    string name = 6; // Name of the source.
    float publish_rate = 7; // The rate of messages being published to this source in messages/second.
+   float deliver_rate = 8; // The rate of messages being delivered from this source in messages/second.
 }
 
 /**
