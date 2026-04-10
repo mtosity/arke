@@ -69,7 +69,7 @@ type amqp091provider struct {
 type rabbitMQManagementMetrics struct {
 	MessageStats struct {
 		PublishDetails struct {
-			Rate float64 `json:"avg_rate"`
+			Rate float64 `json:"rate"`
 		} `json:"publish_details"`
 	} `json:"message_stats"`
 	Consumers float64 `json:"consumers"`
@@ -1705,8 +1705,7 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	}
 	vhost = url.QueryEscape(vhost)
 
-	urn := fmt.Sprintf("/api/queues/%s/%s?msg_rates_age=%d&msg_rates_incr=%d", vhost, queue, provider.PublishRateSampleRange(), provider.PublishRateSampleInterval())
-	util.Logger.Debugf("Requesting stats from management API for %s with urn: %s", queue, urn)
+	urn := fmt.Sprintf("/api/queues/%s/%s", vhost, queue)
 	body, err := bd.doManagementRequestWithoutMarshal("GET", urn)
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
 		stats.Error = &pb.Error{Message: marshErr.Error()}
@@ -1722,12 +1721,13 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	var mgmtStats rabbitMQManagementMetrics
 	if err := json.Unmarshal(body, &mgmtStats); err != nil {
 		util.Logger.Debugf("Failed to unmarshal management API response into RabbitMQManagementMetrics struct: %s", err.Error())
+	} else {
+		stats.PublishRate = float32(mgmtStats.MessageStats.PublishDetails.Rate)
 	}
 
 	switch source.Type { //nolint:exhaustive
 	case pb.Source_QUEUE:
 		stats.MessageCount = int64(mgmtStats.Messages)
-		stats.PublishRate = float32(mgmtStats.MessageStats.PublishDetails.Rate)
 	case pb.Source_STREAM:
 		// publish rate is not available for streams
 		bd.updateStatsForStream(source, stats)

@@ -1267,17 +1267,13 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 func TestGetPublishRate(t *testing.T) {
 
 	// in order to generate a publish rate, the publishes must be spread out over sample intervals
-	// which by default is 5s. The sample range and interval are set in the compose file as
-	// ARKE_PUBLISH_RATE_SAMPLE*
+	// which by default is 5s.
 	//
-	// If you run this test against a real deployment, make sure you set the env vars appropriately
-	// If you make the collection interval interval too long, your connection will timeout and fail
-	// Best to keep it under a minute
 
 	// how far apart are the samples we request from broker
 	sampleInterval := 5
 	// how many samples to get
-	intervals := 6 // 30s
+	intervals := 3 // 15s
 
 	msgsPerInterval := 100
 

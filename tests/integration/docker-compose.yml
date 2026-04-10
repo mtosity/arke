@@ -20,8 +20,6 @@ services:
       - ARKE_RATE_LIMIT_REFILL_SECONDS=10
       - ARKE_RATE_LIMIT_MAX_AGE_STALE_CLIENTS=600
       - ARKE_RATE_LIMIT_DEBUG_METHODS=true
-      - ARKE_PUBLISH_RATE_SAMPLE_RANGE_SECONDS=30
-      - ARKE_PUBLISH_RATE_SAMPLE_INTERVAL_SECONDS=5
       - GOCOVERDIR=/coverage/integration
     volumes:
       - ./certs:/certs

@@ -1,3 +1,4 @@
+// Copyright © 2026, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
 package provider_test
@@ -99,18 +100,6 @@ func TestConcurrentNewProvider(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	providers := p.RegisteredProviders()
 	assert.Equal(t, 54, providers.Length())
-}
-func TestPublishRateSampleInterval(t *testing.T) {
-	interval := p.PublishRateSampleInterval()
-	assert.Greater(t, interval, 0)
-	assert.Equal(t, interval, p.PublishRateSampleInterval())
-}
-
-func TestPublishRateSampleRange(t *testing.T) {
-	sampleRange := p.PublishRateSampleRange()
-	assert.Greater(t, sampleRange, 0)
-	assert.GreaterOrEqual(t, sampleRange, p.PublishRateSampleInterval())
-	assert.Equal(t, sampleRange, p.PublishRateSampleRange())
 }
 
 /*

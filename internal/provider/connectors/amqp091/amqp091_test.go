@@ -2389,7 +2389,7 @@ func mockManagementRequestServer() *httptest.Server {
 			switch r.URL.Path {
 			case "/api/queues/tenant/sourceQueue.quorum":
 				status = http.StatusOK
-				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum", "message_stats": {"publish_details": {"avg_rate": 1.5	}}}`)
+				body = []byte(`{"messages": 10, "consumers": 5, "type": "quorum", "message_stats": {"publish_details": {"rate": 1.5	}}}`)
 			case "/api/queues/tenant/sourceStream":
 				status = http.StatusOK
 				body = []byte(`{"messages": 9, "consumers": 4, "type": "stream"}`)
@@ -2685,7 +2685,7 @@ func Test_SourceStats(t *testing.T) {
 			singleActive:       true,
 			fakeConsLastOffset: int64(5),
 			consLastOffset:     int64(5),
-			publishRate:        float32(0),
+			publishRate:        float32(5.00),
 		},
 	}
 
