@@ -1733,7 +1733,6 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 	case pb.Source_QUEUE:
 		stats.MessageCount = int64(mgmtStats.Messages)
 	case pb.Source_STREAM:
-		// publish rate is not available for streams
 		bd.updateStatsForStream(source, stats)
 	}
 
