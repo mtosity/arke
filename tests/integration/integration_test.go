@@ -1175,6 +1175,94 @@ func TestProduceSingleConsumeNack(t *testing.T) {
 	assert.Equal(t, expectedMessageCount, msgCount)
 }
 
+func TestGetPublishRate(t *testing.T) {
+
+	// in order to generate a publish rate, the publishes must be spread out over sample intervals
+	// which by default is 5s.
+	//
+
+	// how far apart are the samples we request from broker
+	sampleInterval := 5
+	// how many samples to get
+	intervals := 3 // 15s
+
+	msgsPerInterval := 100
+
+	t.Logf("Note that this test will take about %d seconds to run due to the sample intervals configured", sampleInterval*intervals)
+	// consumer setup
+	messages := make(chan *pb.Message)
+	done := make(chan bool)
+	clientConnected := make(chan bool)
+
+	consumerConnection := connect()
+	defer consumerConnection.Close()
+	subjects := make([]string, 0)
+	subjects = append(subjects, "sas.test.proxy.GPR")
+	address := &pb.Address{Name: "amq.topic", Subjects: subjects, Type: pb.Address_QUEUE}
+	source := &pb.Source{Name: "sas.test.proxy.GPR.Consumer", Address: address, PrefetchCount: 5}
+	c := pb.NewConsumerClient(consumerConnection)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	defer c.Disconnect(ctx, &pb.Empty{})
+
+	go consumeMessages(consumerConnection, c, ctx, messages, done, clientConnected, source, defaultHandler, t)
+	<-clientConnected
+
+	t.Log("Setting up producer")
+
+	// publisher setup
+	producerConnection := connect()
+	defer producerConnection.Close()
+	pc := pb.NewProducerClient(producerConnection)
+	pctx := context.Background()
+	defer pc.Disconnect(pctx, &pb.Empty{})
+	producerCfg := cfg.ConnectionConfigurationFromEnv()
+	producerCfg.ClientName = "publish_rate_producer"
+	authResp, err := pc.Connect(ctx, &producerCfg)
+	assert.Nil(t, err, "should not get an error connecting producer client: %v", err)
+	assert.NotNil(t, authResp, "should have gotten a response from connect")
+	assert.True(t, authResp.GetSuccess(), "should have successfully connected producer client: %v", authResp.GetError())
+
+	// publish messages
+	message := &pb.Message{Body: []byte("mymessage"), Address: address}
+	totalMsgsPublished := 0
+
+	stream, err := pc.Publish(ctx)
+	assert.Nil(t, err, "should not get an error creating publish stream: %v", err)
+
+	sleepDuration := time.Duration(sampleInterval) * time.Second
+
+	for i := range intervals + 2 {
+		t.Logf("Interval %d", i)
+		for m := range msgsPerInterval {
+			err = stream.Send(message)
+			assert.Nil(t, err, "msg %d: should not get an error sending message on stream: %v", m, err)
+
+			r, err := stream.Recv()
+			assert.Nil(t, err, "msg %d: should not get an error receiving message response from stream: %v", m, err)
+			assert.NotNil(t, r, "msg %d: should have received a message response from stream", m)
+			assert.True(t, r.GetSuccess(), "msg %d: message response should indicate success: %v", m, r.GetError().GetMessage())
+			totalMsgsPublished++
+		}
+		time.Sleep(sleepDuration)
+	}
+
+	stats, err := c.SourceStats(ctx, source)
+	assert.Nil(t, err, "should not get an error from source stats: %+v", err)
+	assert.NotNil(t, stats, "should have gotten source stats back")
+	t.Logf("Source stats: %+v", stats)
+
+	assert.Greater(t, stats.GetPublishRate(), float32(0), "publish rate should be greater than 0")
+	assert.Greater(t, stats.GetDeliverRate(), float32(0), "deliver rate should be greater than 0")
+
+	// estimated publish rate should be about msgsPerInterval/sampleInterval, but allow for
+	// some variance
+	estimatedPublishRate := msgsPerInterval / sampleInterval
+	allowableVariance := 0.2 * float64(estimatedPublishRate)
+	assert.InDelta(t, estimatedPublishRate, float64(stats.GetPublishRate()), allowableVariance, "publish rate should be within expected range")
+	assert.InDelta(t, estimatedPublishRate, float64(stats.GetDeliverRate()), allowableVariance, "deliver rate should be within expected range")
+}
+
 func TestProduceManyConsumeMany(t *testing.T) {
 	composeFile := "docker-compose.yml"
 	rlSettings, err := GetRateLimitValues(t, composeFile)

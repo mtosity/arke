@@ -66,6 +66,19 @@ type amqp091provider struct {
 	connections *util.ConcurrentMap
 }
 
+type rabbitMQManagementMetrics struct {
+	MessageStats struct {
+		PublishDetails struct {
+			Rate float64 `json:"rate"`
+		} `json:"publish_details"`
+		DeliverDetails struct {
+			Rate float64 `json:"rate"`
+		} `json:"deliver_details"`
+	} `json:"message_stats"`
+	Consumers float64 `json:"consumers"`
+	Messages  float64 `json:"messages"`
+}
+
 // BrokerDetails struct houses connection specific information for the broker
 type BrokerDetails struct {
 	sync.Mutex
@@ -1715,19 +1728,17 @@ func (bd *BrokerDetails) getStreamOrQueueStats(source *pb.Source) *pb.SourceStat
 		stats.ConsumerCount = int32(consumersCountRaw.(float64))
 	}
 
-	// message count is only accurate for queues, return 0 for streams
-	util.Logger.Debugf("Source: %+v", source)
-	util.Logger.Debugf("Source.Type: %d", source.Type)
-	util.Logger.Debugf("results: %+v", results)
+	var mgmtStats rabbitMQManagementMetrics
+	if err := json.Unmarshal(body, &mgmtStats); err != nil {
+		util.Logger.Debugf("Failed to unmarshal management API response into RabbitMQManagementMetrics struct: %s", err.Error())
+	} else {
+		stats.PublishRate = float32(mgmtStats.MessageStats.PublishDetails.Rate)
+		stats.DeliverRate = float32(mgmtStats.MessageStats.DeliverDetails.Rate)
+	}
 
 	switch source.Type { //nolint:exhaustive
 	case pb.Source_QUEUE:
-		if messageCountRaw, ok := results["messages"]; ok {
-			stats.MessageCount = int64(messageCountRaw.(float64))
-			util.Logger.Debugf("Message count for queue %s: %d", queue, stats.MessageCount)
-		} else {
-			util.Logger.Debugf("No message count found for queue %s", queue)
-		}
+		stats.MessageCount = int64(mgmtStats.Messages)
 	case pb.Source_STREAM:
 		bd.updateStatsForStream(source, stats)
 	}
