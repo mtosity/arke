@@ -29,20 +29,33 @@ Your Application
 
 ## Table of Contents
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running](#running)
-- [gRPC API](#grpc-api)
-- [TLS](#tls)
-- [Rate Limiting](#rate-limiting)
-- [Observability](#observability)
-- [Development](#development)
-- [Design Documentation](#design-documentation)
-- [Contributing](#contributing)
-- [License](#license)
-- [Third-party dependencies](#third-party-dependencies)
+- [](#arke-message-broker-proxy)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Build from Source](#build-from-source)
+  - [Configuration](#configuration)
+    - [Core](#core)
+  - [Running](#running)
+  - [gRPC API](#grpc-api)
+  - [TLS](#tls)
+    - [Server (Arke listener)](#server-arke-listener)
+    - [Back-end (Broker connection)](#back-end-broker-connection)
+  - [Rate Limiting](#rate-limiting)
+  - [Observability](#observability)
+  - [Development](#development)
+    - [Running Unit Tests](#running-unit-tests)
+    - [Running Integration Tests](#running-integration-tests)
+    - [Regenerating Protocol Buffers](#regenerating-protocol-buffers)
+    - [Linting](#linting)
+    - [Makefile Targets](#makefile-targets)
+  - [Design Documentation](#design-documentation)
+  - [Contributing](#contributing)
+  - [Security Policy](#security-policy)
+  - [License](#license)
+  - [Third-party dependencies](#third-party-dependencies)
 
 ---
 
@@ -275,6 +288,7 @@ Detailed design and operational documents live in [`doc/design/`](doc/design/).
 | Document | Description |
 | --- | --- |
 | [Architecture Overview](doc/design/architecture-overview.md) | Component map, data-flow diagrams, key design decisions, and repository structure |
+| [Client Publish / Consume Guide](doc/design/client-publish-consume.md) | How application clients connect to Arke, publish messages, consume deliveries, and ack or retry processing |
 | [Connection and Message Lifecycle](doc/design/connection-message-lifecycle.md) | Detailed session phases, goroutine topology, ack/nack state machine, and GOAWAY flow |
 | [Provider/Connector Interface Contract](doc/design/provider-connector-interface.md) | Interface specification and guide for adding new broker backends |
 | [Deployment and Operations Runbook](doc/design/deployment-operations-runbook.md) | Full environment variable reference, Kubernetes deployment checklist, observability setup, and troubleshooting |
@@ -311,7 +325,7 @@ This project's logo features the Go Gopher mascot, [created by Renee French](htt
 | Dependency | License |
 |---|---|
 | `github.com/KimMachineGun/automemlimit` | [LICENSE](https://github.com/KimMachineGun/automemlimit/blob/main/LICENSE) |
-| `github.com/armon/go-metrics` | [LICENSE](https://github.com/armon/go-metrics/blob/master/LICENSE) |
+| `github.com/hashicorp/go-metrics` | [LICENSE](https://github.com/hashicorp/go-metrics/blob/master/LICENSE) |
 | `github.com/google/uuid` | [LICENSE](https://github.com/google/uuid/blob/master/LICENSE) |
 | `github.com/grpc-ecosystem/go-grpc-middleware/v2` | [LICENSE](https://github.com/grpc-ecosystem/go-grpc-middleware/blob/main/LICENSE) |
 | `github.com/prometheus/client_golang` | [LICENSE](https://github.com/prometheus/client_golang/blob/main/LICENSE) |
