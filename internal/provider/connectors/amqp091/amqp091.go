@@ -1262,7 +1262,7 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 		if err := latch.Increment(); err != nil {
 			return
 		}
-		messageChannel <- m
+
 		stm := streamMessage{Body: message.GetData(), Headers: m.GetHeaders()}
 		stm.Ack = func() {
 			latch.Decrement()
@@ -1280,7 +1280,11 @@ func (prov *amqp091provider) streamSubscribe(ctx context.Context, bd *BrokerDeta
 			util.Logger.Tracef("Nack of message(%s) on stream %s%s with offset %d", messageUUID, ctx.Consumer.GetStreamName(), consumerGroup, ctx.Consumer.GetOffset())
 			latch.Decrement()
 		}
+
+		// add the stream message to active messages before we send it to the client to avoid the client
+		// potentially acking before we add it to active messages (can happen in low latency envs
 		bd.activeMessages.Add(messageUUID, stm)
+		messageChannel <- m
 		atomic.AddInt64(&bd.consumed, 1)
 	}
 
@@ -1933,7 +1937,7 @@ func (bd *BrokerDetails) loadExchanges() {
 		return
 	}
 	if marshErr := json.Unmarshal(body, &results); marshErr != nil {
-		util.Logger.Debugf("Error unmarshaling exchanges from management API: %s", err.Error())
+		util.Logger.Debugf("Error unmarshaling exchanges from management API: %s", marshErr.Error())
 		return
 	}
 	util.Logger.Debugf("Loaded exchanges from management API: %s", string(body))
