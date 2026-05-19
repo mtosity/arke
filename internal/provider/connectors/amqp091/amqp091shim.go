@@ -23,6 +23,8 @@ type amqp091ConnectionShim interface {
 	IsClosed() bool
 	NewChannel(bool) (amqp091ChannelShim, error)
 	NotifyClose(chan amqp091Error) chan amqp091Error
+	// non-confirming channel that can be used and redeclared as needed
+	StandbyChannel() (amqp091ChannelShim, error)
 }
 
 // amqp091ChannelShim Shim so we can do unit testing
@@ -48,6 +50,9 @@ type amqp091Connection struct {
 	tlsCfg                *tls.Config
 	clientIdentifier      string
 	channelLock           sync.Mutex
+	// should not be used for publishing and subscribing. only use for declaring exchanges/bindings/queue
+	standbyChannel *amqp091Channel
+	standbyLock    sync.Mutex
 }
 
 // amqp091Channel A channel
@@ -154,6 +159,25 @@ func (ac *amqp091Connection) Close() error {
 // IsClosed Is the connection to the broker still open
 func (ac *amqp091Connection) IsClosed() bool {
 	return ac.connection.IsClosed()
+}
+
+func (ac *amqp091Connection) StandbyChannel() (amqp091ChannelShim, error) {
+	ac.standbyLock.Lock()
+	defer ac.standbyLock.Unlock()
+	// ensure the channel exists and is connected
+	if ac.standbyChannel == nil {
+		ch, err := ac.NewChannel(false)
+		if err != nil {
+			return nil, err
+		}
+		ac.standbyChannel = ch.(*amqp091Channel)
+		return ac.standbyChannel, nil
+	}
+	err := ac.standbyChannel.ensureChannel()
+	if err != nil {
+		return nil, err
+	}
+	return ac.standbyChannel, nil
 }
 
 // Close Close the channel
